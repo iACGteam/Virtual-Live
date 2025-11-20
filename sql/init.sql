@@ -497,13 +497,132 @@ CREATE TABLE content_moderation (
   INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 初始化资产类型
-INSERT INTO asset_types (type_name, description, commission_rate) VALUES
-('Live2D模型', '2D 虚拟形象模型', 20),
-('3D模型', '3D 虚拟形象模型', 20),
-('配音包', '语音配音和音效', 25),
-('特效', '直播特效和动画', 20),
-('服饰', '虚拟形象衣服和配饰', 20);
+-- ========================================
+-- 系统预置模板功能表
+-- ========================================
+
+-- 1. 系统预置模板表
+CREATE TABLE IF NOT EXISTS avatar_templates (
+  template_id INT PRIMARY KEY AUTO_INCREMENT,
+  template_name VARCHAR(200) NOT NULL,
+  template_category ENUM('cute_chibi', 'outline_avatar', 'expression_system') NOT NULL,
+  description TEXT,
+  template_type ENUM('free', 'basic', 'premium') DEFAULT 'free',
+  preview_image_url VARCHAR(500),
+  thumbnail_url VARCHAR(500),
+  model_data_url VARCHAR(500),
+  is_default BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  download_count INT DEFAULT 0,
+  usage_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_category (template_category),
+  INDEX idx_type (template_type),
+  INDEX idx_is_active (is_active),
+  INDEX idx_name (template_name),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Q版小人模板表
+CREATE TABLE IF NOT EXISTS cute_chibi_templates (
+  chibi_id INT PRIMARY KEY AUTO_INCREMENT,
+  template_id INT NOT NULL UNIQUE,
+  body_style VARCHAR(100),
+  head_shape VARCHAR(100),
+  eye_style VARCHAR(100),
+  mouth_style VARCHAR(100),
+  hair_template VARCHAR(100),
+  color_preset_count INT DEFAULT 0,
+  animation_enabled BOOLEAN DEFAULT TRUE,
+  customizable_parts LONGTEXT COMMENT 'JSON格式：可定制部件列表',
+  FOREIGN KEY (template_id) REFERENCES avatar_templates(template_id) ON DELETE CASCADE,
+  INDEX idx_template (template_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. 轮廓化虚拟形象模板表（Xbox Avatar / Mii风格）
+CREATE TABLE IF NOT EXISTS outline_avatar_templates (
+  outline_id INT PRIMARY KEY AUTO_INCREMENT,
+  template_id INT NOT NULL UNIQUE,
+  base_shape VARCHAR(100),
+  body_proportions VARCHAR(100),
+  facial_features VARCHAR(100),
+  customizable_elements LONGTEXT COMMENT 'JSON格式：可定制元素列表',
+  default_colors LONGTEXT COMMENT 'JSON格式：默认色彩方案',
+  supports_animation BOOLEAN DEFAULT FALSE,
+  max_customization_level INT DEFAULT 3,
+  FOREIGN KEY (template_id) REFERENCES avatar_templates(template_id) ON DELETE CASCADE,
+  INDEX idx_template (template_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 4. 头像表情系统模板表
+CREATE TABLE IF NOT EXISTS expression_system_templates (
+  expression_id INT PRIMARY KEY AUTO_INCREMENT,
+  template_id INT NOT NULL UNIQUE,
+  base_model_url VARCHAR(500),
+  included_expressions LONGTEXT COMMENT 'JSON格式：包含的表情列表',
+  expression_count INT DEFAULT 0,
+  supports_custom_expressions BOOLEAN DEFAULT FALSE,
+  animation_format VARCHAR(50) COMMENT '动画格式：GIF/WebP/MP4等',
+  FOREIGN KEY (template_id) REFERENCES avatar_templates(template_id) ON DELETE CASCADE,
+  INDEX idx_template (template_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 5. 表情库表（眨眼、点头、鼓掌等）
+CREATE TABLE IF NOT EXISTS expression_library (
+  expression_lib_id INT PRIMARY KEY AUTO_INCREMENT,
+  expression_template_id INT NOT NULL,
+  expression_name VARCHAR(100) NOT NULL,
+  expression_code VARCHAR(50) UNIQUE NOT NULL COMMENT '表情代码：blink/nod/clap等',
+  expression_type ENUM('eye', 'face', 'body', 'hand', 'full_body') NOT NULL,
+  animation_file_url VARCHAR(500),
+  animation_duration_ms INT COMMENT '动画时长（毫秒）',
+  preview_image_url VARCHAR(500),
+  is_loopable BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_template (expression_template_id),
+  INDEX idx_code (expression_code),
+  FOREIGN KEY (expression_template_id) REFERENCES expression_system_templates(expression_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 6. 用户自定义形象表（基于模板创建）
+CREATE TABLE IF NOT EXISTS user_custom_avatars (
+  custom_avatar_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  template_id INT NOT NULL,
+  avatar_name VARCHAR(200),
+  customization_data LONGTEXT COMMENT 'JSON格式：用户的定制参数',
+  preview_image_url VARCHAR(500),
+  is_primary BOOLEAN DEFAULT FALSE,
+  usage_count INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (template_id) REFERENCES avatar_templates(template_id) ON DELETE CASCADE,
+  INDEX idx_user (user_id),
+  INDEX idx_template (template_id),
+  INDEX idx_is_primary (is_primary)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7. 用户表情操作记录表
+CREATE TABLE IF NOT EXISTS user_expression_usage (
+  usage_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  expression_lib_id INT NOT NULL,
+  used_count INT DEFAULT 1,
+  last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (expression_lib_id) REFERENCES expression_library(expression_lib_id) ON DELETE CASCADE,
+  UNIQUE KEY unique_user_expression (user_id, expression_lib_id),
+  INDEX idx_user (user_id),
+  INDEX idx_last_used (last_used_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8. 扩展 vtuber_avatars 表（添加模板关联）
+ALTER TABLE vtuber_avatars ADD COLUMN IF NOT EXISTS template_id INT AFTER model_type;
+ALTER TABLE vtuber_avatars ADD COLUMN IF NOT EXISTS customization_data LONGTEXT COMMENT 'JSON格式的定制数据' AFTER template_id;
+ALTER TABLE vtuber_avatars ADD FOREIGN KEY (template_id) REFERENCES avatar_templates(template_id) ON DELETE SET NULL;
+ALTER TABLE vtuber_avatars ADD INDEX IF NOT EXISTS idx_template (template_id);
 
 -- 授予开发用户权限
 GRANT ALL PRIVILEGES ON virtuallive_dev.* TO 'virtual_live'@'%';
