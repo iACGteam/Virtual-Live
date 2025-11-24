@@ -4,7 +4,7 @@ services:
   mysql:
     image: mysql:8.0
     container_name: virtuallive-mysql-dev
-    restart: always
+    restart: unless-stopped
     ports:
       - "3307:3306"
     environment:
@@ -28,7 +28,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: virtuallive-redis-dev
-    restart: always
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
