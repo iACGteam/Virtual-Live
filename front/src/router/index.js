@@ -60,7 +60,7 @@ const routes = [
   //看视频
   {
     path: '/video',
-    name: 'Nav',
+    name: 'Video',
     component: () => import('../views/Video.vue')
   },
   //开直播
