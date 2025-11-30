@@ -37,6 +37,24 @@ services:
       - virtuallive-network
     command: redis-server --appendonly yes
 
+  # === 新增 SRS 流媒体服务器 ===
+  srs:
+    image: ossrs/srs:5
+    container_name: virtuallive-srs-dev
+    restart: unless-stopped
+    ports:
+      - "1935:1935"      # RTMP 推流端口 (OBS 推流用)
+      - "1985:1985"      # HTTP API 端口
+      - "8088:8080"      # HTTP-FLV/HLS 拉流端口 (宿主机8088 -> 容器8080)
+    volumes:
+      - ../srs_conf/srs.conf:/usr/local/srs/conf/srs.conf # 挂载配置文件
+    networks:
+      - virtuallive-network
+    # 关键配置：让 Docker 容器能通过 host.docker.internal 访问你本机 IDEA 运行的程序
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ./objs/srs -c conf/srs.conf
+
 volumes:
   mysql_data_dev:
   redis_data_dev:

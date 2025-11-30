@@ -1,0 +1,20 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3307/virtuallive_dev?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: virtual_live
+    password: 123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # === 请追加以下 JPA 配置 ===
+  jpa:
+    hibernate:
+      # update: 自动根据 Entity 更新表结构 (开发环境推荐)
+      # none: 不自动修改表结构 (生产环境推荐)
+      ddl-auto: update
+    show-sql: true    # 在控制台打印 SQL，方便调试
+    properties:
+      hibernate:
+        format_sql: true
