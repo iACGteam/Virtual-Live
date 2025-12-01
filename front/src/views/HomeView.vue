@@ -181,10 +181,13 @@
 <script>
 import avatarImg from '@/assets/avatar.jpg'
 import { clearAuthToken } from '@/utils/auth'
+import { getVideos, getVideosByCategory } from '@/utils/api'
+
 export default {
   name: 'HomeView',
   data() {
     return {
+      loading: false,
       activeNav: 'discover',
       searchQuery: '',
       showPostDropdown: false,
@@ -224,7 +227,8 @@ export default {
         ],
         rememberLogin: true
       },
-      shortVideos: [
+      shortVideos: [],
+      defaultVideos: [
         {
           id: 1,
           title: '星海航线直播幕后花絮',
@@ -363,7 +367,66 @@ export default {
       ]
     }
   },
+  async mounted() {
+    // 根据当前路由设置激活的导航项
+    if (this.$route.path === '/') {
+      this.activeNav = 'discover'
+    }
+    // 加载视频列表
+    await this.loadVideos()
+  },
   methods: {
+      async loadVideos() {
+        this.loading = true
+        try {
+          let sort = 'time'
+          let category = null
+          
+          if (this.activeFilter === 'recommend') {
+            sort = 'popular'
+          } else if (this.activeFilter !== 'following') {
+            // 如果是主题筛选
+            const topicMap = {
+              music: 'music',
+              dance: 'dance',
+              game: 'game',
+              tech: 'tech',
+              food: 'food',
+              sport: 'sport'
+            }
+            category = topicMap[this.activeFilter]
+          }
+          
+          let response
+          if (category) {
+            response = await getVideosByCategory(category)
+            // API返回的是数组,需要包装成content格式
+            this.shortVideos = this.convertVideosToDisplay(response)
+          } else {
+            response = await getVideos(0, 20, sort)
+            this.shortVideos = this.convertVideosToDisplay(response.content || [])
+          }
+        } catch (error) {
+          console.error('加载视频失败:', error)
+          // 如果API失败,使用默认数据
+          this.shortVideos = this.defaultVideos
+        } finally {
+          this.loading = false
+        }
+      },
+      convertVideosToDisplay(videos) {
+        return videos.map(video => ({
+          id: video.id,
+          title: video.title,
+          creator: video.authorName || 'Unknown',
+          duration: '02:30', // 后端暂时没有duration字段
+          views: `${video.views || 0}次观看`,
+          tags: video.tags ? video.tags.split(',') : [],
+          thumbnailColor: video.coverImageUrl || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          coverImageUrl: video.coverImageUrl,
+          videoUrl: video.videoUrl
+        }))
+      },
       handleNavClick(link) {
         this.activeNav = link.key
         if (link.key === 'my') {
@@ -440,34 +503,16 @@ export default {
   },
   computed: {
       filteredVideos() {
-        let videos = []
+        let videos = this.shortVideos
         
-        // 先根据筛选条件过滤
-        if (this.activeFilter === 'recommend') {
-          // 推荐：显示所有视频
-          videos = this.shortVideos
-        } else if (this.activeFilter === 'following') {
-          // 关注：只显示关注用户的视频
-          videos = this.shortVideos.filter(video => 
+        // 关注筛选
+        if (this.activeFilter === 'following') {
+          videos = videos.filter(video => 
             this.followingUsers.includes(video.creator)
-          )
-        } else {
-          // 主题筛选：根据主题匹配标签
-          const topicMap = {
-            music: ['Music', 'MV', 'Remix', 'Podcast'],
-            dance: ['Dance', 'Stage'],
-            game: ['Esports', 'Gaming'],
-            tech: ['AI', '3D', 'MakingOf', 'Sci-Fi', 'Cyber'],
-            food: ['Food', 'Show'],
-            sport: ['Esports', 'Challenge', 'Adventure']
-          }
-          const topicTags = topicMap[this.activeFilter] || []
-          videos = this.shortVideos.filter(video => 
-            video.tags.some(tag => topicTags.includes(tag))
           )
         }
         
-        // 再根据搜索关键词过滤（搜索作品名或用户名）
+        // 根据搜索关键词过滤
         if (this.searchQuery && this.searchQuery.trim()) {
           const query = this.searchQuery.trim().toLowerCase()
           videos = videos.filter(video => 
@@ -477,12 +522,6 @@ export default {
         }
         
         return videos
-      }
-    },
-    mounted() {
-      // 根据当前路由设置激活的导航项
-      if (this.$route.path === '/') {
-        this.activeNav = 'discover'
       }
     },
     beforeUnmount() {

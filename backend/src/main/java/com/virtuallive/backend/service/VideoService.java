@@ -56,6 +56,7 @@ public class VideoService {
                 .title(video.getTitle())
                 .content(video.getContent())
                 .coverImageUrl(video.getCoverImageUrl())
+                .videoUrl(video.getVideoUrl())
                 .category(video.getCategory())
                 .tags(video.getTags())
                 .likes(video.getLikes())

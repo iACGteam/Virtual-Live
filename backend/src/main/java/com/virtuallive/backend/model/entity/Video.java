@@ -42,6 +42,9 @@ public class Video {
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
     
+    @Column(name = "video_url", length = 500)
+    private String videoUrl;
+    
     @Builder.Default
     @Column(name = "likes")
     private Integer likes = 0;

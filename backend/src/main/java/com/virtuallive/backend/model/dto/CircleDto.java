@@ -11,21 +11,15 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class VideoDto {
+public class CircleDto {
     private Integer id;
-    private String title;
-    private String content;
+    private String name;
+    private String description;
+    private String avatarUrl;
     private String coverImageUrl;
-    private String videoUrl;
+    private Integer memberCount;
+    private Integer postCount;
     private String category;
-    private String tags;
-    private Integer likes;
-    private Integer views;
-    private Integer commentsCount;
+    private Boolean isOfficial;
     private LocalDateTime createdAt;
-    
-    // 作者信息
-    private Integer authorId;
-    private String authorName;
-    private String authorAvatar;
 }

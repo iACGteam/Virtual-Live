@@ -87,6 +87,33 @@ export async function getPopularVideos() {
   return request('/videos?page=0&size=10&sort=popular')
 }
 
+// ==================== 圈子相关 API ====================
+
+// 获取圈子列表
+export async function getCircles(page = 0, size = 10, sort = 'new') {
+  return request(`/circles?page=${page}&size=${size}&sort=${sort}`)
+}
+
+// 搜索圈子
+export async function searchCircles(keyword, page = 0, size = 10) {
+  return request(`/circles/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`)
+}
+
+// 获取分类圈子
+export async function getCirclesByCategory(category, page = 0, size = 10) {
+  return request(`/circles/category/${category}?page=${page}&size=${size}`)
+}
+
+// 获取官方圈子
+export async function getOfficialCircles(page = 0, size = 10) {
+  return request(`/circles/official?page=${page}&size=${size}`)
+}
+
+// 获取圈子详情
+export async function getCircleById(id) {
+  return request(`/circles/${id}`)
+}
+
 export default {
   getVideos,
   getVideoById,
@@ -95,5 +122,10 @@ export default {
   addComment,
   likeComment,
   getRecommendations,
-  getPopularVideos
+  getPopularVideos,
+  getCircles,
+  searchCircles,
+  getCirclesByCategory,
+  getOfficialCircles,
+  getCircleById
 }
