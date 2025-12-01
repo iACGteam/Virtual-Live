@@ -2,76 +2,101 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>VirtualLive 直播间 + 弹幕</title>
-    <!-- flv.js -->
+    <title>VirtualLive 直播间 + 礼物特效</title>
     <script src="https://unpkg.com/flv.js/dist/flv.min.js"></script>
-    <!-- SockJS 和 STOMP (用于 WebSocket) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-
+    
     <style>
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
-        .container { display: flex; width: 1000px; margin: 0 auto; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; background: #f0f2f5; }
+        .container { display: flex; width: 1100px; margin: 0 auto; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        
         /* 左侧视频区 */
-        .video-box { flex: 3; background: #000; position: relative; }
-        video { width: 100%; display: block; }
+        .video-box { flex: 3; background: #000; position: relative; height: 500px; }
+        video { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* 弹幕覆盖层 */
+        .danmaku-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 40%; pointer-events: none; overflow: hidden; }
+        .flying-text { position: absolute; color: #fff; font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); white-space: nowrap; animation: fly 10s linear forwards; }
+        @keyframes fly { from { left: 100%; transform: translateX(0); } to { left: 0; transform: translateX(-100%); } }
 
-        /* 视频上的浮动弹幕层 (简单模拟) */
-        .danmaku-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 50%;
-            pointer-events: none; /* 让鼠标点击能穿透到视频 */
-            overflow: hidden;
+        /* 礼物特效层 */
+        .gift-effect-layer { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            pointer-events: none; display: flex; justify-content: center; align-items: center;
+            z-index: 99;
         }
-        .flying-text {
-            position: absolute; color: #fff; font-size: 20px; font-weight: bold;
-            text-shadow: 1px 1px 2px #000; white-space: nowrap;
-            animation: fly 8s linear forwards;
+        /* 火箭动画 */
+        .rocket-anim { font-size: 100px; animation: rocket-fly 2s ease-in-out forwards; position: absolute; bottom: -100px; }
+        @keyframes rocket-fly { 
+            0% { bottom: -100px; transform: scale(0.5); opacity: 0; } 
+            20% { bottom: 20%; transform: scale(1.2); opacity: 1; } 
+            80% { bottom: 60%; transform: scale(1.2); opacity: 1; } 
+            100% { bottom: 120%; transform: scale(0.5); opacity: 0; } 
         }
-        @keyframes fly { from { left: 100%; } to { left: -100%; } }
 
         /* 右侧聊天区 */
-        .chat-box { flex: 1; background: #f9f9f9; height: 450px; display: flex; flex-direction: column; border-left: 1px solid #eee; }
-        .chat-header { padding: 10px; background: #eee; font-weight: bold; border-bottom: 1px solid #ddd; }
-        #msg-list { flex: 1; overflow-y: auto; padding: 10px; font-size: 14px; }
-        .msg-item { margin-bottom: 5px; line-height: 1.4; }
-        .msg-user { color: #007bff; font-weight: bold; margin-right: 5px; cursor: pointer; }
+        .chat-box { flex: 1; background: #f9f9f9; display: flex; flex-direction: column; border-left: 1px solid #eee; }
+        .chat-header { padding: 15px; background: #fff; font-weight: bold; border-bottom: 1px solid #eee; color: #333; }
+        #msg-list { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; }
+        
+        .msg-item { margin-bottom: 8px; line-height: 1.5; word-break: break-all; }
+        .msg-user { color: #1890ff; font-weight: 600; margin-right: 4px; cursor: pointer; }
         .msg-content { color: #333; }
+        
+        /* 礼物消息样式 */
+        .msg-item.gift-msg { background: #fffbe6; border: 1px solid #ffe58f; padding: 5px; border-radius: 4px; text-align: center; }
+        .msg-item.gift-msg .msg-content { color: #faad14; font-weight: bold; }
 
-        .input-area { padding: 10px; border-top: 1px solid #ddd; display: flex; }
+        /* 底部操作区 */
+        .action-area { padding: 10px; background: #fff; border-top: 1px solid #eee; }
+        .gift-panel { display: flex; gap: 10px; margin-bottom: 10px; }
+        .gift-btn { flex: 1; border: 1px solid #eee; background: #fff; padding: 8px; border-radius: 4px; cursor: pointer; transition: all 0.3s; text-align: center; }
+        .gift-btn:hover { background: #e6f7ff; border-color: #1890ff; color: #1890ff; }
+        
+        .input-group { display: flex; gap: 8px; }
         input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; outline: none; }
-        button { margin-left: 10px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #0056b3; }
+        input:focus { border-color: #1890ff; }
+        .send-btn { padding: 8px 20px; background: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .send-btn:hover { background: #40a9ff; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <!-- 视频区域 -->
     <div class="video-box">
-        <video id="videoElement" controls autoplay muted width="100%" height="450"></video>
-        <!-- 浮动弹幕层 -->
+        <video id="videoElement" controls autoplay muted></video>
         <div id="danmaku-overlay" class="danmaku-overlay"></div>
+        <!-- 礼物特效容器 -->
+        <div id="gift-effect-layer" class="gift-effect-layer"></div>
     </div>
 
-    <!-- 聊天区域 -->
     <div class="chat-box">
-        <div class="chat-header">实时互动 (房间 1)</div>
+        <div class="chat-header">直播互动区 (Mock版)</div>
         <div id="msg-list"></div>
-        <div class="input-area">
-            <input type="text" id="danmakuInput" placeholder="发个弹幕..." onkeypress="if(event.keyCode==13) sendDanmaku()">
-            <button onclick="sendDanmaku()">发送</button>
+        
+        <div class="action-area">
+            <!-- 礼物面板 -->
+            <div class="gift-panel">
+                <div class="gift-btn" onclick="sendGift('flower')">🌸 送鲜花 (免费)</div>
+                <div class="gift-btn" onclick="sendGift('rocket')">🚀 送火箭 (100币)</div>
+            </div>
+            
+            <!-- 弹幕输入 -->
+            <div class="input-group">
+                <input type="text" id="danmakuInput" placeholder="发个弹幕..." onkeypress="if(event.keyCode==13) sendMsg()">
+                <button class="send-btn" onclick="sendMsg()">发送</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // ================= 1. 视频播放逻辑 =================
+    // 1. 视频播放 (OBS推流后可见)
     if (flvjs.isSupported()) {
         var videoElement = document.getElementById('videoElement');
         var flvPlayer = flvjs.createPlayer({
             type: 'flv',
-            // 你的推流地址 (端口 8088)
             url: 'http://localhost:8088/live/my_secret_key_2025.flv'
         });
         flvPlayer.attachMediaElement(videoElement);
@@ -79,129 +104,130 @@
         flvPlayer.play();
     }
 
-    // ================= 2. WebSocket 弹幕逻辑 =================
+    // 2. WebSocket 逻辑
     var stompClient = null;
-    var roomId = 1; // 假设当前是房间 1
-    var myName = "游客" + Math.floor(Math.random() * 900 + 100); // 随机用户名
+    var roomId = 1;
+    // 模拟登录 token
+    var myToken = "user-token-666";
+    // var myToken = "admin-token-123";
+    // var myToken = "";
 
     function connect() {
-        console.log("正在连接 WebSocket...");
-        // 连接后端 Endpoint
         var socket = new SockJS('http://localhost:8080/ws-live');
         stompClient = Stomp.over(socket);
-
-        // 只有 console.log 报错才打印，避免控制台太乱
-        stompClient.debug = null;
+        stompClient.debug = null; // 关闭调试日志
 
         stompClient.connect({}, function (frame) {
-            console.log('Connected success: ' + frame);
-            addSystemMsg("连接弹幕服务器成功！");
-
-            // 订阅当前房间的频道
+            console.log('WebSocket Connected');
+            appendSystemMsg("连接成功！欢迎来到直播间");
+            
             stompClient.subscribe('/topic/danmaku/' + roomId, function (response) {
-                var danmaku = JSON.parse(response.body);
-                handleIncomingDanmaku(danmaku);
+                var msg = JSON.parse(response.body);
+                handleMessage(msg);
             });
-        }, function(error) {
-            console.error('Connection lost: ' + error);
-            addSystemMsg("连接断开，请刷新页面重试。");
         });
     }
 
-    // 发送弹幕
-    // function sendDanmaku() {
-    //     var input = document.getElementById("danmakuInput");
-    //     var content = input.value.trim();
-    //     if (!content) return;
-    //
-    //     if (stompClient && stompClient.connected) {
-    //         stompClient.send("/app/send-danmaku", {}, JSON.stringify({
-    //             'roomId': roomId,
-    //             'senderName': myName,
-    //             'content': content,
-    //             'color': '#ffffff'
-    //         }));
-    //         input.value = ""; // 清空输入框
-    //     } else {
-    //         alert("未连接到服务器！");
-    //     }
-    // }
-    function sendDanmaku() {
+    // 发送普通弹幕
+    function sendMsg() {
         var input = document.getElementById("danmakuInput");
         var content = input.value.trim();
         if (!content) return;
+        
+        sendPayload({
+            'roomId': roomId,
+            'type': 'CHAT',
+            'content': content
+        });
+        input.value = "";
+    }
 
+    // 发送礼物
+    function sendGift(giftName) {
+        // 这里可以加个确认弹窗
+        // if(!confirm("确认花费金币发送 " + giftName + " 吗？")) return;
+
+        sendPayload({
+            'roomId': roomId,
+            'type': 'GIFT',
+            'giftName': giftName,
+            'giftCount': 1
+        });
+    }
+
+    function sendPayload(payload) {
         if (stompClient && stompClient.connected) {
-            // 模拟：假设我登录了，手里有个 token
-            // 你可以手动改成 "admin-token-123" 来测试管理员效果
-            // 或者设置空token ""，来模拟游客
-            // var myFakeToken = "user-token-888";
-            // var myFakeToken = "admin-token-123";
-            var myFakeToken = "";
-
-            stompClient.send("/app/send-danmaku",
-                { "token": myFakeToken }, // <--- 把 Token 放在 header 里传过去
-                JSON.stringify({
-                    'roomId': roomId,
-                    // 'senderName': myName, // 这个字段后端已经不信了，以前端传的 token 为准
-                    'content': content,
-                    'color': '#ffffff'
-                })
-            );
-            input.value = "";
+            stompClient.send("/app/send-danmaku", { "token": myToken }, JSON.stringify(payload));
         } else {
-            alert("未连接到服务器！");
+            alert("未连接到服务器");
         }
     }
 
-
-    // 处理收到的弹幕
-    function handleIncomingDanmaku(msg) {
-        // 1. 添加到右侧列表
+    // 处理接收到的消息
+    function handleMessage(msg) {
         var list = document.getElementById("msg-list");
         var div = document.createElement("div");
-        div.className = "msg-item";
-        div.innerHTML = `<span class="msg-user">${msg.senderName}:</span><span class="msg-content">${msg.content}</span>`;
+        
+        if (msg.type === 'GIFT') {
+            // === 处理礼物消息 ===
+            div.className = "msg-item gift-msg";
+            div.innerHTML = `🎉 <span class="msg-user">${msg.senderName}</span> ${msg.content}`;
+            
+            // 触发全屏动画
+            playGiftAnimation(msg.giftName);
+        } else {
+            // === 处理普通消息 ===
+            div.className = "msg-item";
+            div.innerHTML = `<span class="msg-user">${msg.senderName}:</span><span class="msg-content">${msg.content}</span>`;
+            // 飘弹幕
+            shootDanmaku(msg.content);
+        }
+        
         list.appendChild(div);
         list.scrollTop = list.scrollHeight;
-
-        // 2. 添加到视频上方飘过 (简单的视觉效果)
-        shootDanmaku(msg.content);
     }
 
-    // 视觉效果：发射弹幕
+    // 播放 CSS 动画
+    function playGiftAnimation(giftName) {
+        var layer = document.getElementById("gift-effect-layer");
+        var el = document.createElement("div");
+        
+        if (giftName === 'rocket') {
+            el.className = "rocket-anim";
+            el.innerHTML = "🚀";
+        } else if (giftName === 'flower') {
+            el.className = "rocket-anim"; // 复用动画，但换个图标
+            el.innerHTML = "🌸";
+        }
+        
+        layer.appendChild(el);
+        // 动画结束后移除
+        setTimeout(() => el.remove(), 2000);
+    }
+
+    // 飘弹幕效果
     function shootDanmaku(text) {
         var overlay = document.getElementById("danmaku-overlay");
         var span = document.createElement("span");
         span.className = "flying-text";
         span.innerText = text;
-        // 随机高度 (0% - 80%)
-        span.style.top = Math.floor(Math.random() * 80) + "%";
-        // 随机颜色 (可选，这里简单处理)
-        // span.style.color = '#' + Math.floor(Math.random()*16777215).toString(16);
-
+        span.style.top = Math.floor(Math.random() * 80) + "%"; 
         overlay.appendChild(span);
-
-        // 动画结束后移除 DOM，防止内存泄漏
-        span.addEventListener("animationend", function() {
-            span.remove();
-        });
+        span.addEventListener("animationend", () => span.remove());
     }
 
-    function addSystemMsg(text) {
+    function appendSystemMsg(text) {
         var list = document.getElementById("msg-list");
         var div = document.createElement("div");
-        div.style.color = "#888";
-        div.style.fontSize = "12px";
         div.style.textAlign = "center";
-        div.style.margin = "5px 0";
+        div.style.color = "#999";
+        div.style.fontSize = "12px";
+        div.style.margin = "10px 0";
         div.innerText = text;
         list.appendChild(div);
     }
 
-    // 启动连接
     connect();
 </script>
-
 </body>
 </html>
