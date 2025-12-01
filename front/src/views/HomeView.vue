@@ -159,20 +159,29 @@
       </section>
 
       <section class="video-grid">
-        <article
-          v-for="video in filteredVideos"
-          :key="video.id"
-          class="video-card"
-        >
-          <div class="thumbnail" :style="{ background: video.thumbnailColor }">
-            <span class="duration">{{ video.duration }}</span>
-          </div>
-          <div class="video-meta">
-            <h3>{{ video.title }}</h3>
-            <p class="creator" @click.stop="goToUserProfile(video.creator)">@{{ video.creator }}</p>
-            <p class="stats">{{ video.views }} · {{ video.tags.join(' · ') }}</p>
-          </div>
-        </article>
+        <div v-if="loading" class="video-state">正在加载推荐内容...</div>
+        <div v-else-if="loadError" class="video-state error">{{ loadError }}</div>
+        <div v-else-if="!filteredVideos.length" class="video-state">暂无可展示的视频, 请尝试切换筛选条件</div>
+        <template v-else>
+          <article
+            v-for="video in filteredVideos"
+            :key="video.id"
+            class="video-card"
+            role="button"
+            tabindex="0"
+            @click="goToVideo(video.id)"
+            @keyup.enter="goToVideo(video.id)"
+          >
+            <div class="thumbnail" :style="getThumbnailStyle(video)">
+              <span class="duration">{{ video.duration }}</span>
+            </div>
+            <div class="video-meta">
+              <h3>{{ video.title }}</h3>
+              <p class="creator" @click.stop="goToUserProfile(video.creator)">@{{ video.creator }}</p>
+              <p class="stats">{{ video.views }}<span v-if="video.tags.length"> · {{ video.tags.join(' · ') }}</span></p>
+            </div>
+          </article>
+        </template>
       </section>
     </main>
   </div>
@@ -209,6 +218,7 @@ export default {
         { key: 'community', label: '社区', icon: '💬' },
         { key: 'my', label: '我的', icon: '' }
       ],
+      loadError: '',
       userProfile: {
         initials: 'VL',
         avatar: avatarImg,
@@ -227,144 +237,7 @@ export default {
         ],
         rememberLogin: true
       },
-      shortVideos: [],
-      defaultVideos: [
-        {
-          id: 1,
-          title: '星海航线直播幕后花絮',
-          creator: 'NebulaNova',
-          duration: '02:18',
-          views: '5.8万次观看',
-          tags: ['LiveCut', 'Sci-Fi'],
-          thumbnailColor: 'linear-gradient(135deg, #FF61D2 0%, #FE9090 100%)'
-        },
-        {
-          id: 2,
-          title: '虚拟偶像舞台 · 夜幕版本',
-          creator: 'LumiRay',
-          duration: '01:05',
-          views: '3.1万次观看',
-          tags: ['Dance', 'Stage'],
-          thumbnailColor: 'linear-gradient(135deg, #42E695 0%, #3BB2B8 100%)'
-        },
-        {
-          id: 3,
-          title: '粉丝互动问答高能合集',
-          creator: 'KiraEcho',
-          duration: '03:44',
-          views: '2.4万次观看',
-          tags: ['Clips', 'Q&A'],
-          thumbnailColor: 'linear-gradient(135deg, #A18CD1 0%, #FBC2EB 100%)'
-        },
-        {
-          id: 4,
-          title: '全息角色建模 timelapse',
-          creator: 'MoriTech',
-          duration: '02:57',
-          views: '1.9万次观看',
-          tags: ['MakingOf', '3D'],
-          thumbnailColor: 'linear-gradient(135deg, #F6D365 0%, #FDA085 100%)'
-        },
-        {
-          id: 5,
-          title: '赛博朋克主题竖屏 MV',
-          creator: 'Vexa',
-          duration: '01:42',
-          views: '4.6万次观看',
-          tags: ['Music', 'Cyber'],
-          thumbnailColor: 'linear-gradient(135deg, #5EFCE8 0%, #736EFE 100%)'
-        },
-        {
-          id: 6,
-          title: '直播事故剪辑：趣味合集',
-          creator: 'Patchy',
-          duration: '02:10',
-          views: '6.2万次观看',
-          tags: ['Fun', 'Live'],
-          thumbnailColor: 'linear-gradient(135deg, #FAD961 0%, #F76B1C 100%)'
-        },
-        {
-          id: 7,
-          title: 'AI 虚拟形象调教日常',
-          creator: 'SigmaBot',
-          duration: '01:33',
-          views: '3.7万次观看',
-          tags: ['AI', 'BehindScenes'],
-          thumbnailColor: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)'
-        },
-        {
-          id: 8,
-          title: '赛博城市观光 Vlog',
-          creator: 'MetroMuse',
-          duration: '02:05',
-          views: '2.9万次观看',
-          tags: ['Vlog', 'City'],
-          thumbnailColor: 'linear-gradient(135deg, #8EC5FC 0%, #E0C3FC 100%)'
-        },
-        {
-          id: 9,
-          title: '虚拟美食节目 · 宇宙餐桌',
-          creator: 'ChefNova',
-          duration: '03:12',
-          views: '4.2万次观看',
-          tags: ['Food', 'Show'],
-          thumbnailColor: 'linear-gradient(135deg, #FBD786 0%, #f7797d 100%)'
-        },
-        {
-          id: 10,
-          title: '电竞解说高燃瞬间',
-          creator: 'CasterRay',
-          duration: '01:58',
-          views: '7.6万次观看',
-          tags: ['Esports', 'Highlights'],
-          thumbnailColor: 'linear-gradient(135deg, #43C6AC 0%, #F8FFAE 100%)'
-        },
-        {
-          id: 11,
-          title: '深夜电台 · 陪伴系列',
-          creator: 'EchoWave',
-          duration: '04:05',
-          views: '3.3万次观看',
-          tags: ['Podcast', 'Chill'],
-          thumbnailColor: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'
-        },
-        {
-          id: 12,
-          title: '全息舞狮春节特辑',
-          creator: 'Dynasty Duo',
-          duration: '02:26',
-          views: '5.1万次观看',
-          tags: ['Festival', 'Dance'],
-          thumbnailColor: 'linear-gradient(135deg, #f5515f 0%, #9f041b 100%)'
-        },
-        {
-          id: 13,
-          title: '音乐制作直播：即时 Remix',
-          creator: 'BeatForge',
-          duration: '02:48',
-          views: '4.9万次观看',
-          tags: ['Music', 'Remix'],
-          thumbnailColor: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
-        },
-        {
-          id: 14,
-          title: '虚拟野外求生挑战',
-          creator: 'WildBytes',
-          duration: '03:20',
-          views: '2.2万次观看',
-          tags: ['Adventure', 'Challenge'],
-          thumbnailColor: 'linear-gradient(135deg, #134E5E 0%, #71B280 100%)'
-        },
-        {
-          id: 15,
-          title: '粉丝共创剧情互动剧',
-          creator: 'StorySync',
-          duration: '03:08',
-          views: '6.8万次观看',
-          tags: ['Interactive', 'Story'],
-          thumbnailColor: 'linear-gradient(135deg, #F4C4F3 0%, #FC67FA 100%)'
-        }
-      ]
+      shortVideos: []
     }
   },
   async mounted() {
@@ -378,6 +251,7 @@ export default {
   methods: {
       async loadVideos() {
         this.loading = true
+        this.loadError = ''
         try {
           let sort = 'time'
           let category = null
@@ -408,8 +282,8 @@ export default {
           }
         } catch (error) {
           console.error('加载视频失败:', error)
-          // 如果API失败,使用默认数据
-          this.shortVideos = this.defaultVideos
+          this.shortVideos = []
+          this.loadError = '加载视频失败, 请确认后端服务是否已启动'
         } finally {
           this.loading = false
         }
@@ -419,13 +293,24 @@ export default {
           id: video.id,
           title: video.title,
           creator: video.authorName || 'Unknown',
-          duration: '02:30', // 后端暂时没有duration字段
-          views: `${video.views || 0}次观看`,
-          tags: video.tags ? video.tags.split(',') : [],
-          thumbnailColor: video.coverImageUrl || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          duration: video.duration || '02:30',
+          views: this.formatViews(video.views || 0),
+          tags: this.normalizeTags(video.tags),
+          thumbnailColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           coverImageUrl: video.coverImageUrl,
           videoUrl: video.videoUrl
         }))
+      },
+      normalizeTags(rawTags) {
+        if (!rawTags) return []
+        if (Array.isArray(rawTags)) return rawTags
+        return rawTags.split(',').map(tag => tag.trim()).filter(Boolean)
+      },
+      formatViews(count) {
+        if (count >= 10000) {
+          return `${(count / 10000).toFixed(1)}万次观看`
+        }
+        return `${count}次观看`
       },
       handleNavClick(link) {
         this.activeNav = link.key
@@ -493,12 +378,33 @@ export default {
       // 如果需要显示特定用户的信息，可以通过 query 参数传递用户名
       this.$router.push({ path: '/profile', query: { user: creator } }).catch(() => {})
     },
-    setFilter(filterType) {
+    async setFilter(filterType) {
+      if (this.activeFilter === filterType && this.shortVideos.length && filterType !== 'following') {
+        return
+      }
       this.activeFilter = filterType
+      await this.loadVideos()
     },
     handleSearch() {
       // 搜索功能通过 v-model 和计算属性自动实现
       // 这里可以添加额外的搜索逻辑，如搜索历史记录等
+    },
+    goToVideo(videoId) {
+      if (!videoId) return
+      this.$router.push({ path: '/video', query: { id: videoId } }).catch(() => {})
+    },
+    getThumbnailStyle(video) {
+      if (video.coverImageUrl) {
+        return {
+          backgroundImage: `url(${video.coverImageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundColor: '#151515'
+        }
+      }
+      return {
+        background: video.thumbnailColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      }
     }
   },
   computed: {
@@ -1126,6 +1032,14 @@ export default {
   gap: 12px;
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.video-card:focus-visible,
+.video-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .thumbnail {
@@ -1133,6 +1047,9 @@ export default {
   border-radius: 14px;
   height: 160px;
   overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-color: #1c1c1c;
 }
 
 .duration {
@@ -1166,6 +1083,18 @@ export default {
   margin: 0;
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
+}
+
+.video-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.95rem;
+}
+
+.video-state.error {
+  color: #ff9d9d;
 }
 
 @media (max-width: 960px) {
