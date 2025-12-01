@@ -22,7 +22,7 @@ public class CommentService {
     private final VideoRepository videoRepository;
     private final UserRepository userRepository;
     
-    public Page<CommentDto> getComments(Long videoId, int page, int size, String sort) {
+    public Page<CommentDto> getComments(Integer videoId, int page, int size, String sort) {
         Pageable pageable = PageRequest.of(page, size);
         
         Page<Comment> comments;
@@ -36,7 +36,7 @@ public class CommentService {
     }
     
     @Transactional
-    public CommentDto addComment(Long videoId, Long userId, String content) {
+    public CommentDto addComment(Integer videoId, Integer userId, String content) {
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new RuntimeException("视频不存在"));
         
@@ -61,7 +61,7 @@ public class CommentService {
     }
     
     @Transactional
-    public void likeComment(Long commentId) {
+    public void likeComment(Integer commentId) {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("评论不存在"));
         

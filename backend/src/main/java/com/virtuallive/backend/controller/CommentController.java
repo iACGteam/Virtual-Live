@@ -19,7 +19,7 @@ public class CommentController {
     
     @GetMapping("/video/{videoId}")
     public R<Page<CommentDto>> getComments(
-            @PathVariable Long videoId,
+            @PathVariable Integer videoId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "time") String sort) {
@@ -33,10 +33,10 @@ public class CommentController {
     
     @PostMapping("/video/{videoId}")
     public R<CommentDto> addComment(
-            @PathVariable Long videoId,
+            @PathVariable Integer videoId,
             @RequestBody Map<String, Object> body) {
         try {
-            Long userId = Long.valueOf(body.get("userId").toString());
+            Integer userId = Integer.valueOf(body.get("userId").toString());
             String content = body.get("content").toString();
             CommentDto comment = commentService.addComment(videoId, userId, content);
             return R.ok("评论成功", comment);
@@ -46,7 +46,7 @@ public class CommentController {
     }
     
     @PostMapping("/{commentId}/like")
-    public R<Void> likeComment(@PathVariable Long commentId) {
+    public R<Void> likeComment(@PathVariable Integer commentId) {
         try {
             commentService.likeComment(commentId);
             return R.ok("点赞成功", null);

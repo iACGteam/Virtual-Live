@@ -9,13 +9,13 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface CommentRepository extends JpaRepository<Comment, Long> {
-    
-    Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByCreatedAtDesc(Long postId, Pageable pageable);
-    
-    Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByLikesDesc(Long postId, Pageable pageable);
-    
-    List<Comment> findByParentComment_CommentIdAndIsDeletedFalse(Long parentId);
-    
-    int countByPost_PostIdAndIsDeletedFalse(Long postId);
+public interface CommentRepository extends JpaRepository<Comment, Integer> {
+
+    Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByCreatedAtDesc(Integer postId, Pageable pageable);
+
+    Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByLikesDesc(Integer postId, Pageable pageable);
+
+    List<Comment> findByParentComment_CommentIdAndIsDeletedFalse(Integer parentId);
+
+    int countByPost_PostIdAndIsDeletedFalse(Integer postId);
 }

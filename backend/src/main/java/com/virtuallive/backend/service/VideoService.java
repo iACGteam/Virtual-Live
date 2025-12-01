@@ -31,7 +31,7 @@ public class VideoService {
         return videos.map(this::convertToDto);
     }
     
-    public VideoDto getVideoById(Long id) {
+    public VideoDto getVideoById(Integer id) {
         Video video = videoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("视频不存在"));
         

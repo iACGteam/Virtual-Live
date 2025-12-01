@@ -12,16 +12,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CommentDto {
-    private Long id;
+    private Integer id;
     private String content;
     private Integer likes;
     private LocalDateTime createdAt;
     
     // 用户信息
-    private Long userId;
+    private Integer userId;
     private String username;
     private String userAvatar;
     
     // 父评论ID（用于回复）
-    private Long parentId;
+    private Integer parentId;
 }

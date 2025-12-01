@@ -31,7 +31,7 @@ public class VideoController {
     }
     
     @GetMapping("/{id}")
-    public R<VideoDto> getVideo(@PathVariable Long id) {
+    public R<VideoDto> getVideo(@PathVariable Integer id) {
         try {
             VideoDto video = videoService.getVideoById(id);
             return R.ok(video);

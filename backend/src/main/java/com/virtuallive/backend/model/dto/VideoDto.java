@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class VideoDto {
-    private Long id;
+    private Integer id;
     private String title;
     private String content;
     private String coverImageUrl;
@@ -24,7 +24,7 @@ public class VideoDto {
     private LocalDateTime createdAt;
     
     // 作者信息
-    private Long authorId;
+    private Integer authorId;
     private String authorName;
     private String authorAvatar;
 }
