@@ -2,6 +2,9 @@ package com.virtuallive.backend.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -30,11 +33,12 @@ public class User {
     private String passwordHash;
     
     @Column(name = "phone", length = 20)
-    private String phone;
-    
     @Builder.Default
+    private String phone = null;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "user_type", nullable = false)
+    @Builder.Default
     private UserType userType = UserType.fan;
     
     @Column(name = "avatar_url", length = 500)
@@ -49,10 +53,10 @@ public class User {
     
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
-    
-    @Builder.Default
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
+    @Builder.Default
     private UserStatus status = UserStatus.active;
     
     public enum UserType {

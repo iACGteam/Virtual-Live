@@ -2,6 +2,9 @@ package com.virtuallive.backend.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 

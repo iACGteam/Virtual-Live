@@ -2,6 +2,9 @@ package com.virtuallive.backend.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -31,7 +34,6 @@ public class Comment {
     @JoinColumn(name = "parent_comment_id")
     private Comment parentComment;
     
-    @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     private String content;
     
     @Builder.Default
@@ -41,7 +43,7 @@ public class Comment {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @Builder.Default
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
