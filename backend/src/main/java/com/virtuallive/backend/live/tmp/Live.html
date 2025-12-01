@@ -109,23 +109,51 @@
     }
 
     // 发送弹幕
+    // function sendDanmaku() {
+    //     var input = document.getElementById("danmakuInput");
+    //     var content = input.value.trim();
+    //     if (!content) return;
+    //
+    //     if (stompClient && stompClient.connected) {
+    //         stompClient.send("/app/send-danmaku", {}, JSON.stringify({
+    //             'roomId': roomId,
+    //             'senderName': myName,
+    //             'content': content,
+    //             'color': '#ffffff'
+    //         }));
+    //         input.value = ""; // 清空输入框
+    //     } else {
+    //         alert("未连接到服务器！");
+    //     }
+    // }
     function sendDanmaku() {
         var input = document.getElementById("danmakuInput");
         var content = input.value.trim();
         if (!content) return;
 
         if (stompClient && stompClient.connected) {
-            stompClient.send("/app/send-danmaku", {}, JSON.stringify({
-                'roomId': roomId,
-                'senderName': myName,
-                'content': content,
-                'color': '#ffffff'
-            }));
-            input.value = ""; // 清空输入框
+            // 模拟：假设我登录了，手里有个 token
+            // 你可以手动改成 "admin-token-123" 来测试管理员效果
+            // 或者设置空token ""，来模拟游客
+            // var myFakeToken = "user-token-888";
+            // var myFakeToken = "admin-token-123";
+            var myFakeToken = "";
+
+            stompClient.send("/app/send-danmaku",
+                { "token": myFakeToken }, // <--- 把 Token 放在 header 里传过去
+                JSON.stringify({
+                    'roomId': roomId,
+                    // 'senderName': myName, // 这个字段后端已经不信了，以前端传的 token 为准
+                    'content': content,
+                    'color': '#ffffff'
+                })
+            );
+            input.value = "";
         } else {
             alert("未连接到服务器！");
         }
     }
+
 
     // 处理收到的弹幕
     function handleIncomingDanmaku(msg) {
