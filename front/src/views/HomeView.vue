@@ -297,7 +297,8 @@ export default {
           views: this.formatViews(video.views || 0),
           tags: this.normalizeTags(video.tags),
           thumbnailColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          coverImageUrl: video.coverImageUrl,
+          // 优先使用封面图,如果没有封面则使用默认渐变
+          coverImageUrl: video.coverImageUrl || null,
           videoUrl: video.videoUrl
         }))
       },

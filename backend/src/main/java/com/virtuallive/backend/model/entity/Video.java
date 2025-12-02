@@ -45,6 +45,9 @@ public class Video {
     @Column(name = "video_url", length = 500)
     private String videoUrl;
     
+    @Column(name = "duration")
+    private Integer duration; // 视频时长，单位：秒
+
     @Builder.Default
     @Column(name = "likes")
     private Integer likes = 0;

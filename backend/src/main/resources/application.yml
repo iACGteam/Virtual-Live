@@ -6,14 +6,14 @@ spring:
     name: virtuallive-backend
     
   datasource:
-    url: jdbc:mysql://localhost:3307/virtuallive_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://localhost:3307/virtuallive_dev?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
     username: virtual_live
     password: 123
     driver-class-name: com.mysql.cj.jdbc.Driver
     
   jpa:
     hibernate:
-      ddl-auto: validate  # 只验证，不修改数据库结构
+      ddl-auto: update  # 自动更新数据库结构
     show-sql: true
     properties:
       hibernate:

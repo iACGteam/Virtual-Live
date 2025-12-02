@@ -16,7 +16,7 @@ services:
     volumes:
       - mysql_data_dev:/var/lib/mysql
       - ../sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ../mysql_conf/mysql-dev.cnf:/etc/mysql/conf.d/my.cnf
+      - ../../mysql_conf/mysql-dev.cnf:/etc/mysql/conf.d/my.cnf
     networks:
       - virtuallive-network
     healthcheck:

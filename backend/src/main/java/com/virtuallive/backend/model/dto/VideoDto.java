@@ -17,6 +17,7 @@ public class VideoDto {
     private String content;
     private String coverImageUrl;
     private String videoUrl;
+    private Integer duration; // 视频时长（秒）
     private String category;
     private String tags;
     private Integer likes;

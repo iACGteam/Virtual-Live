@@ -1,16 +1,27 @@
 -- VirtuaLive demo data initialization script
 -- Usage: mysql -u virtual_live -p123 virtuallive_dev < sample-data.sql
 
-SET NAMES utf8mb4;
+-- 设置客户端字符集为 utf8mb4
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+SET CHARACTER_SET_CLIENT = utf8mb4;
+SET CHARACTER_SET_CONNECTION = utf8mb4;
+SET CHARACTER_SET_RESULTS = utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 USE virtuallive_dev;
 
 -- Clean previous demo fixtures
+-- 删除评论数据
 DELETE FROM comments WHERE user_id IN (SELECT user_id FROM users WHERE username IN ('NebulaNova', 'LumiRay', 'KiraEcho', 'DemoFan'));
 DELETE FROM comments WHERE post_id IN (SELECT post_id FROM community_posts WHERE title LIKE 'Virtua Demo%');
+
+-- 删除帖子数据
 DELETE FROM community_posts WHERE title LIKE 'Virtua Demo%';
+
+-- 删除粉丝圈数据
 DELETE FROM fan_circles WHERE name IN ('星际航线应援团', '幻光舞社', '回声实验室');
+
+-- 删除用户数据
 DELETE FROM users WHERE username IN ('NebulaNova', 'LumiRay', 'KiraEcho', 'DemoFan');
 
 SET FOREIGN_KEY_CHECKS = 1;
