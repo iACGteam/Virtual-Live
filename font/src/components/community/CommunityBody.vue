@@ -15,28 +15,34 @@
 
     <!-- 粉丝圈列表 -->
     <div class="circle-list">
-      <div v-for="circle in circles" :key="circle.id" class="circle-card">
+      <div v-if="loading" class="loading-container">
+        <p>加载中...</p>
+      </div>
+
+      <div v-else-if="circles.length === 0" class="empty-container">
+        <p>暂无圈子数据</p>
+      </div>
+
+      <div v-else v-for="circle in circles" :key="circle.id" class="circle-card">
         <div class="circle-header">
-          <img :src="circle.avatar" class="avatar">
+          <img :src="circle.avatar" class="avatar" @error="(e) => e.target.src = require('@/assets/avatar.jpg')">
           <div class="info">
             <p class="name">{{ circle.name }}</p>
             <p class="count">{{ circle.count }} 粉丝已加入</p>
           </div>
 
-          <el-button class="join-btn" size="medium" @click="goDetail">加入</el-button>
+          <el-button class="join-btn" size="medium" @click="goDetail(circle.id)">加入</el-button>
           
         </div>
 
         <!-- 图片预览行 -->
-        <div class="circle-photos">
+        <div class="circle-photos" v-if="circle.photos && circle.photos.length > 0">
           <el-scrollbar>
             <div class="scrollbar-flex-content">
-              <img v-for="img in circle.photos" :key="img" :src="img" class="photo">
+              <img v-for="(img, idx) in circle.photos" :key="idx" :src="img" class="photo">
             </div>
           </el-scrollbar>
         </div>
-
-        
 
         <div class="circle-desc" v-if="circle.desc">
           {{ circle.desc }}
@@ -48,6 +54,7 @@
 
 <script>
 import SearchBar from '../SearchBar.vue'
+import { getCircles } from '@/utils/api'
 
 export default {
   components: { SearchBar },
@@ -56,48 +63,72 @@ export default {
     return {
       activeTab: '最新',
       navList: ['最新', '最热'],
+      circles: [],
+      loading: false
+    }
+  },
 
-      // 后端获取
-      circles: [
-        {
-          id: 1,
-          name: "官方的圈子",
-          avatar: "@/assets/avatar.jpg",
-          count: "7248",
-          photos: [
-            "@/assets/avatar.jpg",
-            "@/assets/avatar.jpg",
-            "@/assets/avatar.jpg",
-            "@/assets/avatar.jpg"
-          ],
-          desc: "上方是图片预览,最好不要超过四张.这里是文字介绍"
-        },
-        {
-          id: 2,
-          name: "官方2号的圈子",
-          avatar: "@/assets/avatar.jpg",
-          count: "1.8万",
-          photos: [
-            "/mock/h1.jpg",
-            "/mock/h2.jpg",
-            "/mock/h3.jpg",
-            "/mock/h4.jpg"
-          ],
-          desc: "上方是图片预览"
-        }
-      ]
+  mounted() {
+    this.loadCircles()
+  },
+
+  watch: {
+    activeTab() {
+      this.loadCircles()
     }
   },
 
   methods: {
+    // 加载圈子列表
+    async loadCircles() {
+      this.loading = true
+      try {
+        const sort = this.activeTab === '最热' ? 'hot' : 'new'
+        const response = await getCircles(0, 20, sort)
+        
+        this.circles = (response.content || []).map(circle => ({
+          id: circle.id,
+          name: circle.name,
+          avatar: circle.avatarUrl || '@/assets/avatar.jpg',
+          count: this.formatCount(circle.memberCount),
+          photos: circle.coverImageUrl ? [circle.coverImageUrl] : [],
+          desc: circle.description || ''
+        }))
+      } catch (error) {
+        console.error('加载圈子失败:', error)
+        // 使用默认数据作为后备
+        this.circles = [
+          {
+            id: 1,
+            name: "官方的圈子",
+            avatar: "@/assets/avatar.jpg",
+            count: "7248",
+            photos: [],
+            desc: "上方是图片预览,最好不要超过四张.这里是文字介绍"
+          }
+        ]
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 格式化数字
+    formatCount(count) {
+      if (!count) return '0'
+      if (count >= 10000) {
+        return (count / 10000).toFixed(1) + '万'
+      }
+      return count.toString()
+    },
+
     // tab 切换
     changeTab(tab) {
       this.activeTab = tab
     },
 
     // 点击跳转到圈子详情页
-    goDetail() {
-      this.$router.push(`/test`)
+    goDetail(circleId) {
+      this.$router.push(`/community/${circleId}`)
     }
   }
 }
@@ -242,5 +273,12 @@ export default {
   color: #ccc;
   font-size: 14px;
   padding-left: 4px;
+}
+
+.loading-container, .empty-container {
+  text-align: center;
+  padding: 60px 20px;
+  color: #888;
+  font-size: 16px;
 }
 </style>

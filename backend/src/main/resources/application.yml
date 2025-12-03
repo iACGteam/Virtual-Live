@@ -28,8 +28,37 @@ spring:
   # 禁用 Flyway
   flyway:
     enabled: false
+  
+  # 文件上传配置
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 500MB
+      max-request-size: 500MB
+      file-size-threshold: 2KB
 
 logging:
   level:
     root: INFO
     com.virtuallive: DEBUG
+
+# 文件上传配置
+file:
+  upload:
+    base-path: uploads
+    image-path: images
+    video-path: videos
+    audio-path: audios
+    file-path: files
+
+# Spring 文件上传配置
+spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 500MB
+      max-request-size: 500MB
+      file-size-threshold: 2MB
+
+# 静态资源配置
+spring.web.resources.static-locations: file:uploads/,classpath:/static/

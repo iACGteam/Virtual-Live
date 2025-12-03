@@ -25,4 +25,17 @@ public interface VideoRepository extends JpaRepository<Video, Integer> {
     
     @EntityGraph(attributePaths = "author")
     List<Video> findByAuthor_UserIdAndIsDeletedFalse(Integer authorId);
+    
+    @EntityGraph(attributePaths = "author")
+    Page<Video> findByAuthor_UserIdAndIsDeletedFalse(Integer authorId, Pageable pageable);
+    
+    /**
+     * 全局搜索：按标题、内容、标签搜索
+     */
+    @EntityGraph(attributePaths = "author")
+    @Query("SELECT v FROM Video v WHERE v.isDeleted = false AND " +
+           "(LOWER(v.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(v.content) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(v.tags) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<Video> searchByKeyword(String keyword, Pageable pageable);
 }

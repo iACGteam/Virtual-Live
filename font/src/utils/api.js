@@ -114,6 +114,157 @@ export async function getCircleById(id) {
   return request(`/circles/${id}`)
 }
 
+// ==================== 社区帖子相关 API ====================
+
+// 获取社区帖子列表
+export async function getCommunityPosts(page = 0, size = 20, sort = 'time', circleId = null) {
+  const params = new URLSearchParams({ page, size, sort })
+  if (circleId) params.append('circleId', circleId)
+  return request(`/community/posts?${params}`)
+}
+
+// 全局搜索帖子
+export async function searchCommunityPosts(keyword, page = 0, size = 20) {
+  return request(`/community/posts/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`)
+}
+
+// 获取帖子详情
+export async function getCommunityPostById(id) {
+  return request(`/community/posts/${id}`)
+}
+
+// 获取用户的帖子列表
+export async function getUserCommunityPosts(userId, page = 0, size = 20) {
+  return request(`/community/posts/user/${userId}?page=${page}&size=${size}`)
+}
+
+// 获取热门帖子
+export async function getTrendingPosts(limit = 10) {
+  return request(`/community/posts/trending?limit=${limit}`)
+}
+
+// 创建帖子
+export async function createCommunityPost(postData) {
+  return request('/community/posts', {
+    method: 'POST',
+    body: JSON.stringify(postData)
+  })
+}
+
+// 更新帖子
+export async function updateCommunityPost(id, postData) {
+  return request(`/community/posts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(postData)
+  })
+}
+
+// 删除帖子
+export async function deleteCommunityPost(id, userId) {
+  return request(`/community/posts/${id}?userId=${userId}`, {
+    method: 'DELETE'
+  })
+}
+
+// 点赞帖子
+export async function likeCommunityPost(id) {
+  return request(`/community/posts/${id}/like`, {
+    method: 'POST'
+  })
+}
+
+// ==================== 文件上传相关 API ====================
+
+// 上传单个图片
+export async function uploadImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const token = localStorage.getItem('vlive-auth-token')
+  const response = await fetch(`${BASE_URL}/upload/image`, {
+    method: 'POST',
+    headers: {
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: formData
+  })
+  
+  const data = await response.json()
+  if (data.code !== 0) {
+    throw new Error(data.message || '上传失败')
+  }
+  
+  return data.data
+}
+
+// 上传多个图片
+export async function uploadImages(files) {
+  const formData = new FormData()
+  files.forEach(file => {
+    formData.append('files', file)
+  })
+  
+  const token = localStorage.getItem('vlive-auth-token')
+  const response = await fetch(`${BASE_URL}/upload/images`, {
+    method: 'POST',
+    headers: {
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: formData
+  })
+  
+  const data = await response.json()
+  if (data.code !== 0) {
+    throw new Error(data.message || '上传失败')
+  }
+  
+  return data.data
+}
+
+// 上传视频
+export async function uploadVideo(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const token = localStorage.getItem('vlive-auth-token')
+  const response = await fetch(`${BASE_URL}/upload/video`, {
+    method: 'POST',
+    headers: {
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: formData
+  })
+  
+  const data = await response.json()
+  if (data.code !== 0) {
+    throw new Error(data.message || '上传失败')
+  }
+  
+  return data.data
+}
+
+// 上传音频
+export async function uploadAudio(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const token = localStorage.getItem('vlive-auth-token')
+  const response = await fetch(`${BASE_URL}/upload/audio`, {
+    method: 'POST',
+    headers: {
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: formData
+  })
+  
+  const data = await response.json()
+  if (data.code !== 0) {
+    throw new Error(data.message || '上传失败')
+  }
+  
+  return data.data
+}
+
 export default {
   getVideos,
   getVideoById,
@@ -127,5 +278,20 @@ export default {
   searchCircles,
   getCirclesByCategory,
   getOfficialCircles,
-  getCircleById
+  getCircleById,
+  // 社区帖子相关
+  getCommunityPosts,
+  searchCommunityPosts,
+  getCommunityPostById,
+  getUserCommunityPosts,
+  getTrendingPosts,
+  createCommunityPost,
+  updateCommunityPost,
+  deleteCommunityPost,
+  likeCommunityPost,
+  // 文件上传
+  uploadImage,
+  uploadImages,
+  uploadVideo,
+  uploadAudio
 }
