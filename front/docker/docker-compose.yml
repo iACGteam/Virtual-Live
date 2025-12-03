@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: virtuallive-mysql-dev
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: virtuallive_dev
+      MYSQL_USER: virtual_live
+      MYSQL_PASSWORD: 123
+      TZ: 'Asia/Shanghai'
+    volumes:
+      - mysql_data_dev:/var/lib/mysql
+      - ../sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../mysql_conf/mysql-dev.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - virtuallive-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: virtuallive-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - virtuallive-network
+    command: redis-server --appendonly yes
+
+volumes:
+  mysql_data_dev:
+  redis_data_dev:
+
+networks:
+  virtuallive-network:
+    driver: bridge
