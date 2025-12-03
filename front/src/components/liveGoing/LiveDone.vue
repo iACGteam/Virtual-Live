@@ -279,9 +279,6 @@
       <template #footer>
         <el-button @click="closeSettings">取消</el-button>
         <el-button @click="saveSettings">保存</el-button>
-        <el-button type="primary" :disabled="isWaiting" @click="startLive">
-          {{ isWaiting ? '等待中...' : '开始直播' }}
-        </el-button>
       </template>
     </el-dialog>
 
@@ -335,7 +332,6 @@ export default {
       showAddTag: false,
       newTag: "",
       activeAudienceTab: "online",
-      isWaiting: false,
       audioInput: 100,
       audioOutput: 100,
       chatInput: "",
@@ -439,34 +435,6 @@ export default {
       
       ElMessage.success("保存成功");
       // 保存后不关闭弹窗，让用户可以继续编辑或开始直播
-    },
-    startLive() {
-      // 验证必填项
-      if (!this.form.title || !this.form.title.trim()) {
-        ElMessage.warning("请输入直播标题");
-        return;
-      }
-      if (!this.form.category) {
-        ElMessage.warning("请选择直播分区");
-        return;
-      }
-      
-      // 先保存设置
-      console.log("保存并开始直播：", this.form);
-      
-      // 可以在这里调用API保存并开始直播
-      // await this.$api.startLive(this.form);
-      
-      this.isWaiting = true;
-      ElMessage.success("正在开始直播...");
-      
-      // 模拟开始直播过程
-      setTimeout(() => {
-        this.isWaiting = false;
-        this.settingsVisible = false;
-        ElMessage.success("直播已开始");
-        // 可以在这里跳转到直播页面或更新状态
-      }, 2000);
     },
   },
 };
