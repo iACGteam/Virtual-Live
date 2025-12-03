@@ -23,17 +23,16 @@
     </aside>
 
     <main class="content">
-      <Detail></Detail>
+      <CommunityPage></CommunityPage>
     </main>
   </div>
 </template>
 
 <script>
-
-import Detail from './Detail.vue'
+import CommunityPage from './CommunityPage.vue';
 export default {
   components: { 
-    Detail
+    CommunityPage,
   },
   name: "LiveView",
   data() {

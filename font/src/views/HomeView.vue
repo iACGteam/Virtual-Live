@@ -329,6 +329,9 @@ export default {
           this.$router.push(target)
         }
       },
+      handleGoingVideo() {
+        this.$router.push('video')
+      },
     goToLikes() {
       this.navigateToProfileTab('likes')
     },

@@ -163,6 +163,7 @@
             v-for="stream in filteredStreams"
             :key="stream.id"
             class="video-card"
+            @click="handleGoingLive"
           >
             <div class="thumbnail" :style="{ background: stream.thumbnailColor }">
               <span class="viewers">{{ stream.viewers }} 人</span>
@@ -367,6 +368,9 @@
         if (this.$route.path !== target) {
           this.$router.push(target)
         }
+      },
+      handleGoingLive() {
+        this.$router.push('live-room')
       },
       goToLikes() {
         this.navigateToProfileTab('likes')

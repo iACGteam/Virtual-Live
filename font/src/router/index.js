@@ -66,18 +66,23 @@ const routes = [
   //开直播
   {
     path: '/live-going',
-    name: 'Nav',
+    name: 'LiveGoing',
     component: () => import('../views/LiveGoingView.vue')
   },
-  {
-    path: '/detail',
-    name: 'Detail',
-    component: () => import('../components/community/DetailAndNav.vue')
-  },
+  // {
+  //   path: '/detail',
+  //   name: 'Detail',
+  //   component: () => import('../components/community/DetailAndNav.vue')
+  // },
   {
     path: '/live-manage',
     name: 'Manage',
     component: () => import('../views/LiveManage.vue')
+  },
+  {
+    path: '/test',
+    name: 'Test',
+    component: () => import('../components/community/ComDetailNav.vue')
   }
 ]
 

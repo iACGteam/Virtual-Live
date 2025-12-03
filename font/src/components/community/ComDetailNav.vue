@@ -23,19 +23,17 @@
     </aside>
 
     <main class="content">
-      <CommunityPage></CommunityPage>
-      <!-- <New></New> -->
+      <ComDetailPage></ComDetailPage>
     </main>
   </div>
 </template>
 
 <script>
-import CommunityPage from './CommunityPage.vue';
-// import New from './New.vue';
+import ComDetailPage from './ComDetailPage.vue';
+
 export default {
   components: { 
-    CommunityPage,
-    // New
+    ComDetailPage,
   },
   name: "LiveView",
   data() {
