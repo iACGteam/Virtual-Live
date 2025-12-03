@@ -191,13 +191,12 @@ export default {
       showPostDropdown: false,
       postDropdownTimer: null,
       activeFilter: 'recommend', // 'recommend', 'following', 或主题key
+      // 分类：虚拟singer、虚拟gamer、虚拟声优、虚拟男V
       topics: [
-        { key: 'music', label: '音乐', icon: '🎵' },
-        { key: 'dance', label: '舞蹈', icon: '💃' },
-        { key: 'game', label: '游戏', icon: '🎮' },
-        { key: 'tech', label: '科技', icon: '🔬' },
-        { key: 'food', label: '美食', icon: '🍔' },
-        { key: 'sport', label: '运动', icon: '⚽' }
+        { key: 'vsinger', label: '虚拟singer', icon: '🎤' },
+        { key: 'vgamer', label: '虚拟gamer', icon: '🎮' },
+        { key: 'vseiyuu', label: '虚拟声优', icon: '🎧' },
+        { key: 'vmale', label: '虚拟男V', icon: '🧑‍🎤' }
       ],
       // 关注用户列表（从 ProfileView 中获取的关注用户）
       followingUsers: ['NebulaNova', 'LumiRay', 'KiraEcho', 'DANK1NG', 'NiKo', 'reailty', '森阳(无畏契约)'],
@@ -456,14 +455,16 @@ export default {
             this.followingUsers.includes(video.creator)
           )
         } else {
-          // 主题筛选：根据主题匹配标签
+          // 分类筛选：根据虚拟职业类别匹配标签
           const topicMap = {
-            music: ['Music', 'MV', 'Remix', 'Podcast'],
-            dance: ['Dance', 'Stage'],
-            game: ['Esports', 'Gaming'],
-            tech: ['AI', '3D', 'MakingOf', 'Sci-Fi', 'Cyber'],
-            food: ['Food', 'Show'],
-            sport: ['Esports', 'Challenge', 'Adventure']
+            // 虚拟singer：偏音乐相关内容
+            vsinger: ['Music', 'MV', 'Remix', 'LiveCut'],
+            // 虚拟gamer：偏游戏 / 赛事
+            vgamer: ['Esports', 'Gaming', 'Game', 'Challenge'],
+            // 虚拟声优：偏配音、广播、播客
+            vseiyuu: ['Podcast', 'Chill', 'Story', 'Q&A'],
+            // 虚拟男V：这里简单归类到偏舞台 / 表演 / 互动类
+            vmale: ['Stage', 'Live', 'Interactive', 'Festival']
           }
           const topicTags = topicMap[this.activeFilter] || []
           videos = this.shortVideos.filter(video => 

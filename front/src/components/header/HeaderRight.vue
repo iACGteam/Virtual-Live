@@ -70,7 +70,8 @@ const userInfo = reactive({
 
 const handleUserCommand = (cmd) => {
   if (cmd === 'profile') router.push('/profile')
-  if (cmd === 'settings') router.push('/settings')
+  // 暂未单独实现设置页面，先跳转到个人资料页以避免路由报错
+  if (cmd === 'settings') router.push('/profile')
   if (cmd === 'logout') console.log('退出登录')
 }
 </script>

@@ -35,9 +35,19 @@ const activeMenu = ref('home')
 // }
 
 const handleMenuSelect = (index) => {
-  if (index !== 'search') {
-    activeMenu.value = index
-    router.push(`/${index}`)
+  if (index === 'search') return
+
+  activeMenu.value = index
+
+  const routeMap = {
+    home: '/',
+    live: '/live',
+    community: '/community'
+  }
+
+  const target = routeMap[index] || '/'
+  if (router.currentRoute.value.path !== target) {
+    router.push(target)
   }
 }
 </script>

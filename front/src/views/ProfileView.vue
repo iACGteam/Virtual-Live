@@ -1404,7 +1404,7 @@ export default {
       const pathMap = {
         discover: '/',
         live: '/live',
-        community: '/',
+        community: '/community',
         my: '/profile'
       }
       this.$router.push(pathMap[link.key] || '/')
