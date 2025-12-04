@@ -60,6 +60,24 @@ CREATE TABLE fan_badges (
   INDEX idx_fan (fan_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 粉丝圈子
+CREATE TABLE fan_circles (
+  circle_id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(100) NOT NULL,
+  description VARCHAR(500),
+  avatar_url VARCHAR(500),
+  cover_image_url VARCHAR(500),
+  member_count INT DEFAULT 0,
+  post_count INT DEFAULT 0,
+  category VARCHAR(50),
+  is_official BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_category (category),
+  INDEX idx_active (is_active),
+  INDEX idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 直播间
 CREATE TABLE live_rooms (
   room_id INT PRIMARY KEY AUTO_INCREMENT,
