@@ -5,9 +5,7 @@
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 SET CHARACTER_SET_CLIENT = utf8mb4;
 SET CHARACTER_SET_CONNECTION = utf8mb4;
-SET CHARACTER_SET_RESULTS = utf8mb4;
-SET FOREIGN_KEY_CHECKS = 0;
-
+SET CHARACTE
 USE virtuallive_dev;
 
 -- Clean previous demo fixtures
