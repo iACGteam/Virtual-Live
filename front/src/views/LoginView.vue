@@ -150,6 +150,7 @@ export default {
 .card-header h1 {
   margin: 8px 0;
   font-size: 32px;
+  color: #2d2d2d;
 }
 
 .badge {
@@ -181,6 +182,7 @@ label span {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
+  color: #2d2d2d;
 }
 
 input[type='text'],
@@ -194,6 +196,12 @@ input[type='password'] {
   padding: 14px 16px;
   font-size: 15px;
   transition: border 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type='text']::placeholder,
+input[type='email']::placeholder,
+input[type='password']::placeholder {
+  color: rgba(45, 45, 45, 0.5);
 }
 
 input:focus {

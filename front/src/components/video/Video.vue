@@ -77,6 +77,25 @@ const sortedComments = computed(() => {
 
 // 加载视频
 const loadVideo = () => {
+  // 先检查是否从主页传来了视频源
+  const videoSrc_query = route.query.src
+  if (videoSrc_query) {
+    videoSrc.value = videoSrc_query
+    // 从query获取视频信息
+    const videoId = route.query.id
+    if (videoId) {
+      // 如果需要，可以从sessionStorage或其他方式获取视频详细信息
+      videoInfo.value = {
+        id: videoId,
+        title: `视频 ${videoId}`,
+        creator: 'VirtuaLive',
+        views: '点击播放',
+        duration: '动态加载'
+      }
+    }
+    return
+  }
+  
   // 从路由参数获取视频ID
   const videoId = route.query.id
   
@@ -88,27 +107,36 @@ const loadVideo = () => {
         const works = JSON.parse(userWorks)
         const video = works.find(w => w.id === Number(videoId))
         
-        if (video && video.videoData) {
-          // 如果视频有base64数据，创建blob URL
+        if (video) {
           videoInfo.value = video
           
-          // 将base64数据转换为blob URL
-          // videoData是data:video/mp4;base64,xxxxx格式
-          if (video.videoData.startsWith('data:')) {
-            videoSrc.value = video.videoData
-          } else {
-            // 如果不是data URL格式，尝试创建blob
-            const byteCharacters = atob(video.videoData)
-            const byteNumbers = new Array(byteCharacters.length)
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i)
-            }
-            const byteArray = new Uint8Array(byteNumbers)
-            const blob = new Blob([byteArray], { type: video.fileType || 'video/mp4' })
-            blobUrl = URL.createObjectURL(blob)
+          // 优先从sessionStorage读取blob URL
+          const blobUrl = sessionStorage.getItem(`videoBlob_${videoId}`)
+          if (blobUrl) {
             videoSrc.value = blobUrl
+            return
           }
-          return
+          
+          // 如果视频有base64数据，创建blob URL
+          if (video.videoData) {
+            // 将base64数据转换为blob URL
+            // videoData是data:video/mp4;base64,xxxxx格式
+            if (video.videoData.startsWith('data:')) {
+              videoSrc.value = video.videoData
+            } else {
+              // 如果不是data URL格式，尝试创建blob
+              const byteCharacters = atob(video.videoData)
+              const byteNumbers = new Array(byteCharacters.length)
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i)
+              }
+              const byteArray = new Uint8Array(byteNumbers)
+              const blob = new Blob([byteArray], { type: video.fileType || 'video/mp4' })
+              blobUrl = URL.createObjectURL(blob)
+              videoSrc.value = blobUrl
+            }
+            return
+          }
         }
       }
     } catch (err) {
@@ -203,14 +231,17 @@ onBeforeUnmount(() => {
 
 .video-wrapper {
   width: 90%;
-  max-width: 800px;
+  max-width: 100%;
   margin-bottom: 20px;
+  aspect-ratio: 16 / 9;
 }
 
 video {
   width: 100%;
+  height: 100%;
   border-radius: 8px;
   background-color: #000;
+  object-fit: contain;
 }
 
 .comments-section {
