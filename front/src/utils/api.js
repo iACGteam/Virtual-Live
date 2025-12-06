@@ -173,6 +173,158 @@ export async function likeCommunityPost(id) {
   })
 }
 
+// ==================== 点赞相关 API ====================
+
+// 点赞/取消点赞视频
+export async function toggleVideoLike(videoId, userId) {
+  return request(`/likes/video/${videoId}`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 点赞/取消点赞评论
+export async function toggleCommentLike(commentId, userId) {
+  return request(`/likes/comment/${commentId}`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 检查是否已点赞
+export async function checkLike(userId, contentId, contentType) {
+  return request(`/likes/check?userId=${userId}&contentId=${contentId}&contentType=${contentType}`)
+}
+
+// 获取点赞数
+export async function getLikeCount(contentId, contentType) {
+  return request(`/likes/count?contentId=${contentId}&contentType=${contentType}`)
+}
+
+// ==================== 收藏相关 API ====================
+
+// 收藏/取消收藏视频
+export async function toggleVideoFavorite(videoId, userId) {
+  return request(`/favorites/video/${videoId}`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 检查是否已收藏
+export async function checkFavorite(userId, contentId, contentType) {
+  return request(`/favorites/check?userId=${userId}&contentId=${contentId}&contentType=${contentType}`)
+}
+
+// 获取收藏数
+export async function getFavoriteCount(contentId, contentType) {
+  return request(`/favorites/count?contentId=${contentId}&contentType=${contentType}`)
+}
+
+// 获取用户收藏列表
+export async function getUserFavorites(userId, contentType = 'post', page = 0, size = 20) {
+  return request(`/favorites/user/${userId}?contentType=${contentType}&page=${page}&size=${size}`)
+}
+
+// ==================== 关注相关 API ====================
+
+// 关注/取消关注用户
+export async function toggleFollow(followingId, userId) {
+  return request(`/follow/${followingId}`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 检查是否已关注
+export async function checkFollow(followerId, followingId) {
+  return request(`/follow/check?followerId=${followerId}&followingId=${followingId}`)
+}
+
+// 获取粉丝列表
+export async function getFollowers(userId, page = 0, size = 20) {
+  return request(`/follow/followers/${userId}?page=${page}&size=${size}`)
+}
+
+// 获取关注列表
+export async function getFollowing(userId, page = 0, size = 20) {
+  return request(`/follow/following/${userId}?page=${page}&size=${size}`)
+}
+
+// 获取粉丝数和关注数
+export async function getFollowCount(userId) {
+  return request(`/follow/count/${userId}`)
+}
+
+// ==================== 圈子成员相关 API ====================
+
+// 加入/退出圈子
+export async function toggleCircleMembership(circleId, userId) {
+  return request(`/circles/${circleId}/join`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 检查是否是圈子成员
+export async function checkCircleMembership(circleId, userId) {
+  return request(`/circles/${circleId}/check?userId=${userId}`)
+}
+
+// 获取圈子成员列表
+export async function getCircleMembers(circleId, page = 0, size = 20) {
+  return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
+}
+
+// 获取用户加入的圈子列表
+export async function getUserCircles(userId, page = 0, size = 20) {
+  return request(`/circles/user/${userId}/joined?page=${page}&size=${size}`)
+}
+
+// ==================== 签到相关 API ====================
+
+// 签到
+export async function checkin(circleId, userId) {
+  return request(`/checkin/circle/${circleId}`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 检查今天是否已签到
+export async function checkTodayCheckin(circleId, userId) {
+  return request(`/checkin/circle/${circleId}/check?userId=${userId}`)
+}
+
+// 获取签到信息
+export async function getCheckinInfo(circleId, userId) {
+  return request(`/checkin/circle/${circleId}/info?userId=${userId}`)
+}
+
+// ==================== 搜索相关 API ====================
+
+// 全局搜索
+export async function globalSearch(keyword, page = 0, size = 10) {
+  return request(`/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`)
+}
+
+// ==================== 活动中心相关 API ====================
+
+// 获取圈子活动动态
+export async function getCircleActivity(circleId, page = 0, size = 10) {
+  return request(`/activity/circle/${circleId}?page=${page}&size=${size}`)
+}
+
+// 获取用户动态
+export async function getUserFeed(userId, page = 0, size = 20) {
+  return request(`/activity/user/${userId}/feed?page=${page}&size=${size}`)
+}
+
+// 获取热门动态
+export async function getTrending() {
+  return request('/activity/trending')
+}
+
 // ==================== 文件上传相关 API ====================
 
 // 上传单个图片
@@ -289,6 +441,37 @@ export default {
   updateCommunityPost,
   deleteCommunityPost,
   likeCommunityPost,
+  // 点赞相关
+  toggleVideoLike,
+  toggleCommentLike,
+  checkLike,
+  getLikeCount,
+  // 收藏相关
+  toggleVideoFavorite,
+  checkFavorite,
+  getFavoriteCount,
+  getUserFavorites,
+  // 关注相关
+  toggleFollow,
+  checkFollow,
+  getFollowers,
+  getFollowing,
+  getFollowCount,
+  // 圈子成员相关
+  toggleCircleMembership,
+  checkCircleMembership,
+  getCircleMembers,
+  getUserCircles,
+  // 签到相关
+  checkin,
+  checkTodayCheckin,
+  getCheckinInfo,
+  // 搜索相关
+  globalSearch,
+  // 活动中心相关
+  getCircleActivity,
+  getUserFeed,
+  getTrending,
   // 文件上传
   uploadImage,
   uploadImages,
