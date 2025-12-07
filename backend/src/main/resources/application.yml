@@ -51,14 +51,14 @@ file:
     audio-path: audios
     file-path: files
 
-# Spring 文件上传配置
-spring:
-  servlet:
-    multipart:
-      enabled: true
-      max-file-size: 500MB
-      max-request-size: 500MB
-      file-size-threshold: 2MB
+## Spring 文件上传配置
+#spring:
+#  servlet:
+#    multipart:
+#      enabled: true
+#      max-file-size: 500MB
+#      max-request-size: 500MB
+#      file-size-threshold: 2MB
 
 # 静态资源配置
 spring.web.resources.static-locations: file:uploads/,classpath:/static/
