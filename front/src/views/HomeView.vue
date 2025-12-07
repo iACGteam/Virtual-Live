@@ -446,12 +446,11 @@ export default {
       // 如果需要显示特定用户的信息，可以通过 query 参数传递用户名
       this.$router.push({ path: '/profile', query: { user: creator } }).catch(() => {})
     },
-    async setFilter(filterType) {
+    setFilter(filterType) {
       if (this.activeFilter === filterType && this.shortVideos.length && filterType !== 'following') {
         return
       }
       this.activeFilter = filterType
-      await this.loadVideos()
     },
     handleSearch() {
       // 搜索功能通过 v-model 和计算属性自动实现
