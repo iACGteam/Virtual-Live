@@ -159,10 +159,10 @@ export default {
   top: -10%;
   left: -20%;
   background-image:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 0),
-    linear-gradient(0deg, rgba(255, 255, 255, 0.04) 1px, transparent 0);
+    linear-gradient(90deg, rgba(255, 105, 180, 0.08) 1px, transparent 0),
+    linear-gradient(0deg, rgba(255, 105, 180, 0.08) 1px, transparent 0);
   background-size: 80px 80px;
-  opacity: 0.9;
+  opacity: 0.5;
   transform: rotate(-6deg);
 }
 
@@ -170,18 +170,18 @@ export default {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 20% 20%, rgba(124, 92, 255, 0.45), transparent 55%),
-    radial-gradient(circle at 80% 60%, rgba(70, 208, 255, 0.35), transparent 50%);
+  background: radial-gradient(circle at 20% 20%, rgba(255, 105, 180, 0.2), transparent 55%),
+    radial-gradient(circle at 80% 60%, rgba(147, 112, 219, 0.15), transparent 50%);
 }
 
 .auth-card {
   width: 100%;
   max-width: 520px;
-  background: rgba(9, 11, 22, 0.95);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 32px;
   padding: 40px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 30px 50px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 105, 180, 0.2);
+  box-shadow: 0 30px 50px rgba(255, 105, 180, 0.15);
   position: relative;
   z-index: 1;
 }
@@ -189,20 +189,21 @@ export default {
 .card-header h1 {
   margin: 10px 0;
   font-size: 34px;
+  color: #2d2d2d;
 }
 
 .badge {
   display: inline-flex;
   padding: 4px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #9ec5ff;
+  background: rgba(255, 105, 180, 0.1);
+  color: #ff69b4;
   font-size: 12px;
   letter-spacing: 0.1em;
 }
 
 .subtitle {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(45, 45, 45, 0.75);
 }
 
 .auth-form {
@@ -217,31 +218,38 @@ label span {
   margin-bottom: 6px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  color: #2d2d2d;
 }
 
 input,
 select {
   width: 100%;
   border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(6, 8, 19, 0.9);
+  border: 1px solid rgba(255, 105, 180, 0.3);
+  background: rgba(255, 255, 255, 0.7);
   padding: 16px;
-  color: #fff;
+  color: #2d2d2d;
   font-size: 15px;
   transition: border 0.2s ease, transform 0.2s ease;
 }
 
+input::placeholder,
+select::placeholder {
+  color: rgba(45, 45, 45, 0.5);
+}
+
 input:focus,
 select:focus {
-  border-color: #7c9dff;
+  border-color: #ff69b4;
   outline: none;
   transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 select {
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, #869eff 50%),
-    linear-gradient(135deg, #869eff 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, #ff69b4 50%),
+    linear-gradient(135deg, #ff69b4 50%, transparent 50%);
   background-position: calc(100% - 24px) calc(50% - 3px),
     calc(100% - 16px) calc(50% - 3px);
   background-size: 8px 8px;
@@ -253,7 +261,7 @@ select {
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(45, 45, 45, 0.75);
 }
 
 .agreement input {
@@ -280,18 +288,18 @@ select {
 
 .message {
   text-align: center;
-  color: #8bc4ff;
+  color: #ff69b4;
   font-size: 14px;
 }
 
 .card-footer {
   margin-top: 24px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(45, 45, 45, 0.7);
 }
 
 .card-footer a {
-  color: #9fc3ff;
+  color: #ff69b4;
   font-weight: 600;
   margin-left: 4px;
 }

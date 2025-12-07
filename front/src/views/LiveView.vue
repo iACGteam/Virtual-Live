@@ -164,9 +164,9 @@
             :key="stream.id"
             class="video-card"
             @click="goLiveRoom"
-
           >
-            <div class="thumbnail" :style="{ background: stream.thumbnailColor }" >
+            <div class="thumbnail">
+              <img :src="stream.thumbnail" :alt="`${stream.title} 封面`">
               <span class="viewers" >{{ stream.viewers }} 人</span>
               <div class="hover-overlay">
                 <span class="hover-text">点击进入直播间</span>
@@ -185,7 +185,27 @@
   
   <script>
   import avatarImg from '@/assets/avatar.jpg'
+    import liveCover1 from '@/assets/虚拟主播/直播封面/live-cover-1.jpg'
+    import liveCover2 from '@/assets/虚拟主播/直播封面/live-cover-2.jpg'
+    import liveCover3 from '@/assets/虚拟主播/直播封面/live-cover-3.jpg'
+    import liveCover4 from '@/assets/虚拟主播/直播封面/live-cover-4.jpg'
+    import liveCover5 from '@/assets/虚拟主播/直播封面/live-cover-5.jpg'
+    import liveCover6 from '@/assets/虚拟主播/直播封面/live-cover-6.jpg'
+    import liveCover7 from '@/assets/虚拟主播/直播封面/live-cover-7.jpg'
+    import liveCover8 from '@/assets/虚拟主播/直播封面/live-cover-8.jpg'
   import { clearAuthToken } from '@/utils/auth'
+
+    const liveCovers = [
+      liveCover1,
+      liveCover2,
+      liveCover3,
+      liveCover4,
+      liveCover5,
+      liveCover6,
+      liveCover7,
+      liveCover8
+    ]
+    const coverCycle = index => liveCovers[index % liveCovers.length]
   export default {
     name: 'LiveView',
     data() {
@@ -234,120 +254,120 @@
             title: '星海航线直播幕后花絮',
             creator: 'NebulaNova',
             viewers: '1.2万',
-            tags: ['LiveCut', 'Sci-Fi'],
-            thumbnailColor: 'linear-gradient(135deg, #FF61D2 0%, #FE9090 100%)'
+            tags: ['虚拟singer'],
+            thumbnail: coverCycle(0)
           },
           {
             id: 2,
             title: '虚拟偶像舞台 · 夜幕版本',
             creator: 'LumiRay',
             viewers: '8.5千',
-            tags: ['Dance', 'Stage'],
-            thumbnailColor: 'linear-gradient(135deg, #42E695 0%, #3BB2B8 100%)'
+            tags: ['虚拟男V'],
+            thumbnail: coverCycle(1)
           },
           {
             id: 3,
             title: '粉丝互动问答高能合集',
             creator: 'KiraEcho',
             viewers: '6.3千',
-            tags: ['Clips', 'Q&A'],
-            thumbnailColor: 'linear-gradient(135deg, #A18CD1 0%, #FBC2EB 100%)'
+            tags: ['虚拟gamer'],
+            thumbnail: coverCycle(2)
           },
           {
             id: 4,
             title: '全息角色建模 timelapse',
             creator: 'MoriTech',
             viewers: '4.9千',
-            tags: ['MakingOf', '3D'],
-            thumbnailColor: 'linear-gradient(135deg, #F6D365 0%, #FDA085 100%)'
+            tags: ['虚拟声优'],
+            thumbnail: coverCycle(3)
           },
           {
             id: 5,
             title: '赛博朋克主题竖屏 MV',
             creator: 'Vexa',
             viewers: '9.1万',
-            tags: ['Music', 'Cyber'],
-            thumbnailColor: 'linear-gradient(135deg, #5EFCE8 0%, #736EFE 100%)'
+            tags: ['虚拟singer'],
+            thumbnail: coverCycle(4)
           },
           {
             id: 6,
             title: '直播事故剪辑：趣味合集',
             creator: 'Patchy',
             viewers: '2.3万',
-            tags: ['Fun', 'Live'],
-            thumbnailColor: 'linear-gradient(135deg, #FAD961 0%, #F76B1C 100%)'
+            tags: ['虚拟gamer'],
+            thumbnail: coverCycle(5)
           },
           {
             id: 7,
             title: 'AI 虚拟形象调教日常',
             creator: 'SigmaBot',
             viewers: '7.8千',
-            tags: ['AI', 'BehindScenes'],
-            thumbnailColor: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)'
+            tags: ['虚拟声优'],
+            thumbnail: coverCycle(6)
           },
           {
             id: 8,
             title: '赛博城市观光 Vlog',
             creator: 'MetroMuse',
             viewers: '5.5千',
-            tags: ['Vlog', 'City'],
-            thumbnailColor: 'linear-gradient(135deg, #8EC5FC 0%, #E0C3FC 100%)'
+            tags: ['虚拟男V'],
+            thumbnail: coverCycle(7)
           },
           {
             id: 9,
             title: '虚拟美食节目 · 宇宙餐桌',
             creator: 'ChefNova',
             viewers: '1.5万',
-            tags: ['Food', 'Show'],
-            thumbnailColor: 'linear-gradient(135deg, #FBD786 0%, #f7797d 100%)'
+            tags: ['虚拟男V'],
+            thumbnail: coverCycle(8)
           },
           {
             id: 10,
             title: '电竞解说高燃瞬间',
             creator: 'CasterRay',
             viewers: '3.6万',
-            tags: ['Esports', 'Highlights'],
-            thumbnailColor: 'linear-gradient(135deg, #43C6AC 0%, #F8FFAE 100%)'
+            tags: ['虚拟gamer'],
+            thumbnail: coverCycle(9)
           },
           {
             id: 11,
             title: '深夜电台 · 陪伴系列',
             creator: 'EchoWave',
             viewers: '4.2千',
-            tags: ['Podcast', 'Chill'],
-            thumbnailColor: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'
+            tags: ['虚拟声优'],
+            thumbnail: coverCycle(10)
           },
           {
             id: 12,
             title: '全息舞狮春节特辑',
             creator: 'Dynasty Duo',
             viewers: '1.8万',
-            tags: ['Festival', 'Dance'],
-            thumbnailColor: 'linear-gradient(135deg, #f5515f 0%, #9f041b 100%)'
+            tags: ['虚拟singer'],
+            thumbnail: coverCycle(11)
           },
           {
             id: 13,
             title: '音乐制作直播：即时 Remix',
             creator: 'BeatForge',
             viewers: '2.1万',
-            tags: ['Music', 'Remix'],
-            thumbnailColor: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+            tags: ['虚拟singer'],
+            thumbnail: coverCycle(12)
           },
           {
             id: 14,
             title: '虚拟野外求生挑战',
             creator: 'WildBytes',
             viewers: '3.9千',
-            tags: ['Adventure', 'Challenge'],
-            thumbnailColor: 'linear-gradient(135deg, #134E5E 0%, #71B280 100%)'
+            tags: ['虚拟gamer'],
+            thumbnail: coverCycle(13)
           },
           {
             id: 15,
             title: '粉丝共创剧情互动剧',
             creator: 'StorySync',
             viewers: '2.7万',
-            tags: ['Interactive', 'Story'],
-            thumbnailColor: 'linear-gradient(135deg, #F4C4F3 0%, #FC67FA 100%)'
+            tags: ['虚拟声优'],
+            thumbnail: coverCycle(14)
           }
         ]
       }
@@ -444,21 +464,9 @@
             this.followingUsers.includes(stream.creator)
           )
         } else {
-          // 分类筛选：根据虚拟职业类别匹配标签
-          const topicMap = {
-            // 虚拟singer：偏音乐相关内容
-            vsinger: ['Music', 'MV', 'Remix', 'LiveCut'],
-            // 虚拟gamer：偏游戏 / 赛事
-            vgamer: ['Esports', 'Gaming', 'Game', 'Challenge'],
-            // 虚拟声优：偏配音、广播、播客
-            vseiyuu: ['Podcast', 'Chill', 'Story', 'Q&A'],
-            // 虚拟男V：这里简单归类到偏舞台 / 表演 / 互动类
-            vmale: ['Stage', 'Live', 'Interactive', 'Festival']
-          }
-          const topicTags = topicMap[this.activeFilter] || []
-          streams = this.liveStreams.filter(stream => 
-            stream.tags.some(tag => topicTags.includes(tag))
-          )
+          // 分类筛选：标签与分类一致（tags 里直接存中文分类名）
+          const label = this.topics.find(t => t.key === this.activeFilter)?.label
+          streams = this.liveStreams.filter(stream => stream.tags.includes(label))
         }
         
         // 再根据搜索关键词过滤（搜索作品名或用户名）
@@ -1141,6 +1149,13 @@
     border-radius: 14px;
     height: 160px;
     overflow: hidden;
+  }
+
+  .thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
   
   .hover-overlay {

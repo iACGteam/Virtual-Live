@@ -159,29 +159,21 @@
       </section>
 
       <section class="video-grid">
-        <div v-if="loading" class="video-state">正在加载推荐内容...</div>
-        <div v-else-if="loadError" class="video-state error">{{ loadError }}</div>
-        <div v-else-if="!filteredVideos.length" class="video-state">暂无可展示的视频, 请尝试切换筛选条件</div>
-        <template v-else>
-          <article
-            v-for="video in filteredVideos"
-            :key="video.id"
-            class="video-card"
-            role="button"
-            tabindex="0"
-            @click="goToVideo(video.id)"
-            @keyup.enter="goToVideo(video.id)"
-          >
-            <div class="thumbnail" :style="getThumbnailStyle(video)">
-              <span class="duration">{{ video.duration }}</span>
-            </div>
-            <div class="video-meta">
-              <h3>{{ video.title }}</h3>
-              <p class="creator" @click.stop="goToUserProfile(video.creator)">@{{ video.creator }}</p>
-              <p class="stats">{{ video.views }}<span v-if="video.tags.length"> · {{ video.tags.join(' · ') }}</span></p>
-            </div>
-          </article>
-        </template>
+        <article
+          v-for="video in filteredVideos"
+          :key="video.id"
+          class="video-card"
+          @click="goVideo"
+        >
+          <div class="thumbnail" :style="{ background: video.thumbnailColor }">
+            <span class="duration">{{ video.duration }}</span>
+          </div>
+          <div class="video-meta">
+            <h3>{{ video.title }}</h3>
+            <p class="creator" @click.stop="goToUserProfile(video.creator)">@{{ video.creator }}</p>
+            <p class="stats">{{ video.views }} · {{ video.tags.join(' · ') }}</p>
+          </div>
+        </article>
       </section>
     </main>
   </div>
@@ -189,9 +181,21 @@
 
 <script>
 import avatarImg from '@/assets/avatar.jpg'
+import cover1 from '@/assets/虚拟主播/视频封面/图像 - 1742412405144.封面.jpg'
+import cover2 from '@/assets/虚拟主播/视频封面/图像 - “在这里见到我，很惊讶吗？”.封面.jpg'
+import cover3 from '@/assets/虚拟主播/视频封面/图像 - 【live2d模型展示】又是白毛与小猫咪（远古库存版）.封面.jpg'
+import cover4 from '@/assets/虚拟主播/视频封面/图像 - 【Live2d模型展示】请问您今天要来点猫猫吗.封面.jpg'
+import cover5 from '@/assets/虚拟主播/视频封面/图像 - 【live2d量贩模型】jk社恐小黑猫，适合内向宝宝的可爱日常公皮，支持vb.封面.jpg'
+import cover6 from '@/assets/虚拟主播/视频封面/图像 - 所有知名虚拟主播的立牌.封面.jpg'
+import cover7 from '@/assets/虚拟主播/视频封面/图像 - 超级简单的虚拟形象直播教程！4分钟教会你添加虚拟人物！.封面.jpg'
+import video1 from '@/assets/虚拟主播/视频/video-1.mp4'
+import video2 from '@/assets/虚拟主播/视频/video-2.mp4'
+import video3 from '@/assets/虚拟主播/视频/video-3.mp4'
+import video4 from '@/assets/虚拟主播/视频/video-4.mp4'
+import video5 from '@/assets/虚拟主播/视频/video-5.mp4'
+import video6 from '@/assets/虚拟主播/视频/video-6.mp4'
+import video7 from '@/assets/虚拟主播/视频/video-7.mp4'
 import { clearAuthToken } from '@/utils/auth'
-import { getVideos, getVideosByCategory } from '@/utils/api'
-
 export default {
   name: 'HomeView',
   data() {
@@ -236,82 +240,146 @@ export default {
         ],
         rememberLogin: true
       },
-      shortVideos: []
+      shortVideos: [
+        {
+          id: 1,
+          title: '星海航线直播幕后花絮',
+          creator: 'NebulaNova',
+          duration: '02:18',
+          views: '5.8万次观看',
+          tags: ['LiveCut', 'Sci-Fi'],
+          thumbnailColor: 'linear-gradient(135deg, #FF61D2 0%, #FE9090 100%)'
+        },
+        {
+          id: 2,
+          title: '虚拟偶像舞台 · 夜幕版本',
+          creator: 'LumiRay',
+          duration: '01:05',
+          views: '3.1万次观看',
+          tags: ['Dance', 'Stage'],
+          thumbnailColor: 'linear-gradient(135deg, #42E695 0%, #3BB2B8 100%)'
+        },
+        {
+          id: 3,
+          title: '粉丝互动问答高能合集',
+          creator: 'KiraEcho',
+          duration: '03:44',
+          views: '2.4万次观看',
+          tags: ['Clips', 'Q&A'],
+          thumbnailColor: 'linear-gradient(135deg, #A18CD1 0%, #FBC2EB 100%)'
+        },
+        {
+          id: 4,
+          title: '全息角色建模 timelapse',
+          creator: 'MoriTech',
+          duration: '02:57',
+          views: '1.9万次观看',
+          tags: ['MakingOf', '3D'],
+          thumbnailColor: 'linear-gradient(135deg, #F6D365 0%, #FDA085 100%)'
+        },
+        {
+          id: 5,
+          title: '赛博朋克主题竖屏 MV',
+          creator: 'Vexa',
+          duration: '01:42',
+          views: '4.6万次观看',
+          tags: ['Music', 'Cyber'],
+          thumbnailColor: 'linear-gradient(135deg, #5EFCE8 0%, #736EFE 100%)'
+        },
+        {
+          id: 6,
+          title: '直播事故剪辑：趣味合集',
+          creator: 'Patchy',
+          duration: '02:10',
+          views: '6.2万次观看',
+          tags: ['Fun', 'Live'],
+          thumbnailColor: 'linear-gradient(135deg, #FAD961 0%, #F76B1C 100%)'
+        },
+        {
+          id: 7,
+          title: 'AI 虚拟形象调教日常',
+          creator: 'SigmaBot',
+          duration: '01:33',
+          views: '3.7万次观看',
+          tags: ['AI', 'BehindScenes'],
+          thumbnailColor: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)'
+        },
+        {
+          id: 8,
+          title: '赛博城市观光 Vlog',
+          creator: 'MetroMuse',
+          duration: '02:05',
+          views: '2.9万次观看',
+          tags: ['Vlog', 'City'],
+          thumbnailColor: 'linear-gradient(135deg, #8EC5FC 0%, #E0C3FC 100%)'
+        },
+        {
+          id: 9,
+          title: '虚拟美食节目 · 宇宙餐桌',
+          creator: 'ChefNova',
+          duration: '03:12',
+          views: '4.2万次观看',
+          tags: ['Food', 'Show'],
+          thumbnailColor: 'linear-gradient(135deg, #FBD786 0%, #f7797d 100%)'
+        },
+        {
+          id: 10,
+          title: '电竞解说高燃瞬间',
+          creator: 'CasterRay',
+          duration: '01:58',
+          views: '7.6万次观看',
+          tags: ['Esports', 'Highlights'],
+          thumbnailColor: 'linear-gradient(135deg, #43C6AC 0%, #F8FFAE 100%)'
+        },
+        {
+          id: 11,
+          title: '深夜电台 · 陪伴系列',
+          creator: 'EchoWave',
+          duration: '04:05',
+          views: '3.3万次观看',
+          tags: ['Podcast', 'Chill'],
+          thumbnailColor: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'
+        },
+        {
+          id: 12,
+          title: '全息舞狮春节特辑',
+          creator: 'Dynasty Duo',
+          duration: '02:26',
+          views: '5.1万次观看',
+          tags: ['Festival', 'Dance'],
+          thumbnailColor: 'linear-gradient(135deg, #f5515f 0%, #9f041b 100%)'
+        },
+        {
+          id: 13,
+          title: '音乐制作直播：即时 Remix',
+          creator: 'BeatForge',
+          duration: '02:48',
+          views: '4.9万次观看',
+          tags: ['Music', 'Remix'],
+          thumbnailColor: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+        },
+        {
+          id: 14,
+          title: '虚拟野外求生挑战',
+          creator: 'WildBytes',
+          duration: '03:20',
+          views: '2.2万次观看',
+          tags: ['Adventure', 'Challenge'],
+          thumbnailColor: 'linear-gradient(135deg, #134E5E 0%, #71B280 100%)'
+        },
+        {
+          id: 15,
+          title: '粉丝共创剧情互动剧',
+          creator: 'StorySync',
+          duration: '03:08',
+          views: '6.8万次观看',
+          tags: ['Interactive', 'Story'],
+          thumbnailColor: 'linear-gradient(135deg, #F4C4F3 0%, #FC67FA 100%)'
+        }
+      ]
     }
-  },
-  async mounted() {
-    // 根据当前路由设置激活的导航项
-    if (this.$route.path === '/') {
-      this.activeNav = 'discover'
-    }
-    // 加载视频列表
-    await this.loadVideos()
   },
   methods: {
-      async loadVideos() {
-        this.loading = true
-        this.loadError = ''
-        try {
-          let sort = 'time'
-          let category = null
-          
-          if (this.activeFilter === 'recommend') {
-            sort = 'popular'
-          } else if (this.activeFilter !== 'following') {
-            // 如果是主题筛选
-            const topicMap = {
-              music: 'music',
-              dance: 'dance',
-              game: 'game',
-              tech: 'tech',
-              food: 'food',
-              sport: 'sport'
-            }
-            category = topicMap[this.activeFilter]
-          }
-          
-          let response
-          if (category) {
-            response = await getVideosByCategory(category)
-            // API返回的是数组,需要包装成content格式
-            this.shortVideos = this.convertVideosToDisplay(response)
-          } else {
-            response = await getVideos(0, 20, sort)
-            this.shortVideos = this.convertVideosToDisplay(response.content || [])
-          }
-        } catch (error) {
-          console.error('加载视频失败:', error)
-          this.shortVideos = []
-          this.loadError = '加载视频失败, 请确认后端服务是否已启动'
-        } finally {
-          this.loading = false
-        }
-      },
-      convertVideosToDisplay(videos) {
-        return videos.map(video => ({
-          id: video.id,
-          title: video.title,
-          creator: video.authorName || 'Unknown',
-          duration: video.duration || '02:30',
-          views: this.formatViews(video.views || 0),
-          tags: this.normalizeTags(video.tags),
-          thumbnailColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          // 优先使用封面图,如果没有封面则使用默认渐变
-          coverImageUrl: video.coverImageUrl || null,
-          videoUrl: video.videoUrl
-        }))
-      },
-      normalizeTags(rawTags) {
-        if (!rawTags) return []
-        if (Array.isArray(rawTags)) return rawTags
-        return rawTags.split(',').map(tag => tag.trim()).filter(Boolean)
-      },
-      formatViews(count) {
-        if (count >= 10000) {
-          return `${(count / 10000).toFixed(1)}万次观看`
-        }
-        return `${count}次观看`
-      },
       handleNavClick(link) {
         this.activeNav = link.key
         if (link.key === 'my') {
@@ -389,22 +457,8 @@ export default {
       // 搜索功能通过 v-model 和计算属性自动实现
       // 这里可以添加额外的搜索逻辑，如搜索历史记录等
     },
-    goToVideo(videoId) {
-      if (!videoId) return
-      this.$router.push({ path: '/video', query: { id: videoId } }).catch(() => {})
-    },
-    getThumbnailStyle(video) {
-      if (video.coverImageUrl) {
-        return {
-          backgroundImage: `url(${video.coverImageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundColor: '#151515'
-        }
-      }
-      return {
-        background: video.thumbnailColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-      }
+    goVideo() {
+      this.$router.push('video')
     }
   },
   computed: {
@@ -416,9 +470,25 @@ export default {
           videos = videos.filter(video => 
             this.followingUsers.includes(video.creator)
           )
+        } else {
+          // 分类筛选：根据虚拟职业类别匹配标签
+          const topicMap = {
+            // 虚拟singer：偏音乐相关内容
+            vsinger: ['Music', 'MV', 'Remix', 'LiveCut'],
+            // 虚拟gamer：偏游戏 / 赛事
+            vgamer: ['Esports', 'Gaming', 'Game', 'Challenge'],
+            // 虚拟声优：偏配音、广播、播客
+            vseiyuu: ['Podcast', 'Chill', 'Story', 'Q&A'],
+            // 虚拟男V：这里简单归类到偏舞台 / 表演 / 互动类
+            vmale: ['Stage', 'Live', 'Interactive', 'Festival']
+          }
+          const topicTags = topicMap[this.activeFilter] || []
+          videos = this.shortVideos.filter(video => 
+            video.tags.some(tag => topicTags.includes(tag))
+          )
         }
         
-        // 根据搜索关键词过滤
+        // 再根据搜索关键词过滤（搜索作品名或用户名）
         if (this.searchQuery && this.searchQuery.trim()) {
           const query = this.searchQuery.trim().toLowerCase()
           videos = videos.filter(video => 
@@ -1076,25 +1146,6 @@ export default {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-<<<<<<< HEAD:font/src/views/HomeView.vue
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.video-card:focus-visible,
-.video-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.2);
-=======
-  border: 1px solid rgba(255, 105, 180, 0.2);
-  transition: all 0.3s ease;
-}
-
-.video-card:hover {
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
   border: 1px solid rgba(255, 105, 180, 0.2);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1106,7 +1157,23 @@ export default {
   border-color: rgba(255, 105, 180, 0.4);
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(255, 105, 180, 0.25);
-} border-radius: 999px;
+}
+
+.thumbnail {
+  position: relative;
+  border-radius: 14px;
+  height: 160px;
+  overflow: hidden;
+}
+
+.duration {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 500;
 }

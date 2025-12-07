@@ -408,42 +408,7 @@
             :class="{ 'batch-mode': isBatchMode }"
             @click="handleVideoClick(video)"
           >
-            <div class="thumbnail" :style="{ background: video.thumbnailColor }">
-              <span class="duration">{{ video.duration }}</span>
-              <label
-                v-if="isBatchMode"
-                class="video-checkbox"
-                @click.stop
-              >
-                <input
-                  type="checkbox"
-                  :checked="selectedItems.includes(video.id)"
-                  @change="toggleSelectItem(video.id)"
-                >
-              </label>
-            </div>
-            <div class="video-meta">
-              <h3>{{ video.title }}</h3>
-              <p class="creator">@{{ video.creator }}</p>
-              <p class="stats">
-                {{ video.views }} · {{ video.tags.join(' · ') }}
-              </p>
-            </div>
-          </article>
-        </div>
-
-        <div
-          v-else-if="activeTab === 'likes' && likedVideos.length"
-          class="video-grid"
-        >
-          <article
-            v-for="video in likedVideos"
-            :key="video.id"
-            class="video-card"
-            :class="{ 'batch-mode': isBatchMode }"
-            @click="handleVideoClick(video)"
-          >
-            <div class="thumbnail" :style="{ background: video.thumbnailColor }">
+            <div class="thumbnail" :style="getThumbnailStyle(video)">
               <span class="duration">{{ video.duration }}</span>
               <label
                 v-if="isBatchMode"
@@ -1580,12 +1545,25 @@ export default {
         this.sortDropdownTimer = null
       }, 300)
     },
-    handleClickOutside(event) {
-      // 点击外部关闭日期筛选面板
-      const dateFilterWrapper = event.target.closest('.date-filter-wrapper')
-      if (!dateFilterWrapper && this.showDateFilter) {
-        this.closeDateFilter()
+    getThumbnailStyle(video) {
+      // 优先使用上传的封面
+      let thumbnailUrl = video.thumbnail
+      
+      // 如果有coverKey，尝试从sessionStorage读取
+      if (video.coverKey && sessionStorage.getItem(video.coverKey)) {
+        thumbnailUrl = sessionStorage.getItem(video.coverKey)
       }
+      
+      if (thumbnailUrl && thumbnailUrl !== this.defaultThumbnail) {
+        return {
+          backgroundImage: `url(${thumbnailUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundColor: video.thumbnailColor || '#f5f5f5',
+        }
+      }
+      return { background: video.thumbnailColor || '#f5f5f5' }
     },
     handleVideoClick(video) {
       // 在批量管理模式下，不跳转
@@ -2343,7 +2321,8 @@ export default {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2352,11 +2331,11 @@ export default {
 
 .modal-card {
   width: min(420px, 90vw);
-  background: #161821;
+  background: rgba(255, 255, 255, 0.98);
   border-radius: 16px;
   padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 105, 180, 0.18);
+  box-shadow: 0 20px 60px rgba(255, 105, 180, 0.25);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2364,6 +2343,7 @@ export default {
 
 .modal-card h3 {
   margin: 0;
+  color: #2d2d2d;
 }
 
 .modal-card label {
@@ -2371,15 +2351,15 @@ export default {
   flex-direction: column;
   gap: 6px;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(45, 45, 45, 0.85);
 }
 
 .modal-card input,
 .modal-card textarea {
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.25);
-  color: #fff;
+  border: 1px solid rgba(255, 105, 180, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+  color: #2d2d2d;
   padding: 10px 12px;
   font-size: 1rem;
 }
@@ -2388,6 +2368,7 @@ export default {
 .modal-card textarea:focus {
   outline: none;
   border-color: #ff69b4;
+  box-shadow: 0 0 0 3px rgba(255, 105, 180, 0.15);
 }
 
 .modal-actions {
@@ -2399,18 +2380,34 @@ export default {
 .modal-actions .ghost,
 .modal-actions .primary {
   border-radius: 10px;
-  padding: 8px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: transparent;
-  color: #fff;
+  padding: 9px 18px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-actions .ghost {
+  border: 1px solid rgba(45, 45, 45, 0.15);
+  background: #fff;
+  color: rgba(45, 45, 45, 0.8);
+}
+
+.modal-actions .ghost:hover {
+  border-color: rgba(255, 105, 180, 0.45);
+  color: #ff69b4;
+  background: rgba(255, 105, 180, 0.08);
 }
 
 .modal-actions .primary {
   border: none;
   background: linear-gradient(135deg, #ff69b4 0%, #9370db 50%, #48d1cc 100%);
-  color: #000;
-  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(255, 105, 180, 0.3);
+}
+
+.modal-actions .primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(255, 105, 180, 0.4);
 }
 
 /* 角色卡弹窗样式 */
