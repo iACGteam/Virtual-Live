@@ -54,4 +54,67 @@ public class CommentController {
             return R.error(e.getMessage());
         }
     }
+    
+    /**
+     * 回复评论
+     */
+    @PostMapping("/{parentCommentId}/reply")
+    public R<CommentDto> replyComment(
+            @PathVariable Integer parentCommentId,
+            @RequestBody Map<String, Object> body) {
+        try {
+            Integer videoId = Integer.valueOf(body.get("videoId").toString());
+            Integer userId = Integer.valueOf(body.get("userId").toString());
+            String content = body.get("content").toString();
+            
+            CommentDto comment = commentService.replyComment(videoId, userId, parentCommentId, content);
+            return R.ok("回复成功", comment);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 删除评论
+     */
+    @DeleteMapping("/{commentId}")
+    public R<Void> deleteComment(
+            @PathVariable Integer commentId,
+            @RequestParam Integer userId) {
+        try {
+            commentService.deleteComment(commentId, userId);
+            return R.ok("删除成功", null);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取评论的回复列表
+     */
+    @GetMapping("/{commentId}/replies")
+    public R<Page<CommentDto>> getReplies(
+            @PathVariable Integer commentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Page<CommentDto> replies = commentService.getReplies(commentId, page, size);
+            return R.ok(replies);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取评论总数
+     */
+    @GetMapping("/video/{videoId}/count")
+    public R<Long> getCommentCount(@PathVariable Integer videoId) {
+        try {
+            long count = commentService.getCommentCount(videoId);
+            return R.ok(count);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
 }

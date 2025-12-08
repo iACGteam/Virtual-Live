@@ -11,18 +11,11 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CommentDto {
-    private Integer id;
-    private String content;
-    private Integer likes;
-    private LocalDateTime createdAt;
-    
-    // 用户信息
+public class CircleMemberDto {
+    private Integer memberId;
     private Integer userId;
     private String username;
     private String userAvatar;
-    
-    // 父评论信息（用于回复）
-    private Integer parentId;
-    private String parentUsername;
+    private LocalDateTime joinedAt;
+    private Integer postCount;
 }

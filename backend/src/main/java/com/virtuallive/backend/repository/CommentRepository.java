@@ -16,6 +16,8 @@ public interface CommentRepository extends JpaRepository<Comment, Integer> {
     Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByLikesDesc(Integer postId, Pageable pageable);
 
     List<Comment> findByParentComment_CommentIdAndIsDeletedFalse(Integer parentId);
+    
+    Page<Comment> findByParentCommentAndIsDeletedFalseOrderByCreatedAtAsc(Comment parentComment, Pageable pageable);
 
-    int countByPost_PostIdAndIsDeletedFalse(Integer postId);
+    long countByPost_PostIdAndIsDeletedFalse(Integer postId);
 }
