@@ -163,9 +163,10 @@
           v-for="video in filteredVideos"
           :key="video.id"
           class="video-card"
-          @click="goVideo"
+          @click="goVideo(video)"
         >
-          <div class="thumbnail" :style="{ background: video.thumbnailColor }">
+          <div class="thumbnail">
+            <img :src="video.thumbnail" :alt="`${video.title} 封面`">
             <span class="duration">{{ video.duration }}</span>
           </div>
           <div class="video-meta">
@@ -196,11 +197,16 @@ import video5 from '@/assets/虚拟主播/视频/video-5.mp4'
 import video6 from '@/assets/虚拟主播/视频/video-6.mp4'
 import video7 from '@/assets/虚拟主播/视频/video-7.mp4'
 import { clearAuthToken } from '@/utils/auth'
+
+const videoCovers = [cover1, cover2, cover3, cover4, cover5, cover6, cover7]
+const coverCycle = index => videoCovers[index % videoCovers.length]
+const videoSources = [video1, video2, video3, video4, video5, video6, video7]
+const shuffledVideoSources = [...videoSources].sort(() => Math.random() - 0.5)
+const videoSourceCycle = index => shuffledVideoSources[index % shuffledVideoSources.length]
 export default {
   name: 'HomeView',
   data() {
     return {
-      loading: false,
       activeNav: 'discover',
       searchQuery: '',
       showPostDropdown: false,
@@ -221,7 +227,6 @@ export default {
         { key: 'community', label: '社区', icon: '💬' },
         { key: 'my', label: '我的', icon: '' }
       ],
-      loadError: '',
       userProfile: {
         initials: 'VL',
         avatar: avatarImg,
@@ -247,8 +252,9 @@ export default {
           creator: 'NebulaNova',
           duration: '02:18',
           views: '5.8万次观看',
-          tags: ['LiveCut', 'Sci-Fi'],
-          thumbnailColor: 'linear-gradient(135deg, #FF61D2 0%, #FE9090 100%)'
+          tags: ['虚拟singer'],
+          thumbnail: coverCycle(0),
+          videoSrc: videoSourceCycle(0)
         },
         {
           id: 2,
@@ -256,8 +262,9 @@ export default {
           creator: 'LumiRay',
           duration: '01:05',
           views: '3.1万次观看',
-          tags: ['Dance', 'Stage'],
-          thumbnailColor: 'linear-gradient(135deg, #42E695 0%, #3BB2B8 100%)'
+          tags: ['虚拟男V'],
+          thumbnail: coverCycle(1),
+          videoSrc: videoSourceCycle(1)
         },
         {
           id: 3,
@@ -265,8 +272,9 @@ export default {
           creator: 'KiraEcho',
           duration: '03:44',
           views: '2.4万次观看',
-          tags: ['Clips', 'Q&A'],
-          thumbnailColor: 'linear-gradient(135deg, #A18CD1 0%, #FBC2EB 100%)'
+          tags: ['虚拟gamer'],
+          thumbnail: coverCycle(2),
+          videoSrc: videoSourceCycle(2)
         },
         {
           id: 4,
@@ -274,8 +282,9 @@ export default {
           creator: 'MoriTech',
           duration: '02:57',
           views: '1.9万次观看',
-          tags: ['MakingOf', '3D'],
-          thumbnailColor: 'linear-gradient(135deg, #F6D365 0%, #FDA085 100%)'
+          tags: ['虚拟声优'],
+          thumbnail: coverCycle(3),
+          videoSrc: videoSourceCycle(3)
         },
         {
           id: 5,
@@ -283,8 +292,9 @@ export default {
           creator: 'Vexa',
           duration: '01:42',
           views: '4.6万次观看',
-          tags: ['Music', 'Cyber'],
-          thumbnailColor: 'linear-gradient(135deg, #5EFCE8 0%, #736EFE 100%)'
+          tags: ['虚拟singer'],
+          thumbnail: coverCycle(4),
+          videoSrc: videoSourceCycle(4)
         },
         {
           id: 6,
@@ -292,8 +302,9 @@ export default {
           creator: 'Patchy',
           duration: '02:10',
           views: '6.2万次观看',
-          tags: ['Fun', 'Live'],
-          thumbnailColor: 'linear-gradient(135deg, #FAD961 0%, #F76B1C 100%)'
+          tags: ['虚拟gamer'],
+          thumbnail: coverCycle(5),
+          videoSrc: videoSourceCycle(5)
         },
         {
           id: 7,
@@ -301,8 +312,9 @@ export default {
           creator: 'SigmaBot',
           duration: '01:33',
           views: '3.7万次观看',
-          tags: ['AI', 'BehindScenes'],
-          thumbnailColor: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)'
+          tags: ['虚拟声优'],
+          thumbnail: coverCycle(6),
+          videoSrc: videoSourceCycle(6)
         },
         {
           id: 8,
@@ -310,8 +322,9 @@ export default {
           creator: 'MetroMuse',
           duration: '02:05',
           views: '2.9万次观看',
-          tags: ['Vlog', 'City'],
-          thumbnailColor: 'linear-gradient(135deg, #8EC5FC 0%, #E0C3FC 100%)'
+          tags: ['虚拟男V'],
+          thumbnail: coverCycle(7),
+          videoSrc: videoSourceCycle(7)
         },
         {
           id: 9,
@@ -319,8 +332,9 @@ export default {
           creator: 'ChefNova',
           duration: '03:12',
           views: '4.2万次观看',
-          tags: ['Food', 'Show'],
-          thumbnailColor: 'linear-gradient(135deg, #FBD786 0%, #f7797d 100%)'
+          tags: ['虚拟男V'],
+          thumbnail: coverCycle(8),
+          videoSrc: videoSourceCycle(8)
         },
         {
           id: 10,
@@ -328,8 +342,9 @@ export default {
           creator: 'CasterRay',
           duration: '01:58',
           views: '7.6万次观看',
-          tags: ['Esports', 'Highlights'],
-          thumbnailColor: 'linear-gradient(135deg, #43C6AC 0%, #F8FFAE 100%)'
+          tags: ['虚拟男V'],
+          thumbnail: coverCycle(9),
+          videoSrc: videoSourceCycle(9)
         },
         {
           id: 11,
@@ -337,8 +352,9 @@ export default {
           creator: 'EchoWave',
           duration: '04:05',
           views: '3.3万次观看',
-          tags: ['Podcast', 'Chill'],
-          thumbnailColor: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'
+          tags: ['虚拟声优'],
+          thumbnail: coverCycle(10),
+          videoSrc: videoSourceCycle(10)
         },
         {
           id: 12,
@@ -346,8 +362,9 @@ export default {
           creator: 'Dynasty Duo',
           duration: '02:26',
           views: '5.1万次观看',
-          tags: ['Festival', 'Dance'],
-          thumbnailColor: 'linear-gradient(135deg, #f5515f 0%, #9f041b 100%)'
+          tags: ['虚拟singer'],
+          thumbnail: coverCycle(11),
+          videoSrc: videoSourceCycle(11)
         },
         {
           id: 13,
@@ -355,8 +372,9 @@ export default {
           creator: 'BeatForge',
           duration: '02:48',
           views: '4.9万次观看',
-          tags: ['Music', 'Remix'],
-          thumbnailColor: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+          tags: ['虚拟singer'],
+          thumbnail: coverCycle(12),
+          videoSrc: videoSourceCycle(12)
         },
         {
           id: 14,
@@ -364,8 +382,9 @@ export default {
           creator: 'WildBytes',
           duration: '03:20',
           views: '2.2万次观看',
-          tags: ['Adventure', 'Challenge'],
-          thumbnailColor: 'linear-gradient(135deg, #134E5E 0%, #71B280 100%)'
+          tags: ['虚拟gamer'],
+          thumbnail: coverCycle(13),
+          videoSrc: videoSourceCycle(13)
         },
         {
           id: 15,
@@ -373,8 +392,9 @@ export default {
           creator: 'StorySync',
           duration: '03:08',
           views: '6.8万次观看',
-          tags: ['Interactive', 'Story'],
-          thumbnailColor: 'linear-gradient(135deg, #F4C4F3 0%, #FC67FA 100%)'
+          tags: ['虚拟声优'],
+          thumbnail: coverCycle(14),
+          videoSrc: videoSourceCycle(14)
         }
       ]
     }
@@ -447,43 +467,40 @@ export default {
       this.$router.push({ path: '/profile', query: { user: creator } }).catch(() => {})
     },
     setFilter(filterType) {
-      if (this.activeFilter === filterType && this.shortVideos.length && filterType !== 'following') {
-        return
-      }
       this.activeFilter = filterType
     },
     handleSearch() {
       // 搜索功能通过 v-model 和计算属性自动实现
       // 这里可以添加额外的搜索逻辑，如搜索历史记录等
     },
-    goVideo() {
-      this.$router.push('video')
+    goVideo(video) {
+      if (!video) return
+      this.$router.push({
+        path: '/video',
+        query: {
+          id: video.id,
+          src: video.videoSrc
+        }
+      }).catch(() => {})
     }
   },
   computed: {
       filteredVideos() {
-        let videos = this.shortVideos
+        let videos = []
         
-        // 关注筛选
-        if (this.activeFilter === 'following') {
-          videos = videos.filter(video => 
+        // 先根据筛选条件过滤
+        if (this.activeFilter === 'recommend') {
+          // 推荐：显示所有视频
+          videos = this.shortVideos
+        } else if (this.activeFilter === 'following') {
+          // 关注：只显示关注用户的视频
+          videos = this.shortVideos.filter(video => 
             this.followingUsers.includes(video.creator)
           )
         } else {
-          // 分类筛选：根据虚拟职业类别匹配标签
-          const topicMap = {
-            // 虚拟singer：偏音乐相关内容
-            vsinger: ['Music', 'MV', 'Remix', 'LiveCut'],
-            // 虚拟gamer：偏游戏 / 赛事
-            vgamer: ['Esports', 'Gaming', 'Game', 'Challenge'],
-            // 虚拟声优：偏配音、广播、播客
-            vseiyuu: ['Podcast', 'Chill', 'Story', 'Q&A'],
-            // 虚拟男V：这里简单归类到偏舞台 / 表演 / 互动类
-            vmale: ['Stage', 'Live', 'Interactive', 'Festival']
-          }
-          const topicTags = topicMap[this.activeFilter] || []
+          // 分类筛选：标签与分类一致（tags 里直接存中文分类名）
           videos = this.shortVideos.filter(video => 
-            video.tags.some(tag => topicTags.includes(tag))
+            video.tags.includes(this.topics.find(t => t.key === this.activeFilter)?.label)
           )
         }
         
@@ -497,6 +514,12 @@ export default {
         }
         
         return videos
+      }
+    },
+    mounted() {
+      // 根据当前路由设置激活的导航项
+      if (this.$route.path === '/') {
+        this.activeNav = 'discover'
       }
     },
     beforeUnmount() {
@@ -1146,11 +1169,9 @@ export default {
   gap: 12px;
   padding: 16px;
   border: 1px solid rgba(255, 105, 180, 0.2);
-  cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.video-card:focus-visible,
 .video-card:hover {
   background: rgba(255, 255, 255, 0.95);
   border-color: rgba(255, 105, 180, 0.4);
@@ -1163,6 +1184,13 @@ export default {
   border-radius: 14px;
   height: 160px;
   overflow: hidden;
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .duration {
@@ -1198,18 +1226,6 @@ export default {
   margin: 0;
   color: rgba(45, 45, 45, 0.5);
   font-size: 0.85rem;
-}
-
-.video-state {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 0.95rem;
-}
-
-.video-state.error {
-  color: #ff9d9d;
 }
 
 @media (max-width: 960px) {
