@@ -99,6 +99,27 @@ public class PostService {
     }
     
     /**
+     * 获取圈子的帖子列表
+     */
+    public Page<VideoDto> getCirclePosts(Integer circleId, int page, int size, String sort) {
+        Pageable pageable;
+        
+        switch (sort) {
+            case "popular":
+                pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "views", "likes"));
+                break;
+            case "hot":
+                pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "likes", "commentsCount"));
+                break;
+            default:
+                pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+        
+        Page<Video> videos = videoRepository.findByCircle_CircleIdAndIsDeletedFalse(circleId, pageable);
+        return videos.map(this::convertToDto);
+    }
+    
+    /**
      * 创建帖子
      */
     @Transactional
@@ -106,15 +127,16 @@ public class PostService {
         User author = userRepository.findById(uploadDto.getAuthorId())
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         
-        Video video = Video.builder()
+        Video.VideoBuilder videoBuilder = Video.builder()
                 .author(author)
                 .title(uploadDto.getTitle())
                 .content(uploadDto.getContent())
                 .category(uploadDto.getCategory())
                 .tags(uploadDto.getTags())
                 .coverImageUrl(uploadDto.getCoverImageUrl())
-                .videoUrl(uploadDto.getVideoUrl())
-                .build();
+                .videoUrl(uploadDto.getVideoUrl());
+        
+        Video video = videoBuilder.build();
         
         // 如果有视频URL，处理视频元数据
         if (uploadDto.getVideoUrl() != null && !uploadDto.getVideoUrl().isEmpty()) {
@@ -293,7 +315,7 @@ public class PostService {
      * 转换为DTO
      */
     private VideoDto convertToDto(Video video) {
-        return VideoDto.builder()
+        VideoDto.VideoDtoBuilder builder = VideoDto.builder()
                 .id(video.getPostId())
                 .title(video.getTitle())
                 .content(video.getContent())
@@ -308,7 +330,13 @@ public class PostService {
                 .createdAt(video.getCreatedAt())
                 .authorId(video.getAuthor().getUserId())
                 .authorName(video.getAuthor().getUsername())
-                .authorAvatar(video.getAuthor().getAvatarUrl())
-                .build();
+                .authorAvatar(video.getAuthor().getAvatarUrl());
+        
+        if (video.getCircle() != null) {
+            builder.circleId(video.getCircle().getCircleId())
+                   .circleName(video.getCircle().getName());
+        }
+        
+        return builder.build();
     }
 }

@@ -27,5 +27,7 @@ public class VideoUploadDto {
     private String tags;
 
     private Integer authorId;
+    
+    private Integer circleId; // 所属圈子ID，可选
 }
 

@@ -29,4 +29,8 @@ public class VideoDto {
     private Integer authorId;
     private String authorName;
     private String authorAvatar;
+    
+    // 圈子信息
+    private Integer circleId;
+    private String circleName;
 }

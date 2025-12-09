@@ -3,7 +3,9 @@ package com.virtuallive.backend.controller;
 import com.virtuallive.backend.model.dto.CircleDto;
 import com.virtuallive.backend.model.dto.CircleMemberDto;
 import com.virtuallive.backend.model.dto.R;
+import com.virtuallive.backend.model.dto.VideoDto;
 import com.virtuallive.backend.service.CircleService;
+import com.virtuallive.backend.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,7 @@ import java.util.Map;
 public class CircleController {
     
     private final CircleService circleService;
+    private final PostService postService;
     
     @GetMapping
     public R<Page<CircleDto>> getCircles(
@@ -166,6 +169,23 @@ public class CircleController {
         try {
             Map<String, Long> stats = circleService.getMemberStats(circleId);
             return R.ok(stats);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取圈子内的帖子列表
+     */
+    @GetMapping("/{circleId}/posts")
+    public R<Page<VideoDto>> getCirclePosts(
+            @PathVariable Integer circleId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "new") String sort) {
+        try {
+            Page<VideoDto> posts = postService.getCirclePosts(circleId, page, size, sort);
+            return R.ok(posts);
         } catch (Exception e) {
             return R.error(e.getMessage());
         }

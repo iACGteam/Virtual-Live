@@ -75,6 +75,31 @@ export async function likeComment(commentId) {
   })
 }
 
+// 回复评论
+export async function replyComment(parentCommentId, videoId, userId, content) {
+  return request(`/comments/${parentCommentId}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ videoId, userId, content })
+  })
+}
+
+// 删除评论
+export async function deleteComment(commentId, userId) {
+  return request(`/comments/${commentId}?userId=${userId}`, {
+    method: 'DELETE'
+  })
+}
+
+// 获取评论的回复列表
+export async function getCommentReplies(commentId, page = 0, size = 10) {
+  return request(`/comments/${commentId}/replies?page=${page}&size=${size}`)
+}
+
+// 获取评论总数
+export async function getCommentCount(videoId) {
+  return request(`/comments/video/${videoId}/count`)
+}
+
 // ==================== 主页相关 API ====================
 
 // 获取推荐内容
@@ -112,6 +137,37 @@ export async function getOfficialCircles(page = 0, size = 10) {
 // 获取圈子详情
 export async function getCircleById(id) {
   return request(`/circles/${id}`)
+}
+
+// 获取圈子内的帖子列表
+export async function getCirclePosts(circleId, page = 0, size = 20, sort = 'new') {
+  return request(`/circles/${circleId}/posts?page=${page}&size=${size}&sort=${sort}`)
+}
+
+// 加入圈子
+export async function joinCircle(circleId, userId) {
+  return request(`/circles/${circleId}/join`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 退出圈子
+export async function leaveCircle(circleId, userId) {
+  return request(`/circles/${circleId}/leave`, {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  })
+}
+
+// 检查是否是圈子成员
+export async function checkCircleMember(circleId, userId) {
+  return request(`/circles/${circleId}/check-member?userId=${userId}`)
+}
+
+// 获取圈子成员列表
+export async function getCircleMembers(circleId, page = 0, size = 20) {
+  return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
 }
 
 // ==================== 社区帖子相关 API ====================
@@ -424,6 +480,10 @@ export default {
   getComments,
   addComment,
   likeComment,
+  replyComment,
+  deleteComment,
+  getCommentReplies,
+  getCommentCount,
   getRecommendations,
   getPopularVideos,
   getCircles,
@@ -431,6 +491,11 @@ export default {
   getCirclesByCategory,
   getOfficialCircles,
   getCircleById,
+  getCirclePosts,
+  joinCircle,
+  leaveCircle,
+  checkCircleMember,
+  getCircleMembers,
   // 社区帖子相关
   getCommunityPosts,
   searchCommunityPosts,

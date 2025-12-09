@@ -29,6 +29,9 @@ public interface VideoRepository extends JpaRepository<Video, Integer> {
     @EntityGraph(attributePaths = "author")
     Page<Video> findByAuthor_UserIdAndIsDeletedFalse(Integer authorId, Pageable pageable);
     
+    @EntityGraph(attributePaths = {"author", "circle"})
+    Page<Video> findByCircle_CircleIdAndIsDeletedFalse(Integer circleId, Pageable pageable);
+    
     /**
      * 全局搜索：按标题、内容、标签搜索
      */

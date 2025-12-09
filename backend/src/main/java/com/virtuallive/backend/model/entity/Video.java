@@ -27,6 +27,10 @@ public class Video {
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "circle_id")
+    private Circle circle;
+    
     @Column(name = "title", nullable = false, length = 200)
     private String title;
     
