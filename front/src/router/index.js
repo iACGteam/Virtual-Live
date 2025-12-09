@@ -83,6 +83,11 @@ const routes = [
     path: '/com-detail',
     name: 'CommunityDetail',
     component: () => import('../components/community/ComDetailNav.vue')
+  },
+  {
+    path: "/new-live",
+    name: "NewLiveRoom",
+    component: () => import('../views/LiveRoomView.vue')
   }
 ]
 

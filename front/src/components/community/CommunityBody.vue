@@ -162,12 +162,12 @@ export default {
 
 .tab-item {
   cursor: pointer;
-  color: #aaa;
+  color: rgba(45, 45, 45, 0.8);
   transition: all 0.2s;
 }
 
 .tab-item.active {
-  color: #fff;
+  color: black;
   font-weight: bold;
   border-bottom: 2px solid #8b5cf6;
 }
@@ -184,8 +184,9 @@ export default {
 }
 
 .circle-card {
-  background: #1e1e1e;
+  background: #fefbff;
   border-radius: 16px;
+  border: 2px solid rgba(255, 105, 180, 0.2);
   padding: 16px;
 }
 
@@ -211,7 +212,7 @@ export default {
 }
 
 .info .count {
-  color: #ccc;
+  color: rgba(45, 45, 45, 0.7);
   font-size: 14px;
 }
 
@@ -258,7 +259,7 @@ export default {
 }
 
 .circle-desc {
-  color: #ccc;
+  color: rgba(45, 45, 45, 0.7);
   font-size: 14px;
   padding-left: 4px;
 }
