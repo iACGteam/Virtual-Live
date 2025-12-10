@@ -9,24 +9,17 @@ public class MockUserService implements IUserService {
 
     @Override
     public UserInfoDTO getUserByToken(String token) {
-        // === 模拟逻辑 ===
+        // === 针对数据库真实数据的适配 ===
 
-        // 1. 如果没传 Token，视为游客
-        if (token == null || token.isEmpty()) {
-            return new UserInfoDTO(0L, "游客_" + (int)(Math.random()*1000), null);
-        }
-
-        // 2. 模拟管理员
+        // 1. 模拟管理员 (假设数据库里没有ID为1的用户，这里可能会报错，建议你也改成88，或者去数据库加个ID为1的用户)
         if ("admin-token-123".equals(token)) {
-            return new UserInfoDTO(1L, "超管大大", "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
+            // 如果你数据库里没有 ID=1 的用户，这里也会报错！
+            // 为了安全起见，我们在测试阶段统一返回 88
+            return new UserInfoDTO(88L, "测试用户88", "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix");
         }
 
-        // 3. 模拟普通用户 (假设 token 是 "user-token-xxx")
-        if (token.startsWith("user-token")) {
-            return new UserInfoDTO(88L, "活跃观众", "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka");
-        }
-
-        // 4. Token 无效的情况
-        return new UserInfoDTO(0L, "非法用户", null);
+        // 2. 【核心修改】无论有没有Token，无论Token对不对，统统返回数据库里存在的那个 ID (88)
+        // 这样就能保证外键约束永远通过
+        return new UserInfoDTO(88L, "TestUser", "https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka");
     }
 }

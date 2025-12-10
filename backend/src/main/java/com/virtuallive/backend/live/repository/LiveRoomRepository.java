@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface LiveRoomRepository extends JpaRepository<LiveRoom, Integer> {
     // 自动生成 SQL: select * from live_rooms where stream_key = ?
     Optional<LiveRoom> findByStreamKey(String streamKey);
+
+
 }

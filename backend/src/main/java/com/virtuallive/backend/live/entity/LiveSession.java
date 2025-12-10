@@ -1,8 +1,8 @@
-// src/main/java/com/virtuallive/backend/live/entity/LiveSession.java
 package com.virtuallive.backend.live.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -16,5 +16,10 @@ public class LiveSession {
     private Integer roomId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private Integer durationMinutes;
     private Integer viewerCount;
+    private Integer peakViewers;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal totalGiftsRevenue = BigDecimal.ZERO;
 }

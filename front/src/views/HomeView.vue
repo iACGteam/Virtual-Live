@@ -1076,7 +1076,6 @@ export default {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-<<<<<<< HEAD:font/src/views/HomeView.vue
   border: 1px solid rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease;
@@ -1086,7 +1085,6 @@ export default {
 .video-card:hover {
   transform: translateY(-4px);
   border-color: rgba(255, 255, 255, 0.2);
-=======
   border: 1px solid rgba(255, 105, 180, 0.2);
   transition: all 0.3s ease;
 }
@@ -1106,7 +1104,7 @@ export default {
   border-color: rgba(255, 105, 180, 0.4);
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(255, 105, 180, 0.25);
-} border-radius: 999px;
+  border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 500;
 }

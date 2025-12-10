@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -68,4 +69,8 @@ public class LiveStreamServiceImpl implements LiveStreamService {
             log.info("直播结束：房间 [{}]", room.getRoomTitle());
         }
     }
+
+
+
+
 }

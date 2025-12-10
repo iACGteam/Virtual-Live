@@ -1,5 +1,7 @@
 package com.virtuallive.backend.live.service;
 
+import com.virtuallive.backend.live.entity.LiveRoom;
+
 /**
  * 直播流服务接口
  */
@@ -17,4 +19,5 @@ public interface LiveStreamService {
      * @param streamKey 推流密钥
      */
     void stopLive(String streamKey);
+
 }

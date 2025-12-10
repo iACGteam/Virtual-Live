@@ -36,6 +36,8 @@ export function setCurrentUser(username, persist = true) {
 
   primaryStore.setItem(CURRENT_USER_KEY, username)
   secondaryStore.removeItem(CURRENT_USER_KEY)
+}
+
 export function getCurrentUser() {
   if (typeof window === 'undefined') return null
   return window.localStorage.getItem(CURRENT_USER_KEY) || window.sessionStorage.getItem(CURRENT_USER_KEY)
@@ -55,7 +57,5 @@ export function getCurrentUserId() {
   if (typeof window === 'undefined') return null
   const userId = window.localStorage.getItem(CURRENT_USER_ID_KEY) || window.sessionStorage.getItem(CURRENT_USER_ID_KEY)
   return userId ? parseInt(userId) : null
-} if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(CURRENT_USER_KEY) || window.sessionStorage.getItem(CURRENT_USER_KEY)
 }
 
