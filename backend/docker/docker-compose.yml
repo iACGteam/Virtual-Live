@@ -30,7 +30,7 @@ services:
     container_name: virtuallive-redis-dev
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "26379:6379" # 本地端口被占用，修改端口，原端口皆为6379
     volumes:
       - redis_data_dev:/data
     networks:
