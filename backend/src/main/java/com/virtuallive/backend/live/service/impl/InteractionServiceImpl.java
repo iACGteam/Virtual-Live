@@ -27,7 +27,7 @@ public class InteractionServiceImpl implements InteractionService {
     @Autowired private GiftDonationRepository giftDonationRepository;
     @Autowired private UserWalletRepository userWalletRepository;
     @Autowired private LiveSessionRepository liveSessionRepository;
-    @Autowired private RoomBanRepository roomBanRepository; // 新增
+    @Autowired private RoomBanRepository roomBanRepository;
 
     private Integer getCurrentSessionId(Integer roomId) {
         return liveSessionRepository.findFirstByRoomIdAndEndTimeIsNullOrderByStartTimeDesc(roomId)
@@ -50,6 +50,22 @@ public class InteractionServiceImpl implements InteractionService {
         roomBanRepository.save(ban);
     }
 
+    // 新增：解除禁言
+    @Override
+    public void unmuteUser(Integer roomId, Integer userId) {
+        // 查找当前所有有效的禁言记录并使其过期
+        Optional<RoomBan> banOpt = roomBanRepository.findFirstByRoomIdAndUserIdAndEndTimeAfter(roomId, userId, LocalDateTime.now());
+        if (banOpt.isPresent()) {
+            RoomBan ban = banOpt.get();
+            // 修正：设置为过去的时间 (当前时间减1秒)，确保立即失效
+            ban.setEndTime(LocalDateTime.now().minusSeconds(1));
+            roomBanRepository.save(ban);
+            log.info("用户[{}] 在房间[{}] 的禁言已解除", userId, roomId);
+        } else {
+            log.warn("未找到用户[{}] 在房间[{}] 的有效禁言记录", userId, roomId);
+        }
+    }
+
     // 删除弹幕
     public void deleteDanmaku(Integer danmakuId) {
         danmakuRepository.findById(danmakuId).ifPresent(d -> {
@@ -60,7 +76,7 @@ public class InteractionServiceImpl implements InteractionService {
 
     @Override
     @Transactional
-    public void saveDanmaku(DanmakuMessage message, UserInfoDTO user) {
+    public Integer saveDanmaku(DanmakuMessage message, UserInfoDTO user) {
         Integer sessionId = getCurrentSessionId(message.getRoomId());
         if (sessionId == null) sessionId = 0;
 
@@ -69,7 +85,9 @@ public class InteractionServiceImpl implements InteractionService {
         danmaku.setUserId(user.getUserId().intValue());
         danmaku.setContent(message.getContent());
         danmaku.setColor(message.getColor());
-        danmakuRepository.save(danmaku);
+        danmaku = danmakuRepository.save(danmaku);
+
+        return danmaku.getDanmakuId();
     }
 
     @Override
@@ -128,7 +146,9 @@ public class InteractionServiceImpl implements InteractionService {
 
         // 如果是 SC，同时也保存一份到弹幕表，方便历史记录回看
         if ("SC".equalsIgnoreCase(message.getType())) {
-            saveDanmaku(message, user);
+            // 保存并设置ID
+            Integer scId = saveDanmaku(message, user);
+            message.setDanmakuId(scId);
         }
 
         log.info("礼物/SC处理成功: 用户[{}] 金额[{}]", user.getUsername(), totalCost);
