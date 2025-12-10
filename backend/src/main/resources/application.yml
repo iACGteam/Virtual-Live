@@ -4,32 +4,30 @@ server:
 spring:
   application:
     name: virtuallive-backend
-    
+
   datasource:
     url: jdbc:mysql://localhost:3307/virtuallive_dev?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
     username: virtual_live
     password: 123
     driver-class-name: com.mysql.cj.jdbc.Driver
-    
+
   jpa:
     hibernate:
-      ddl-auto: update  # 自动更新数据库结构
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
     open-in-view: false
-    
+
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
-  
-  # 禁用 Flyway
+
   flyway:
     enabled: false
-  
-  # 文件上传配置
+
   servlet:
     multipart:
       enabled: true
@@ -42,7 +40,14 @@ logging:
     root: INFO
     com.virtuallive: DEBUG
 
-# 文件上传配置
+# SRS 配置
+srs:
+  play:
+    # 修正：SRS HTTP-FLV 对外暴露端口为 8088
+    host: http://localhost:8088
+  rtmp:
+    host: rtmp://localhost/live
+
 file:
   upload:
     base-path: uploads
@@ -51,14 +56,4 @@ file:
     audio-path: audios
     file-path: files
 
-## Spring 文件上传配置
-#spring:
-#  servlet:
-#    multipart:
-#      enabled: true
-#      max-file-size: 500MB
-#      max-request-size: 500MB
-#      file-size-threshold: 2MB
-
-# 静态资源配置
 spring.web.resources.static-locations: file:uploads/,classpath:/static/

@@ -45,7 +45,7 @@ services:
     ports:
       - "1935:1935"      # RTMP 推流端口 (OBS 推流用)
       - "1985:1985"      # HTTP API 端口
-      - "8088:8081"      # HTTP-FLV/HLS 拉流端口 (宿主机8088 -> 容器8080)
+      - "8088:8081"      # HTTP-FLV/HLS 拉流端口 (宿主机8088 -> 容器8081)
     volumes:
       - ../srs_conf/srs.conf:/usr/local/srs/conf/srs.conf # 挂载配置文件
     networks:
