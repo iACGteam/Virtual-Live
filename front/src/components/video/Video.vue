@@ -27,6 +27,11 @@
       </div>
 
       <div class="danmu-send-bar">
+
+        <div v-if="videoInfo" class="action-buttons">
+        <button class="act-btn" @click="toggleLike(videoInfo)">👍 {{ videoInfo.likes ? videoInfo.likes : '' }}</button>
+        </div>
+
         <!-- 管理按钮 -->
         <div class="danmu-settings-btn" @click="toggleDanmuSettings">
           ⚙️
@@ -79,7 +84,7 @@
 
 
       <!-- 视频信息 -->
-      <div v-if="videoInfo" class="video-meta">
+      <!-- <div v-if="videoInfo" class="video-meta">
         <div class="meta-row">
           <div class="action-buttons">
             <button class="act-btn" @click="toggleLike(videoInfo)">
@@ -92,7 +97,7 @@
           <span v-if="videoInfo.views && videoInfo.duration"> · </span>
           <span v-if="videoInfo.duration">{{ videoInfo.duration }}</span>
         </div>
-      </div>
+      </div> -->
 
       <!-- 视频简介 -->
       <div v-if="videoInfo" class="video-description">
@@ -255,14 +260,13 @@ function showDanmu(dm) {
 }
 
 // 举报
-function reportDanmu(dm) {
-  alert("已举报: " + dm.text);
-}
-
+// function reportDanmu(dm) {
+//   alert("已举报: " + dm.text);
+// }
 // 屏蔽用户
-function blockUser(user) {
-  alert("已屏蔽用户：" + user);
-}
+// function blockUser(user) {
+//   alert("已屏蔽用户：" + user);
+// }
 
 // 示例：你从后端加载到的弹幕
 danmuList.value = [
@@ -695,7 +699,7 @@ video {
 
 .meta-row {
   display: flex;
-  justify-content: flex-end;
+  /* justify-content: flex-end; */
   align-items: center;
   margin-top: 8px;
 }
@@ -849,6 +853,7 @@ video {
   cursor: pointer;
   font-size: 14px;
   min-width: 88px;
+  border: none;
 }
 
 .stats-row {
@@ -1002,13 +1007,19 @@ h3 {
 .danmu-settings-panel {
   position: absolute;
   bottom: 100px;        /* 自行调整位置 */
-  left: 00px;
+  left: 120px;
   background: #fff;
   border: 1px solid #ddd;
   color: black;
   padding: 12px;
+  padding-top: 0px;
   z-index: 9999;      /* 覆盖所有内容 */
   border-radius: 8px;
+}
+
+
+.danmu-settings-pane .h4 {
+  margin: 0px;
 }
 
 /* 浮层淡入动画 */
@@ -1217,7 +1228,7 @@ h3 {
 
 /* 发送按钮 */
 .danmu-send-btn {
-  background: #00a1d6;
+  background: #ff69b4;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -1228,11 +1239,11 @@ h3 {
 }
 
 .danmu-send-btn:disabled {
-  background: #9fd8ee;
+  background: #f7c5de;
   cursor: not-allowed;
 }
 
 .danmu-send-btn:not(:disabled):hover {
-  background: #0092c8;
+  background: #f7429d;
 }
 </style>
