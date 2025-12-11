@@ -113,8 +113,9 @@ export default {
   color: #ff69b4;
   font-weight: 600;
   cursor: pointer;
-  border-left: none;
+  /* border-left: none; */
   transition: all 0.25s ease;
+  overflow: hidden;
 }
 
 .search-btn:hover {
