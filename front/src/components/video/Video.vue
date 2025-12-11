@@ -25,24 +25,59 @@
           </div>
         </div>
       </div>
-      <div class="danmu-send-bar">
 
+      <div class="danmu-send-bar">
+        <!-- 管理按钮 -->
+        <div class="danmu-settings-btn" @click="toggleDanmuSettings">
+          ⚙️
+        </div>
         <!-- 开关 -->
         <div class="danmu-switch" @click="toggleDanmu">
           <div class="switch-icon" :class="{ on: danmuEnabled }"></div>
           <span>{{ danmuEnabled ? "弹幕：开" : "弹幕：关" }}</span>
         </div>
-
         <!-- 输入 -->
         <input class="danmu-input" v-model="danmuInput" :placeholder="danmuEnabled ? '发个友善的弹幕见证当下' : '弹幕已关闭'"
           :disabled="!danmuEnabled" @keydown.enter="sendDanmu" />
-
         <!-- 发送按钮 -->
         <button class="danmu-send-btn" :disabled="!danmuEnabled || !danmuInput.trim()" @click="sendDanmu">
           发送
         </button>
-
       </div>
+
+      <!-- 弹幕设置面板 -->
+      <div class="danmu-settings-panel" v-show="showDanmuSettings">
+        <h4>弹幕设置</h4>
+
+        <!-- 透明度 -->
+        <div class="setting-row">
+          <label>透明度：{{ danmuOpacity }}</label>
+          <input type="range" min="0" max="1" step="0.1" v-model="danmuOpacity" />
+        </div>
+
+        <!-- 字号 -->
+        <div class="setting-row">
+          <label>字号：</label>
+          <select v-model="danmuFontSize">
+            <option value="14">小</option>
+            <option value="16">中</option>
+            <option value="20">大</option>
+            <option value="24">特大</option>
+          </select>
+        </div>
+
+        <!-- 显示区域 -->
+        <div class="setting-row">
+          <label>显示区域：</label>
+          <select v-model="danmuArea">
+            <option value="full">全屏</option>
+            <option value="top">顶部</option>
+            <option value="bottom">底部</option>
+          </select>
+        </div>
+      </div>
+
+
       <!-- 视频信息 -->
       <div v-if="videoInfo" class="video-meta">
         <div class="meta-row">
@@ -65,48 +100,8 @@
       </div>
 
       <!-- 评论区 -->
-      <div class="comments-section" ref="commentsRef">
-
-        <div class="comment-input-box">
-          <textarea v-model="newComment" placeholder="发表你的看法…"></textarea>
-          <button :disabled="!canPostComment" @click="postComment">发表评论</button>
-        </div>
-
-        <div class="comments-header">
-          <h3>评论</h3>
-          <select v-model="sortOrder">
-            <option value="time">按时间</option>
-            <option value="hot">按热度</option>
-          </select>
-        </div>
-
-        <ul class="comments-list">
-          <li v-for="comment in sortedComments" :key="comment.id">
-            <div class="comment-item">
-              <strong>{{ comment.user }}:</strong> {{ comment.content }}
-              <div class="comment-actions">
-                <span class="like-btn" :class="{ liked: comment.liked }" @click="toggleLike(comment)">
-                  ❤️ {{ comment.likes }}
-                </span>
-                <span @click="toggleReplyBox(comment)">💬 回复</span>
-              </div>
-              <div v-if="replyingTo === comment.id" class="reply-box">
-                <textarea v-model="replyText" placeholder="回复内容…"></textarea>
-                <button @click="submitReply(comment)">发送</button>
-              </div>
-              <ul class="reply-list" v-if="comment.replies.length > 0">
-                <li v-for="reply in comment.replies" :key="reply.id" class="reply-item">
-                  <strong>{{ reply.user }}:</strong> {{ reply.content }}
-                </li>
-              </ul>
-            </div>
-          </li>
-        </ul>
-
-      </div>
+       <Comment></Comment>
     </div>
-
-
 
     <!-- 右侧推荐视频区 -->
     <aside class="right-sidebar" :style="{ minHeight: sidebarMinHeight }">
@@ -138,7 +133,6 @@
           弹幕列表
           <span>{{ showDanmuList ? '▼' : '▲' }}</span>
         </div>
-
         <div v-show="showDanmuList" class="list-body">
           <table class="danmu-table">
             <thead>
@@ -162,14 +156,9 @@
             </tbody>
           </table>
         </div>
-<!-- 
-        <button class="history-btn" @click="openHistoryDanmu">
-          查看历史弹幕
-        </button> -->
       </div>
 
       <h3>推荐视频</h3>
-
       <div class="recommend-card" v-for="item in recommendedVideos" :key="item.id" @click="openRecommend(item)">
         <img class="thumb" :src="item.thumbnail" />
         <div class="info">
@@ -177,7 +166,6 @@
           <small>@{{ item.author }} · {{ item.views }} 次观看</small>
         </div>
       </div>
-
     </aside>
 
   </div>
@@ -188,9 +176,12 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import Comment from './Comment.vue'
 
 const router = useRouter()
 const route = useRoute()
+const totalComments = ref(0)
+
 
 // 视频源地址
 const videoSrc = ref('https://www.w3schools.com/html/mov_bbb.mp4')
@@ -225,28 +216,41 @@ const videoRef = ref(null);
 
 onMounted(() => {
   videoRef.value.addEventListener("timeupdate", () => {
+    if (!danmuEnabled.value) return;   // ❗关闭时不显示弹幕
+
     const current = Math.floor(videoRef.value.currentTime);
 
     danmuList.value
       .filter(dm => dm.videoTimeSec === current)
       .forEach(showDanmu);
   });
+
 });
 
 // 展示弹幕
 function showDanmu(dm) {
-  const topPos = Math.random() * 200 + 20;
+  if (!danmuEnabled.value) return;
+  const topMax =
+    danmuArea.value === "full"
+      ? 200
+      : danmuArea.value === "top"
+        ? 80
+        : 80;
+
+  const topBase = danmuArea.value === "bottom" ? 150 : 20;
+  const topPos = topBase + Math.random() * topMax;
 
   activeDanmus.value.push({
     id: dm.id,
     text: dm.text,
     top: topPos,
-    left: 0
+    left: 0,
+    opacity: danmuOpacity.value,
+    size: danmuFontSize.value,
   });
 
-  // 6 秒后删除（漂浮动画结束）
   setTimeout(() => {
-    activeDanmus.value = activeDanmus.value.filter(d => d.id !== dm.id);
+    activeDanmus.value = activeDanmus.value.filter((d) => d.id !== dm.id);
   }, 6000);
 }
 
@@ -291,6 +295,9 @@ const danmuInput = ref("");
 // 切换弹幕开关
 function toggleDanmu() {
   danmuEnabled.value = !danmuEnabled.value;
+  if (!danmuEnabled.value) {
+    activeDanmus.value = [];   // 清空现有弹幕
+  }
 }
 
 // 发送弹幕
@@ -332,7 +339,38 @@ function formatTime(sec) {
 
 
 
+// ==================== 弹幕管理设置 =====================
+const showDanmuSettings = ref(false);
 
+// 打开 / 关闭 设置面板
+function toggleDanmuSettings() {
+  showDanmuSettings.value = !showDanmuSettings.value;
+  console.log("面板状态：", showDanmuSettings.value);
+}
+
+// 透明度（影响全部弹幕）
+const danmuOpacity = ref(1.0);
+
+// 字号
+const danmuFontSize = ref(16);
+
+// 弹幕区域
+// full / top / bottom
+const danmuArea = ref("full");
+
+
+// ==================== 弹幕管理设置 =====================
+
+// 点赞功能（视频或评论通用）
+const toggleLike = (item) => {
+  if (!item.liked) {
+    item.likes++
+    item.liked = true
+  } else {
+    item.likes--
+    item.liked = false
+  }
+}
 
 
 // ======== 加入圈子状态 ========
@@ -363,98 +401,6 @@ const goToChannel = () => {
 
   console.log("跳转到作者主页逻辑这里写")
 }
-
-// 评论数据示例
-const comments = ref([
-  { id: 1, user: 'Alice', content: '太棒了！', time: '2025-11-23T17:00:00', hot: 10 },
-  { id: 2, user: 'Bob', content: '非常喜欢！', time: '2025-11-23T17:05:00', hot: 15 },
-  { id: 3, user: 'Charlie', content: '学习了', time: '2025-11-23T17:10:00', hot: 8 }
-])
-
-// 评论增强
-comments.value = comments.value.map(c => ({
-  ...c,
-  likes: c.hot || 0,
-  liked: false,
-  replies: []
-}))
-
-// 选择排序方式
-const sortOrder = ref('time')
-
-const sortedComments = computed(() => {
-  return [...comments.value].sort((a, b) => {
-    if (sortOrder.value === 'time') {
-      return new Date(b.time) - new Date(a.time)
-    } else if (sortOrder.value === 'hot') {
-      return b.hot - a.hot
-    }
-    return 0
-  })
-})
-
-const totalComments = computed(() => {
-  return comments.value.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0)
-})
-
-// 点赞功能（视频或评论通用）
-const toggleLike = (item) => {
-  if (!item.liked) {
-    item.likes++
-    item.liked = true
-  } else {
-    item.likes--
-    item.liked = false
-  }
-}
-
-// 发布评论
-const newComment = ref("")
-const canPostComment = computed(() => newComment.value.trim().length > 0)
-const replyingTo = ref(null)
-const replyText = ref("")
-
-const postComment = () => {
-  if (!canPostComment.value) return
-
-  comments.value.unshift({
-    id: Date.now(),
-    user: "You",
-    content: newComment.value,
-    time: new Date().toISOString(),
-    likes: 0,
-    replies: []
-  })
-
-  newComment.value = ""
-  nextTick(() => updateSidebarHeight())
-}
-
-// 回复框开关
-const toggleReplyBox = (comment) => {
-  if (replyingTo.value === comment.id) {
-    replyingTo.value = null
-  } else {
-    replyingTo.value = comment.id
-    replyText.value = ""
-  }
-}
-
-// 回复提交
-const submitReply = (comment) => {
-  if (!replyText.value.trim()) return
-
-  comment.replies.push({
-    id: Date.now(),
-    user: "You",
-    content: replyText.value,
-    time: new Date().toISOString()
-  })
-
-  replyText.value = ""
-  replyingTo.value = null
-}
-
 
 // ========= 推荐视频假数据 (可替换真实 API) =========
 const recommendedVideos = ref([
@@ -933,151 +879,6 @@ video {
   white-space: pre-wrap;
 }
 
-/* ================== 评论区样式 ================== */
-
-.comments-section {
-  /* width: 95%; */
-  /* max-width: 800px; */
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 105, 180, 0.2);
-  box-shadow: 0 4px 16px rgba(255, 105, 180, 0.15);
-  margin-top: 12px;
-}
-
-.comments-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.comments-header h3 {
-  margin: 0;
-  color: #2d2d2d;
-}
-
-.comments-header select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 105, 180, 0.3);
-  background: rgba(255, 255, 255, 0.9);
-  color: #2d2d2d;
-  cursor: pointer;
-}
-
-/* 评论输入框 */
-.comment-input-box {
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-.comment-input-box textarea {
-  flex: 1;
-  height: 80px;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 105, 180, 0.3);
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.comment-input-box button {
-  align-self: flex-end;
-  margin-top: 8px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #ff69b4;
-  color: white;
-  cursor: pointer;
-  border: none;
-}
-
-.comment-input-box button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* 评论显示 */
-.comments-list li {
-  margin-bottom: 10px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 105, 180, 0.2);
-  color: rgba(45, 45, 45, 0.8);
-}
-
-.comments-list li strong {
-  color: black;
-}
-
-/* 评论动作 */
-.comment-actions {
-  display: flex;
-  gap: 12px;
-  margin: 4px 0 8px;
-  color: gray;
-}
-
-.comment-actions span {
-  cursor: pointer;
-}
-
-/* 回复框 */
-.reply-box {
-  margin: 8px 0 10px 20px;
-  display: flex;
-  flex-direction: column;
-}
-
-.reply-box textarea {
-  width: 90%;
-  height: 60px;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 105, 180, 0.3);
-}
-
-.reply-box button {
-  align-self: flex-start;
-  margin-top: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: none;
-  background: #ff69b4;
-  color: white;
-}
-
-/* 回复列表 */
-.reply-list {
-  margin-left: 20px;
-  margin-top: 8px;
-  padding-left: 15px;
-  border-left: 2px solid rgba(255, 105, 180, 0.3);
-}
-
-.reply-item {
-  margin-bottom: 6px;
-  color: rgba(45, 45, 45, 0.8);
-}
-
-/* 评论点赞按钮 */
-.like-btn {
-  cursor: pointer;
-  transition: all 0.2s;
-  color: rgba(45, 45, 45, 0.6);
-}
-
-.like-btn.liked {
-  color: #ff4d88;
-  transform: scale(1.2);
-}
-
-.like-btn:hover {
-  color: #ff69b4;
-}
-
 /* ================== 推荐视频区域 ================== */
 
 .right-sidebar {
@@ -1140,11 +941,19 @@ h3 {
   color: black;
 }
 
-
-
 .video-wrapper {
   position: relative;
 }
+
+/* .danmu-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+} */
 
 .danmu-overlay {
   position: absolute;
@@ -1152,19 +961,19 @@ h3 {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  /* 不影响点击 */
-  overflow: hidden;
+  pointer-events: none; /* 不挡住 UI */
+  z-index: 5;
 }
 
 .danmu-item {
   position: absolute;
   white-space: nowrap;
-  font-size: 16px;
-  color: white;
   text-shadow: 1px 1px 2px black;
   animation: danmu-move 6s linear forwards;
+  opacity: v-bind(danmuOpacity);
+  font-size: v-bind(danmuFontSize + 'px');
 }
+
 
 @keyframes danmu-move {
   from {
@@ -1175,6 +984,63 @@ h3 {
     left: -100%;
   }
 }
+
+/* ⚙️ 齿轮按钮 */
+.danmu-settings-btn {
+  font-size: 20px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: 0.2s;
+}
+
+.danmu-settings-btn:hover {
+  background: #eef6ff;
+}
+
+/* 设置面板 */
+.danmu-settings-panel {
+  position: absolute;
+  bottom: 100px;        /* 自行调整位置 */
+  left: 00px;
+  background: #fff;
+  border: 1px solid #ddd;
+  color: black;
+  padding: 12px;
+  z-index: 9999;      /* 覆盖所有内容 */
+  border-radius: 8px;
+}
+
+/* 浮层淡入动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.setting-row {
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.setting-row label {
+  font-size: 14px;
+  width: 70px;
+}
+
+
+
+
+
 
 
 
@@ -1198,7 +1064,8 @@ h3 {
 .danmu-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed; /* 让列宽按 th 分配 */
+  table-layout: fixed;
+  /* 让列宽按 th 分配 */
 }
 
 .danmu-table th,
@@ -1213,17 +1080,20 @@ h3 {
 /* 三个列宽自动分配 */
 .danmu-table th:nth-child(1),
 .danmu-table td:nth-child(1) {
-  width: 80px; /* 视频时间列较短 */
+  width: 80px;
+  /* 视频时间列较短 */
 }
 
 .danmu-table th:nth-child(2),
 .danmu-table td:nth-child(2) {
-  width: auto; /* 内容列自动占满 */
+  width: auto;
+  /* 内容列自动占满 */
 }
 
 .danmu-table th:nth-child(3),
 .danmu-table td:nth-child(3) {
-  width: 140px; /* 发送时间固定长度 */
+  width: 140px;
+  /* 发送时间固定长度 */
 }
 
 /* 防止内容过长撑坏布局，自动换行 */
@@ -1256,7 +1126,8 @@ h3 {
 
 /* 悬浮效果 */
 .button:hover {
-  color: #409eff;              /* 轻微蓝色高亮 */
+  color: #409eff;
+  /* 轻微蓝色高亮 */
   border-color: #c6e2ff;
   background-color: #ecf5ff;
 }
@@ -1278,6 +1149,7 @@ h3 {
 
 /* ==================弹幕发送========================== */
 .danmu-send-bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1320,7 +1192,8 @@ h3 {
 }
 
 .switch-icon.on {
-  background: #00a1d6; /* B站蓝 */
+  background: #00a1d6;
+  /* B站蓝 */
 }
 
 .switch-icon.on::after {
@@ -1362,5 +1235,4 @@ h3 {
 .danmu-send-btn:not(:disabled):hover {
   background: #0092c8;
 }
-
 </style>
