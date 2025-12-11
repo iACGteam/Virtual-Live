@@ -17,6 +17,31 @@
       <!-- 视频播放区域（保留你的逻辑） -->
       <div class="video-wrapper">
         <video ref="videoRef" :src="videoSrc" controls autoplay></video>
+        <!-- 弹幕显示层 -->
+        <div class="danmu-overlay">
+          <div v-for="dm in activeDanmus" :key="dm.id" class="danmu-item"
+            :style="{ top: dm.top + 'px', left: dm.left + 'px' }">
+            {{ dm.text }}
+          </div>
+        </div>
+      </div>
+      <div class="danmu-send-bar">
+
+        <!-- 开关 -->
+        <div class="danmu-switch" @click="toggleDanmu">
+          <div class="switch-icon" :class="{ on: danmuEnabled }"></div>
+          <span>{{ danmuEnabled ? "弹幕：开" : "弹幕：关" }}</span>
+        </div>
+
+        <!-- 输入 -->
+        <input class="danmu-input" v-model="danmuInput" :placeholder="danmuEnabled ? '发个友善的弹幕见证当下' : '弹幕已关闭'"
+          :disabled="!danmuEnabled" @keydown.enter="sendDanmu" />
+
+        <!-- 发送按钮 -->
+        <button class="danmu-send-btn" :disabled="!danmuEnabled || !danmuInput.trim()" @click="sendDanmu">
+          发送
+        </button>
+
       </div>
       <!-- 视频信息 -->
       <div v-if="videoInfo" class="video-meta">
@@ -81,6 +106,8 @@
       </div>
     </div>
 
+
+
     <!-- 右侧推荐视频区 -->
     <aside class="right-sidebar" :style="{ minHeight: sidebarMinHeight }">
       <div class="creator-panel">
@@ -104,6 +131,41 @@
           </button>
           <div class="join-note">需粉丝等级≥3 才可加入圈子</div>
         </div>
+      </div>
+
+      <div class="danmu-list">
+        <div class="list-header" @click="toggleDanmuList">
+          弹幕列表
+          <span>{{ showDanmuList ? '▼' : '▲' }}</span>
+        </div>
+
+        <div v-show="showDanmuList" class="list-body">
+          <table class="danmu-table">
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>弹幕内容</th>
+                <th>发送时间</th>
+                <!-- <th>操作</th> -->
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="dm in danmuList" :key="dm.id">
+                <td>{{ dm.videoTime }}</td>
+                <td>{{ dm.text }}</td>
+                <td>{{ dm.sendTime }}</td>
+                <!-- <td>
+                  <button @click="reportDanmu(dm)" class="button">举报</button>
+                  <button @click="blockUser(dm.user)" class="button">屏蔽用户</button>
+                </td> -->
+              </tr>
+            </tbody>
+          </table>
+        </div>
+<!-- 
+        <button class="history-btn" @click="openHistoryDanmu">
+          查看历史弹幕
+        </button> -->
       </div>
 
       <h3>推荐视频</h3>
@@ -143,6 +205,136 @@ const toggleFollow = () => {
   isFollowing.value = !isFollowing.value
 }
 
+
+
+// =======================弹幕=============================
+
+
+
+const activeDanmus = ref([]);     // 当前显示中的弹幕
+const danmuList = ref([]);        // 弹幕列表（用于表格展示）
+const showDanmuList = ref(false);
+
+// 打开/关闭弹幕列表
+const toggleDanmuList = () => {
+  showDanmuList.value = !showDanmuList.value;
+};
+
+// 监听视频播放进度，用时间触发弹幕
+const videoRef = ref(null);
+
+onMounted(() => {
+  videoRef.value.addEventListener("timeupdate", () => {
+    const current = Math.floor(videoRef.value.currentTime);
+
+    danmuList.value
+      .filter(dm => dm.videoTimeSec === current)
+      .forEach(showDanmu);
+  });
+});
+
+// 展示弹幕
+function showDanmu(dm) {
+  const topPos = Math.random() * 200 + 20;
+
+  activeDanmus.value.push({
+    id: dm.id,
+    text: dm.text,
+    top: topPos,
+    left: 0
+  });
+
+  // 6 秒后删除（漂浮动画结束）
+  setTimeout(() => {
+    activeDanmus.value = activeDanmus.value.filter(d => d.id !== dm.id);
+  }, 6000);
+}
+
+// 举报
+function reportDanmu(dm) {
+  alert("已举报: " + dm.text);
+}
+
+// 屏蔽用户
+function blockUser(user) {
+  alert("已屏蔽用户：" + user);
+}
+
+// 示例：你从后端加载到的弹幕
+danmuList.value = [
+  {
+    id: 1,
+    text: "热乎的",
+    user: "用户A",
+    videoTime: "00:06",
+    videoTimeSec: 6,
+    sendTime: "12-11 11:37"
+  },
+  {
+    id: 2,
+    text: "我是第一",
+    user: "用户B",
+    videoTime: "00:00",
+    videoTimeSec: 0,
+    sendTime: "12-11 11:38"
+  }
+];
+
+
+
+// 开关状态
+const danmuEnabled = ref(true);
+
+// 输入内容
+const danmuInput = ref("");
+
+// 切换弹幕开关
+function toggleDanmu() {
+  danmuEnabled.value = !danmuEnabled.value;
+}
+
+// 发送弹幕
+function sendDanmu() {
+  if (!danmuEnabled.value) return;
+  if (!danmuInput.value.trim()) return;
+
+  const text = danmuInput.value.trim();
+
+  // 创建一个新的弹幕对象
+  const currentTimeSec = Math.floor(videoRef.value.currentTime);
+
+  const newDanmu = {
+    id: Date.now(),
+    text,
+    videoTimeSec: currentTimeSec,
+    videoTime: formatTime(currentTimeSec),
+    user: "你自己",
+    sendTime: new Date().toLocaleString(),
+  };
+
+  // 加入弹幕列表（供列表页显示）
+  danmuList.value.push(newDanmu);
+
+  // 立即显示弹幕
+  showDanmu(newDanmu);
+
+  // 清空输入
+  danmuInput.value = "";
+}
+
+function formatTime(sec) {
+  const m = String(Math.floor(sec / 60)).padStart(2, "0");
+  const s = String(sec % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+// =======================弹幕=============================
+
+
+
+
+
+
 // ======== 加入圈子状态 ========
 const isJoined = ref(false)
 
@@ -166,7 +358,7 @@ const handleJoinClick = () => {
 }
 
 const goToChannel = () => {
-  router.push({ path: '/profile'})
+  router.push({ path: '/profile' })
   // query: { id: videoInfo.value.creatorId }
 
   console.log("跳转到作者主页逻辑这里写")
@@ -265,7 +457,6 @@ const submitReply = (comment) => {
 
 
 // ========= 推荐视频假数据 (可替换真实 API) =========
-
 const recommendedVideos = ref([
   {
     id: 101,
@@ -636,7 +827,7 @@ video {
   border: 1px solid #f0e6ff;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   margin-bottom: 8px;
 }
 
@@ -948,4 +1139,228 @@ small {
 h3 {
   color: black;
 }
+
+
+
+.video-wrapper {
+  position: relative;
+}
+
+.danmu-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  /* 不影响点击 */
+  overflow: hidden;
+}
+
+.danmu-item {
+  position: absolute;
+  white-space: nowrap;
+  font-size: 16px;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+  animation: danmu-move 6s linear forwards;
+}
+
+@keyframes danmu-move {
+  from {
+    left: 100%;
+  }
+
+  to {
+    left: -100%;
+  }
+}
+
+
+
+.danmu-list {
+  color: black;
+  background: #fefbff;
+  border: 1px solid #fedef0;
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.list-header {
+  padding: 10px;
+  font-size: 18px;
+  cursor: pointer;
+  background: #fefbff;
+}
+
+.danmu-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* 让列宽按 th 分配 */
+}
+
+.danmu-table th,
+.danmu-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  font-size: 14px;
+  color: gray;
+}
+
+/* 三个列宽自动分配 */
+.danmu-table th:nth-child(1),
+.danmu-table td:nth-child(1) {
+  width: 80px; /* 视频时间列较短 */
+}
+
+.danmu-table th:nth-child(2),
+.danmu-table td:nth-child(2) {
+  width: auto; /* 内容列自动占满 */
+}
+
+.danmu-table th:nth-child(3),
+.danmu-table td:nth-child(3) {
+  width: 140px; /* 发送时间固定长度 */
+}
+
+/* 防止内容过长撑坏布局，自动换行 */
+.danmu-text {
+  white-space: normal;
+  word-break: break-all;
+}
+
+.history-btn {
+  width: 100%;
+  padding: 10px;
+  background: #fefbff;
+  border: none;
+  cursor: pointer;
+}
+
+
+.button {
+  padding: 4px 10px;
+  margin: 0 4px;
+  font-size: 12px;
+  color: #333;
+  background-color: #ffffff;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+/* 悬浮效果 */
+.button:hover {
+  color: #409eff;              /* 轻微蓝色高亮 */
+  border-color: #c6e2ff;
+  background-color: #ecf5ff;
+}
+
+/* 点击时 */
+.button:active {
+  background-color: #d9ecff;
+  border-color: #a0cfff;
+}
+
+/* .button:disabled {
+  cursor: not-allowed;
+  color: #bcbec2;
+  background-color: #f5f5f5;
+  border-color: #e4e7ed;
+} */
+
+
+
+/* ==================弹幕发送========================== */
+.danmu-send-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  border-top: 1px solid #eee;
+  background: #fff;
+}
+
+/* 开关 */
+.danmu-switch {
+  color: #000;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 6px;
+  font-size: 14px;
+  user-select: none;
+}
+
+.switch-icon {
+  width: 36px;
+  height: 18px;
+  background: #ccc;
+  border-radius: 18px;
+  position: relative;
+  transition: 0.25s;
+}
+
+.switch-icon::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  left: 1px;
+  top: 1px;
+  transition: 0.25s;
+}
+
+.switch-icon.on {
+  background: #00a1d6; /* B站蓝 */
+}
+
+.switch-icon.on::after {
+  left: 19px;
+}
+
+/* 输入框 */
+.danmu-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+}
+
+.danmu-input:focus {
+  border-color: #00a1d6;
+}
+
+/* 发送按钮 */
+.danmu-send-btn {
+  background: #00a1d6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.danmu-send-btn:disabled {
+  background: #9fd8ee;
+  cursor: not-allowed;
+}
+
+.danmu-send-btn:not(:disabled):hover {
+  background: #0092c8;
+}
+
 </style>
