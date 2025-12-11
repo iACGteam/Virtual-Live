@@ -1,7 +1,7 @@
 <template>
   <div class="community-page">
     <div class="search-bar">
-      <SearchBar></SearchBar>
+      <SearchBar v-model="searchQuery" @search="handleSearch"></SearchBar>
     </div>
 
 
@@ -15,7 +15,8 @@
 
     <!-- 粉丝圈列表 -->
     <div class="circle-list">
-      <div v-for="circle in circles" :key="circle.id" class="circle-card">
+      <div v-if="filteredCircles.length === 0" class="empty-circles">未加入任何圈子，快去探索吧～</div>
+      <div v-for="circle in filteredCircles" :key="circle.id" class="circle-card">
         <div class="circle-header">
           <img :src="circle.avatar" class="avatar">
           <div class="info">
@@ -23,7 +24,22 @@
             <p class="count">{{ circle.count }} 粉丝已加入</p>
           </div>
 
-          <el-button class="join-btn" size="medium" @click="goDetail">加入</el-button>
+          <div class="join-area">
+            <div class="join-btn-wrap">
+              <div class="join-actions" v-if="circle.followed">
+                <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
+                  进入
+                </el-button>
+                <el-button class="action-btn exit-btn" size="medium" @click="exitCircle(circle)">
+                  退出
+                </el-button>
+              </div>
+              <div v-else class="join-single">
+                <el-button class="action-btn join-btn" size="medium" @click="followCircle(circle)">加入</el-button>
+                <span class="join-note">未关注的圈子需要粉丝等级≥3 方可加入</span>
+              </div>
+            </div>
+          </div>
           
         </div>
 
@@ -54,36 +70,39 @@ export default {
 
   data() {
     return {
-      activeTab: '最新',
-      navList: ['最新', '最热'],
+      searchQuery: '',
+      activeTab: '关注',
+      navList: ['关注', '最新', '最热'],
 
       // 后端获取
       circles: [
         {
           id: 1,
-          name: "官方的圈子",
-          avatar: "@/assets/avatar.jpg",
+          name: "阿萨Aza的圈子",
+          avatar: require("@/assets/community/avatar1.jpg"),
           count: "7248",
+          followed: true,
           photos: [
-            "@/assets/avatar.jpg",
-            "@/assets/avatar.jpg",
-            "@/assets/avatar.jpg",
-            "@/assets/avatar.jpg"
+            require("@/assets/community/aza.jpg"),
+            require("@/assets/community/aza.jpg"),
+            require("@/assets/community/aza.jpg"),
+            require("@/assets/community/aza.jpg"),
           ],
-          desc: "上方是图片预览,最好不要超过四张.这里是文字介绍"
+          desc: "VirtuaRealProject所属六期生虚拟主播“阿萨Aza是一个爱唱歌、爱打游戏的普普通通打工仔"
         },
         {
           id: 2,
-          name: "官方2号的圈子",
-          avatar: "@/assets/avatar.jpg",
+          name: "KONG控的圈子",
+          avatar: require("@/assets/community/avatar3.jpg"),
           count: "1.8万",
+          followed: false,
           photos: [
-            "/mock/h1.jpg",
-            "/mock/h2.jpg",
-            "/mock/h3.jpg",
-            "/mock/h4.jpg"
+            require("@/assets/community/k.jpg"),
+            require("@/assets/community/k.jpg"),
+            require("@/assets/community/k.jpg"),
+            require("@/assets/community/k.jpg"),
           ],
-          desc: "上方是图片预览"
+          desc: "这里是对控的碎碎念备忘录"
         }
       ]
     }
@@ -95,9 +114,59 @@ export default {
       this.activeTab = tab
     },
 
+    followCircle(circle) {
+      circle.followed = true
+    },
+
+    exitCircle(circle) {
+      circle.followed = false
+    },
+
+    enterCircle(circle) {
+      if (!circle.followed) {
+        alert('请先关注该圈子');
+        return;
+      }
+      this.goDetail(circle)
+    },
+
+    handleSearch() {
+      // 触发搜索，实际过滤由 computed 完成
+    },
+
     // 点击跳转到圈子详情页
-    goDetail() {
-      this.$router.push(`/com-detail`)
+    goDetail(circle) {
+      this.$router.push({
+        path: "/com-detail",
+        query: {
+          id: circle.id,
+          name: circle.name,
+          avatar: circle.avatar
+        }
+      });
+    }
+  }
+
+,  computed: {
+    filteredCircles() {
+      const keyword = this.searchQuery.trim().toLowerCase();
+      let list = this.circles;
+
+      if (keyword) {
+        list = list.filter(c => (c.name || '').toLowerCase().includes(keyword));
+      }
+
+      if (this.activeTab === '关注') {
+        list = list.filter(c => c.followed);
+      }
+
+      if (this.activeTab === '最热') {
+        // 简单按粉丝数排序，注意字符串转数字
+        list = [...list].sort((a, b) => parseInt((b.count + '').replace(/\D/g, '') || 0) - parseInt((a.count + '').replace(/\D/g, '') || 0));
+      }
+
+      // '最新' 暂按原顺序
+      return list;
     }
   }
 }
@@ -152,8 +221,18 @@ export default {
   width: 90%;
 }
 
+.empty-circles {
+  padding: 32px;
+  text-align: center;
+  color: #999;
+  font-size: 16px;
+  background: #fff;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+}
+
 .circle-card {
-  background: white;
+  background: #fefbff;
   border-radius: 16px;
   border: 2px solid rgba(255, 105, 180, 0.2);
   padding: 16px;
@@ -199,27 +278,67 @@ export default {
   color: rgba(45, 45, 45, 0.7);
 }
 
-.join-btn {
-  margin-left: auto;
+.action-btn {
   border-radius: 15px;
-  background: linear-gradient(135deg, #ff8de4 0%, #a972ff 100%);
-  color: #EBEDF0;
+  color: #fff;
   font-size: 0.8rem;
   border: none;
   transition: all 0.2s;
-  box-shadow: 
-    0 4px 10px rgba(255, 141, 228, 0.4),  /* 粉紫柔光 */
-    0 2px 6px rgba(169, 114, 255, 0.3)
+  box-shadow:
+    0 4px 10px rgba(255, 141, 228, 0.4),
+    0 2px 6px rgba(169, 114, 255, 0.3);
 }
 
-.join-btn:hover {
+.enter-btn {
+  background: linear-gradient(135deg, #7aa8ff 0%, #409eff 100%);
+}
+
+.exit-btn {
+  background: linear-gradient(135deg, #ff9bb1 0%, #ff6b81 100%);
+}
+
+.join-btn {
+  background: linear-gradient(135deg, #ff8de4 0%, #a972ff 100%);
+}
+
+.join-area {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-start;
+}
+
+.join-btn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.join-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.join-single {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.join-note {
+  font-size: 12px;
+  color: rgba(45, 45, 45, 0.7);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.action-btn:hover {
   color: white;
   transform: translateY(-3px);
   box-shadow:
     0 6px 14px rgba(255, 141, 228, 0.5),
     0 4px 10px rgba(169, 114, 255, 0.4);
-
-
 }
 
 .circle-photos {

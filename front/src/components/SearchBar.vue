@@ -1,32 +1,38 @@
 <template>
-    <div class="search-input">
-        <div class="search-field">
-            <span class="search-icon">🔍</span>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜索作品名或用户名..."
-              @keyup.enter="handleSearch"
-            >
-        </div>
-        <span class="search-divider"></span>
-        <button class="search-btn" @click="handleSearch">搜索</button>
+  <div class="search-input">
+    <div class="search-field">
+      <span class="search-icon">🔍</span>
+      <input
+        :value="modelValue"
+        type="text"
+        placeholder="搜索作品名或用户名..."
+        @input="onInput"
+        @keyup.enter="handleSearch"
+      >
     </div>
+    <span class="search-divider"></span>
+    <button class="search-btn" @click="handleSearch">搜索</button>
+  </div>
 </template>
 
 <script>
-    export default{
-        data(){
-
-        },
-        methods: {
-            handleSearch() {
-            // 搜索功能通过 v-model 和计算属性自动实现
-            // 这里可以添加额外的搜索逻辑，如搜索历史记录等
-            }
-        }
+export default {
+  props: {
+    modelValue: {
+      type: String,
+      default: ""
     }
-    
+  },
+  emits: ["update:modelValue", "search"],
+  methods: {
+    onInput(e) {
+      this.$emit("update:modelValue", e.target.value);
+    },
+    handleSearch() {
+      this.$emit("search", this.modelValue.trim());
+    }
+  }
+};
 </script>
 <style>
 

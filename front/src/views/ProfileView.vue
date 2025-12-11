@@ -57,7 +57,9 @@
               <div>
                 <p class="profile-name">{{ panel.name }}</p>
                 <p class="profile-stats">
-                  关注 {{ panel.followings }} · 粉丝 {{ panel.followers }}
+                  <span class="clickable" @click.stop="openFollowModal('following')">关注 {{ panel.followings }}</span>
+                  · <span class="clickable" @click.stop="openFollowModal('followers')">粉丝 {{ panel.followers }}</span>
+                  · <span class="clickable" @click.stop="openFollowModal('circles')">圈子 {{ panel.circles }}</span>
                 </p>
               </div>
             </div>
@@ -142,6 +144,7 @@
             <div class="stats">
               <span class="stat-item clickable" @click="openFollowModal('following')">关注 {{ user.following }}</span>
               <span class="stat-item clickable" @click="openFollowModal('followers')">粉丝 {{ user.followers }}</span>
+              <span class="stat-item clickable" @click="openFollowModal('circles')">圈子 {{ user.circles }}</span>
               <span>获赞 {{ user.likes }}</span>
             </div>
             <p class="signature">{{ user.signature }}</p>
@@ -480,6 +483,12 @@
             >
               粉丝 ({{ followersList.length }})
             </button>
+              <button
+                :class="['follow-tab', { active: followModalTab === 'circles' }]"
+                @click="followModalTab = 'circles'"
+              >
+                圈子 ({{ circlesList.length }})
+              </button>
           </div>
           <button class="close-btn" @click="closeFollowModal">✕</button>
         </div>
@@ -541,7 +550,7 @@
               :class="['follow-status-btn', user.followStatus]"
               @click="toggleFollow(user)"
             >
-              {{ getFollowButtonText(user.followStatus) }}
+              {{ getFollowButtonText(user.followStatus, followModalTab) }}
             </button>
           </div>
         </div>
@@ -734,6 +743,7 @@ export default {
         isLive: true,
         following: 250,
         followers: 86,
+        circles: 5,
         likes: 4,
         signature: 'yeeeee',
         sn: '43114125',
@@ -744,6 +754,7 @@ export default {
         name: 'zk3zy',
         followings: 250,
         followers: 86,
+        circles: 3,
         likes: '3.0万',
         favorites: [
           { id: 1, tag: '#Live', title: '治愈童声 #见面会', gradient: 'linear-gradient(125deg, #fdfcfb 0%, #e2d1c3 100%)' },
@@ -884,6 +895,24 @@ export default {
           followStatus: 'mutual',
           verified: true,
           followTime: new Date('2023-11-20').getTime()
+        }
+      ],
+      circlesList: [
+        {
+          id: 'c1',
+          name: '官方社团',
+          avatar: require('@/assets/community/avatar1.jpg'),
+          title: '官方圈子',
+          description: '官方资讯、活动、粉丝讨论',
+          followStatus: 'joined'
+        },
+        {
+          id: 'c2',
+          name: 'KONG控的圈子',
+          avatar: require('@/assets/community/avatar3.jpg'),
+          title: '主播圈子',
+          description: '最新动态与粉丝互动',
+          followStatus: 'joined'
         }
       ],
       followersList: [
@@ -1125,7 +1154,11 @@ export default {
       return currentVideos.length > 0 && this.selectedItems.length === currentVideos.length
     },
     displayedFollowList() {
-      let list = this.followModalTab === 'following' ? this.followingList : this.followersList
+      let list = this.followModalTab === 'following'
+        ? this.followingList
+        : this.followModalTab === 'followers'
+          ? this.followersList
+          : this.circlesList
       
       // 搜索过滤
       if (this.followSearchQuery.trim()) {
@@ -1137,7 +1170,7 @@ export default {
         })
       }
       
-      // 排序（仅对关注列表进行排序，粉丝列表不排序）
+      // 排序（仅对关注列表进行排序，粉丝/圈子列表不排序）
       if (this.followModalTab === 'following' && this.selectedSort !== '综合排序') {
         const sortedList = [...list]
         if (this.selectedSort === '最近关注') {
@@ -1516,7 +1549,16 @@ export default {
         user.followStatus = 'followed'
       }
     },
-    getFollowButtonText(status) {
+    getFollowButtonText(status, tab = 'following') {
+      if (tab === 'circles') {
+        const circleMap = {
+          'joined': '已加入',
+          'followed': '加入圈子',
+          'not-followed': '加入圈子'
+        }
+        return circleMap[status] || '加入圈子'
+      }
+
       const statusMap = {
         'followed': '已关注',
         'mutual': '相互关注',

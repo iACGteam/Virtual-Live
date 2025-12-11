@@ -447,7 +447,10 @@
         // 这里可以添加额外的搜索逻辑，如搜索历史记录等
       },
       goLiveRoom() {
-        this.$router.push({ name: 'LiveRoom' })
+        // this.$router.push({ name: 'LiveRoom' })
+        // this.$router.push("/live-room")
+        window.open(this.$router.resolve({ path: "/live-room" }).href, '_blank');
+
       },
     },
     computed: {
