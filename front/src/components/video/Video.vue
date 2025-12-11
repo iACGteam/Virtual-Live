@@ -29,7 +29,8 @@
       <div class="danmu-send-bar">
 
         <div v-if="videoInfo" class="action-buttons">
-        <button class="act-btn" @click="toggleLike(videoInfo)">👍 {{ videoInfo.likes ? videoInfo.likes : '' }}</button>
+          <button class="act-btn" @click="toggleLike(videoInfo)">👍 {{ videoInfo.likes ? videoInfo.likes : ''
+            }}</button>
         </div>
 
         <!-- 管理按钮 -->
@@ -105,7 +106,7 @@
       </div>
 
       <!-- 评论区 -->
-       <Comment></Comment>
+      <Comment></Comment>
     </div>
 
     <!-- 右侧推荐视频区 -->
@@ -187,6 +188,9 @@ const router = useRouter()
 const route = useRoute()
 const totalComments = ref(0)
 
+let timeUpdateHandler = null
+
+
 
 // 视频源地址
 const videoSrc = ref('https://www.w3schools.com/html/mov_bbb.mp4')
@@ -220,17 +224,37 @@ const toggleDanmuList = () => {
 const videoRef = ref(null);
 
 onMounted(() => {
-  videoRef.value.addEventListener("timeupdate", () => {
-    if (!danmuEnabled.value) return;   // ❗关闭时不显示弹幕
+  // 先加载视频
+  loadVideo()
+  updateSidebarHeight()
+  window.addEventListener('resize', updateSidebarHeight)
 
-    const current = Math.floor(videoRef.value.currentTime);
+  nextTick(() => {
+    const el = videoRef.value
+    if (!el) {
+      console.warn('videoRef 仍然为 null')
+      return
+    }
 
-    danmuList.value
-      .filter(dm => dm.videoTimeSec === current)
-      .forEach(showDanmu);
-  });
+    // 单独定义 handler，方便卸载时 removeEventListener
+    timeUpdateHandler = (e) => {
+      if (!danmuEnabled.value) return
 
-});
+      const video = e.target
+      if (!video || !video.currentTime) return
+
+      const current = Math.floor(video.currentTime)
+
+      danmuList.value
+        .filter(dm => dm.videoTimeSec === current)
+        .forEach(showDanmu)
+    }
+
+    el.addEventListener('timeupdate', timeUpdateHandler)
+  })
+})
+
+
 
 // 展示弹幕
 function showDanmu(dm) {
@@ -306,32 +330,32 @@ function toggleDanmu() {
 
 // 发送弹幕
 function sendDanmu() {
-  if (!danmuEnabled.value) return;
-  if (!danmuInput.value.trim()) return;
+  if (!danmuEnabled.value) return
+  if (!danmuInput.value.trim()) return
 
-  const text = danmuInput.value.trim();
+  const video = videoRef.value
+  if (!video) {
+    console.warn('videoRef is null, video not ready yet.')
+    return
+  }
 
-  // 创建一个新的弹幕对象
-  const currentTimeSec = Math.floor(videoRef.value.currentTime);
+  const text = danmuInput.value.trim()
+  const currentTimeSec = Math.floor(video.currentTime)
 
   const newDanmu = {
     id: Date.now(),
     text,
     videoTimeSec: currentTimeSec,
     videoTime: formatTime(currentTimeSec),
-    user: "你自己",
+    user: '你自己',
     sendTime: new Date().toLocaleString(),
-  };
+  }
 
-  // 加入弹幕列表（供列表页显示）
-  danmuList.value.push(newDanmu);
-
-  // 立即显示弹幕
-  showDanmu(newDanmu);
-
-  // 清空输入
-  danmuInput.value = "";
+  danmuList.value.push(newDanmu)
+  showDanmu(newDanmu)
+  danmuInput.value = ''
 }
+
 
 function formatTime(sec) {
   const m = String(Math.floor(sec / 60)).padStart(2, "0");
@@ -512,7 +536,6 @@ const updateSidebarHeight = () => {
   sidebarMinHeight.value = `${height}px`
 }
 
-
 // 点击推荐视频 -> 跳转播放
 const openRecommend = (item) => {
   router.push({
@@ -520,7 +543,6 @@ const openRecommend = (item) => {
     query: { id: item.id, src: videoSrc.value, views: item.views }
   })
 }
-
 
 // 自动加载视频
 const loadVideo = () => {
@@ -593,19 +615,26 @@ const loadVideo = () => {
   videoSrc.value = 'https://www.w3schools.com/html/mov_bbb.mp4'
 }
 
-onMounted(() => {
-  loadVideo()
-  updateSidebarHeight()
-  window.addEventListener('resize', updateSidebarHeight)
-})
+// onMounted(() => {
+//   loadVideo()
+//   updateSidebarHeight()
+//   window.addEventListener('resize', updateSidebarHeight)
+// })
 
 onBeforeUnmount(() => {
   if (blobUrl) {
     URL.revokeObjectURL(blobUrl)
     blobUrl = null
   }
+
   window.removeEventListener('resize', updateSidebarHeight)
+
+  const el = videoRef.value
+  if (el && timeUpdateHandler) {
+    el.removeEventListener('timeupdate', timeUpdateHandler)
+  }
 })
+
 </script>
 
 
@@ -966,7 +995,8 @@ h3 {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none; /* 不挡住 UI */
+  pointer-events: none;
+  /* 不挡住 UI */
   z-index: 5;
 }
 
@@ -1006,14 +1036,16 @@ h3 {
 /* 设置面板 */
 .danmu-settings-panel {
   position: absolute;
-  bottom: 100px;        /* 自行调整位置 */
+  bottom: 100px;
+  /* 自行调整位置 */
   left: 120px;
   background: #fff;
   border: 1px solid #ddd;
   color: black;
   padding: 12px;
   padding-top: 0px;
-  z-index: 9999;      /* 覆盖所有内容 */
+  z-index: 9999;
+  /* 覆盖所有内容 */
   border-radius: 8px;
 }
 
