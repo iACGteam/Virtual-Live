@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: virtuallive-mysql-dev
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: virtuallive_dev
+      MYSQL_USER: virtual_live
+      MYSQL_PASSWORD: 123
+      TZ: 'Asia/Shanghai'
+    volumes:
+      - mysql_data_dev:/var/lib/mysql
+      - ../sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ../../mysql_conf/mysql-dev.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - virtuallive-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: virtuallive-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - virtuallive-network
+    command: redis-server --appendonly yes
+
+  # === 新增 SRS 流媒体服务器 ===
+  srs:
+    image: ossrs/srs:5
+    container_name: virtuallive-srs-dev
+    restart: unless-stopped
+    ports:
+      - "1935:1935"      # RTMP 推流端口 (OBS 推流用)
+      - "1985:1985"      # HTTP API 端口
+      - "8088:8081"      # HTTP-FLV/HLS 拉流端口 (宿主机8088 -> 容器8080)
+    volumes:
+      - ../srs_conf/srs.conf:/usr/local/srs/conf/srs.conf # 挂载配置文件
+    networks:
+      - virtuallive-network
+    # 关键配置：让 Docker 容器能通过 host.docker.internal 访问你本机 IDEA 运行的程序
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ./objs/srs -c conf/srs.conf
+
+volumes:
+  mysql_data_dev:
+  redis_data_dev:
+
+networks:
+  virtuallive-network:
+    driver: bridge

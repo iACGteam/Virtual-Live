@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="360" viewBox="0 0 900 360">
+  <style>
+    .title { font: 700 20px/1.2 'Segoe UI', Roboto, 'Helvetica Neue', Arial; fill: #2d2d2d; }
+    .label { font: 400 14px/1.2 'Segoe UI', Roboto, Arial; fill: #2d2d2d; }
+    .hex { font: 600 13px/1.2 'Segoe UI', Roboto, Arial; fill: #2d2d2d; }
+    .note { font: 400 12px/1.2 'Segoe UI', Roboto, Arial; fill: #666666; }
+  </style>
+
+  <!-- Title -->
+  <text x="20" y="30" class="title">项目配色卡 — Virtual Live （自动生成）</text>
+  <text x="20" y="52" class="note">位置：public/color-palette.svg — 右键打开可另存为 PNG/SVG</text>
+
+  <!-- Swatch group (labels moved to the right of swatches) -->
+  <!-- Row 1: 背景渐变色 -->
+  <g transform="translate(20,80)">
+    <text x="0" y="0" class="label">背景渐变色</text>
+
+    <g transform="translate(0,18)">
+      <rect x="0" y="0" width="120" height="80" fill="#fef7ff" rx="6" ry="6" stroke="#eee" />
+      <text x="140" y="40" class="hex">#fef7ff</text>
+
+      <rect x="280" y="0" width="120" height="80" fill="#f5f0ff" rx="6" ry="6" stroke="#eee" />
+      <text x="420" y="40" class="hex">#f5f0ff</text>
+
+      <rect x="560" y="0" width="120" height="80" fill="#fff0f8" rx="6" ry="6" stroke="#eee" />
+      <text x="700" y="40" class="hex">#fff0f8</text>
+    </g>
+  </g>
+
+  <!-- Row 2: 强调色 / 点缀 -->
+  <g transform="translate(20,170)">
+    <text x="0" y="0" class="label">强调色 / 点缀</text>
+
+    <g transform="translate(0,18)">
+      <rect x="0" y="0" width="120" height="80" fill="#FF69B4" rx="6" ry="6" />
+      <text x="140" y="40" class="hex">#FF69B4 (热粉)</text>
+
+      <rect x="280" y="0" width="120" height="80" fill="#9370DB" rx="6" ry="6" />
+      <text x="420" y="40" class="hex">#9370DB (中紫)</text>
+
+      <rect x="560" y="0" width="120" height="80" fill="#48D1CC" rx="6" ry="6" />
+      <text x="700" y="40" class="hex">#48D1CC (青绿)</text>
+    </g>
+  </g>
+
+  <!-- Row 3: 文本色 / 玻璃 -->
+  <g transform="translate(20,260)">
+    <text x="0" y="0" class="label">文本色 / 卡片覆盖</text>
+
+    <g transform="translate(0,18)">
+      <rect x="0" y="0" width="120" height="60" fill="#2d2d2d" rx="6" ry="6" />
+      <text x="140" y="33" class="hex">#2d2d2d (文本)</text>
+
+      <!-- 玻璃效果示例：白色 0.9 不透明度 -->
+      <rect x="280" y="0" width="160" height="60" fill="#f0f0f0" rx="6" ry="6" />
+      <rect x="280" y="0" width="160" height="60" fill="rgba(255,255,255,0.9)" rx="6" ry="6" />
+      <text x="460" y="33" class="hex">白色 (rgba(255,255,255,0.9))</text>
+    </g>
+  </g>
+
+  <!-- Footer note: Element Plus 默认色 -->
+  <g transform="translate(520,80)">
+    <text x="0" y="0" class="label">第三方 UI</text>
+    <text x="0" y="24" class="note">使用了 `element-plus`，默认主色为 <tspan class="hex">#409EFF</tspan></text>
+
+    <rect x="0" y="44" width="140" height="60" fill="#409EFF" rx="6" ry="6" />
+    <text x="160" y="74" class="hex">#409EFF (Element Plus 默认)</text>
+  </g>
+
+</svg>

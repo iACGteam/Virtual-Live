@@ -113,6 +113,8 @@
 </template>
 
 <script>
+import { uploadVideo, uploadImage } from '@/utils/api'
+
 export default {
   name: 'UploadVideoView',
   data() {
@@ -250,12 +252,12 @@ export default {
     selectTopic(topicKey) {
       this.selectedTopic = topicKey
     },
-    saveVideo() {
+    async saveVideo() {
       if (!this.selectedFile) {
         alert('请先选择要上传的视频')
         return
       }
-      this.processFile(this.selectedFile)
+      await this.processFile(this.selectedFile)
     },
     async processFile(file) {
       const maxSize = 500 * 1024 * 1024 // 500MB
@@ -264,17 +266,51 @@ export default {
         return
       }
       
-      // 保存视频的blob URL到sessionStorage，供后续查看时使用
-      const videoUrl = URL.createObjectURL(file)
-      const videoId = Date.now()
-      sessionStorage.setItem(`videoBlob_${videoId}`, videoUrl)
+      // 显示上传进度提示
+      const loadingMsg = '正在上传视频，请稍候...'
+      console.log(loadingMsg)
       
-      // 保存封面到sessionStorage（如果有的话）
-      let coverKey = null
-      if (this.coverDataUrl) {
-        coverKey = `coverBlob_${videoId}`
-        sessionStorage.setItem(coverKey, this.coverDataUrl)
+      try {
+        // 上传视频到后端
+        const videoResult = await uploadVideo(file)
+        let videoUrl = ''
+        let duration = null
+        
+        if (videoResult && typeof videoResult === 'object') {
+          videoUrl = videoResult.url || ''
+          duration = videoResult.duration
+        } else if (typeof videoResult === 'string') {
+          videoUrl = videoResult
+        }
+        
+        // 上传封面图片（如果有）
+        let coverUrl = ''
+        if (this.coverFile) {
+          try {
+            const coverResult = await uploadImage(this.coverFile)
+            if (coverResult && typeof coverResult === 'object') {
+              coverUrl = coverResult.url || ''
+            } else if (typeof coverResult === 'string') {
+              coverUrl = coverResult
+            }
+          } catch (err) {
+            console.warn('封面上传失败，使用默认封面', err)
+            coverUrl = this.coverPreview || this.defaultThumbnail
+          }
+        } else {
+          coverUrl = this.coverPreview || this.defaultThumbnail
+        }
+        
+        // 准备视频数据
+        await this.saveUploadedVideo(file, videoUrl, coverUrl, duration)
+        
+      } catch (error) {
+        console.error('视频上传失败:', error)
+        alert('视频上传失败: ' + (error.message || '未知错误'))
       }
+    },
+    async saveUploadedVideo(file, videoUrl, coverUrl, duration) {
+      const videoId = Date.now()
       
       // 读取用户信息（用于获取用户名）
       let userName = 'zk3zy' // 默认用户名
@@ -290,27 +326,25 @@ export default {
         console.warn('读取用户信息失败', err)
       }
       
-      const duration = this.videoDuration
-        ? this.formatDuration(Math.round(this.videoDuration))
-        : this.formatDuration(Math.floor(Math.random() * 300 + 10)) // 10-310秒兜底
+      const formattedDuration = duration 
+        ? this.formatDuration(Math.round(duration))
+        : (this.videoDuration
+          ? this.formatDuration(Math.round(this.videoDuration))
+          : this.formatDuration(Math.floor(Math.random() * 300 + 10)))
       const primaryTag = this.topicLabelMap[this.selectedTopic] || (this.selectedTopic || '未分类')
       const title = (this.form.title && this.form.title.trim()) || file.name.replace(/\.[^/.]+$/, '')
       const desc = (this.form.desc && this.form.desc.trim()) || ''
       const visibility = this.form.visibility === 'private' ? 'private' : 'public'
       const isPrivate = visibility === 'private'
-      
-      // 不再将视频内联到localStorage，避免超出浏览器存储配额（10MB左右就可能失败）
-      let inlineVideoData = ''
 
       const videoData = {
         id: videoId,
         title,
         creator: userName,
-        duration: duration,
+        duration: formattedDuration,
         views: '0次观看',
         tags: [primaryTag],
-        thumbnail: this.coverPreview || this.defaultThumbnail,
-        coverKey: coverKey,
+        thumbnail: coverUrl,
         desc,
         visibility,
         isPrivate,
@@ -318,8 +352,7 @@ export default {
         fileName: file.name,
         fileSize: file.size,
         fileType: file.type,
-        videoUrl: videoUrl,
-        videoData: inlineVideoData // 不再内联，避免localStorage超限；刷新后大文件需重传
+        videoUrl: videoUrl // 后端返回的视频URL
       }
 
       // 保存到localStorage
