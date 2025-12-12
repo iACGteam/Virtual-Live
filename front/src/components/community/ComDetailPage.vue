@@ -27,7 +27,7 @@ import { ChatDotRound } from '@element-plus/icons-vue'
 
 import HotRank from './HotRank.vue'
 import PopularTopics from './PopularTopics.vue'
-import ComDetail from './ComDetailCopy.vue'
+import ComDetail from './ComDetail.vue'
 
 </script>
 

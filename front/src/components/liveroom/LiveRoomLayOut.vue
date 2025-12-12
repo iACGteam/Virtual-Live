@@ -5,7 +5,10 @@
         <LiveHeader
           :host="host"
           :is-following="isFollowing"
+          :is-joined="isJoined"
           @toggle-follow="toggleFollow"
+          @toggle-join="toggleJoin"
+          @go-circle="goCircle"
         />
       </div>
 
@@ -53,6 +56,7 @@ export default {
         id: 999,
         username: "我自己",
         avatarColor: "#6c5ce7",
+        fanLevel: 5,
       },
 
       // 主播信息（传给 LiveHeader）
@@ -67,6 +71,7 @@ export default {
       },
 
       isFollowing: false,
+      isJoined: false,
 
       // 礼物样例（传给 GiftPanel）
       gifts: [
@@ -93,6 +98,7 @@ export default {
           content: "大家好～",
           type: "normal",
           color: "#ffffff",
+          fanLevel: 3,
         },
         {
           id: 2,
@@ -100,6 +106,7 @@ export default {
           content: "送了个火箭！",
           type: "gift",
           color: "#ffd166",
+          fanLevel: 8,
         },
         {
           id: 3,
@@ -108,6 +115,7 @@ export default {
           type: "sc",
           color: "#ff7b7b",
           scAmount: 100,
+          fanLevel: 9,
         },
       ],
       nextMessageId: 4,
@@ -120,6 +128,23 @@ export default {
       if (this.isFollowing) this.host.fans += 1;
       else this.host.fans -= 1;
     },
+    toggleJoin() {
+      if (!this.isFollowing) {
+        alert('请先关注主播，再加入圈子');
+        return;
+      }
+      this.isJoined = !this.isJoined;
+
+    },
+    goCircle() {
+      if (!this.isFollowing) {
+        alert('请先关注主播，再参与讨论');
+        return;
+      }
+      const id = this.host?.id || 'host-circle';
+      const name = this.host?.name || '主播圈子';
+      this.$router.push({ path: '/com-detail', query: { id, name, avatar: this.host?.avatar } });
+    },
     handleSendMessage(payload) {
       // payload: { username, content, color, type? }
       const msg = {
@@ -128,6 +153,7 @@ export default {
         content: payload.content,
         type: payload.type || "normal",
         color: payload.color || "#fff",
+        fanLevel: payload.fanLevel || this.currentUser.fanLevel || 1,
       };
       this.messages.push(msg);
     },
@@ -140,6 +166,7 @@ export default {
         type: "sc",
         color: payload.color || "#ffd1d1",
         scAmount: payload.scAmount || 0,
+        fanLevel: payload.fanLevel || this.currentUser.fanLevel || 1,
       };
       this.messages.push(msg);
     },
@@ -151,6 +178,7 @@ export default {
         content: `${this.currentUser.username} 送出 ${gift.name} ×1`,
         type: gift.isSC ? "sc" : "gift",
         color: gift.isSC ? "#ffb86b" : "#ffd166",
+        fanLevel: this.currentUser.fanLevel || 1,
       };
       this.messages.push(msg);
     },

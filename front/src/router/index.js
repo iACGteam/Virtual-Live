@@ -49,7 +49,7 @@ const routes = [
   {
     path: '/live-room',
     name: 'LiveRoom',
-    component: () => import('../views/LiveRoom.vue')
+    component: () => import('../views/LiveRoomView.vue')
   },
   {
     path: '/community',
@@ -69,11 +69,6 @@ const routes = [
     name: 'LiveGoing',
     component: () => import('../views/LiveGoingView.vue')
   },
-  // {
-  //   path: '/detail',
-  //   name: 'Detail',
-  //   component: () => import('../components/community/DetailAndNav.vue')
-  // },
   {
     path: '/live-manage',
     name: 'Manage',
@@ -88,7 +83,8 @@ const routes = [
     path: "/new-live",
     name: "NewLiveRoom",
     component: () => import('../views/LiveRoomView.vue')
-  }
+  },
+
 ]
 
 const router = createRouter({

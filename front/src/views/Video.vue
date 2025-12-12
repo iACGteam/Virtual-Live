@@ -1,9 +1,9 @@
 <template>
-  <Nav></Nav>
+  <Video></Video>
 </template>
 
 <style></style>
 
 <script setup>
-  import Nav from '@/components/video/Nav.vue'
+  import Video from '@/components/video/Video.vue'
 </script>

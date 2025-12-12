@@ -29,6 +29,10 @@
       <button class="follow-btn" @click="$emit('toggle-follow')">
         {{ isFollowing ? "已关注" : "关注" }}
       </button>
+      <button class="follow-btn" @click="onJoinClick">
+        {{ isJoined && isFollowing ? "参与讨论" : "加入圈子" }}
+      </button>
+      <div class="join-note">需粉丝等级≥3 才可加入圈子</div>
     </div>
   </div>
 </template>
@@ -46,6 +50,19 @@ export default {
       type: Boolean,
       default: false,
     },
+    isJoined: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  methods: {
+    onJoinClick() {
+      if (this.isJoined) {
+        this.$emit('go-circle');
+      } else {
+        this.$emit('toggle-join');
+      }
+    }
   },
   computed: {
     hostInitial() {
@@ -72,7 +89,7 @@ export default {
   backdrop-filter: blur(8px);
   border-radius: 12px;
   box-sizing: border-box;
-    border: 1px, solid, black;
+  border: 1px, solid, black;
 }
 
 /* 左侧区域 */
@@ -149,11 +166,13 @@ export default {
 
 .tag {
   padding: 2px 6px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   font-size: 12px;
   color: black;
 }
+
+
 
 /* 右侧关注按钮 */
 .right-actions .follow-btn {
@@ -164,6 +183,12 @@ export default {
   font-weight: 700;
   color: #fff;
   background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+  margin: 2px;
+}
+
+.join-note {
+  font-size: 12px;
+  color: #333;
+  margin-left: 4px;
 }
 </style>
-

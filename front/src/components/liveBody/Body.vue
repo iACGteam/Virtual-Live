@@ -24,9 +24,9 @@
       <div class="gift-wrapper">
         <GiftArea />
       </div>
-      <div class="avatar-wrapper">
+      <!-- <div class="avatar-wrapper">
         <AvatarSwitcher />
-      </div>
+      </div> -->
     </div>
 
   </div>
@@ -38,7 +38,7 @@ import VideoPlayer from './VideoPlayer.vue'
 import DanmuArea from './DanmuArea.vue'
 import GiftArea from './GiftArea.vue'
 import LiveInfo from './LiveInfo.vue'
-import AvatarSwitcher from './AvatarSwitcher.vue'
+// import AvatarSwitcher from './AvatarSwitcher.vue'
 
 export default {
   components: {
@@ -46,7 +46,7 @@ export default {
     DanmuArea,
     GiftArea,
     LiveInfo,
-    AvatarSwitcher
+    // AvatarSwitcher
   },
   methods: {
     goBack() {
@@ -148,7 +148,7 @@ export default {
 
 /* 右侧各区块比例：40% / 30% / 30% */
 .danmu-wrapper {
-  flex: 4;
+  flex: 1;
   background: rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   overflow: hidden;
@@ -156,18 +156,18 @@ export default {
 }
 
 .gift-wrapper {
-  flex: 3;
+  /* flex: 3; */
   background: rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(147, 112, 219, 0.2);
 }
 
-.avatar-wrapper {
+/* .avatar-wrapper {
   flex: 3;
   background: rgba(255, 255, 255, 0.8);
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(72, 209, 204, 0.2);
-}
+} */
 </style>

@@ -10,12 +10,8 @@
       </div>
 
       <nav class="nav-links">
-        <button
-          v-for="link in navLinks"
-          :key="link.key"
-          :class="['nav-link', { active: activeNav === link.key }]"
-          @click="handleNavClick(link)"
-        >
+        <button v-for="link in navLinks" :key="link.key" :class="['nav-link', { active: activeNav === link.key }]"
+          @click="handleNavClick(link)">
           <span class="icon">{{ link.icon }}</span>
           <span>{{ link.label }}</span>
         </button>
@@ -27,30 +23,17 @@
         <div class="search-input">
           <div class="search-field">
             <span class="search-icon">🔍</span>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="搜索作品名或用户名..."
-              @keyup.enter="handleSearch"
-            >
+            <input v-model="searchQuery" type="text" placeholder="搜索作品名或用户名..." @keyup.enter="handleSearch">
           </div>
           <span class="search-divider"></span>
           <button class="search-btn" @click="handleSearch">搜索</button>
         </div>
 
         <div class="search-actions">
-          <div 
-            class="action-dropdown"
-            @mouseenter="handlePostDropdownEnter"
-            @mouseleave="handlePostDropdownLeave"
-          >
+          <div class="action-dropdown" @mouseenter="handlePostDropdownEnter" @mouseleave="handlePostDropdownLeave">
             <button class="action-btn primary dropdown-toggle">投稿</button>
-            <div 
-              class="dropdown-menu"
-              :class="{ 'dropdown-visible': showPostDropdown }"
-              @mouseenter="handlePostDropdownEnter"
-              @mouseleave="handlePostDropdownLeave"
-            >
+            <div class="dropdown-menu" :class="{ 'dropdown-visible': showPostDropdown }"
+              @mouseenter="handlePostDropdownEnter" @mouseleave="handlePostDropdownLeave">
               <button class="dropdown-item" @click="goToUploadVideo">发布视频</button>
               <button class="dropdown-item" @click="goToGoingLive">开直播</button>
             </div>
@@ -75,23 +58,13 @@
 
               <section class="favorite-section">
                 <div class="favorites-hover-zone">
-                  <div
-                    class="section-title clickable"
-                    role="button"
-                    tabindex="0"
-                    @click="goToLikes"
-                    @keydown.enter.prevent="goToLikes"
-                    @keydown.space.prevent="goToLikes"
-                  >
+                  <div class="section-title clickable" role="button" tabindex="0" @click="goToLikes"
+                    @keydown.enter.prevent="goToLikes" @keydown.space.prevent="goToLikes">
                     <span>❤️ 我的喜欢</span>
                     <span class="section-count">{{ userProfile.likes }}</span>
                   </div>
                   <div class="favorite-cards">
-                    <article
-                      v-for="fav in userProfile.favorites"
-                      :key="fav.id"
-                      class="favorite-card"
-                    >
+                    <article v-for="fav in userProfile.favorites" :key="fav.id" class="favorite-card">
                       <div class="fav-thumb" :style="{ background: fav.gradient }">
                         <span>{{ fav.tag }}</span>
                       </div>
@@ -102,12 +75,8 @@
               </section>
 
               <section class="quick-links">
-                <button
-                  v-for="link in userProfile.quickEntries"
-                  :key="link.label"
-                  class="quick-link"
-                  @click="handleQuickEntry(link)"
-                >
+                <button v-for="link in userProfile.quickEntries" :key="link.label" class="quick-link"
+                  @click="handleQuickEntry(link)">
                   <div class="ql-left">
                     <span class="ql-icon">{{ link.icon }}</span>
                     <span>{{ link.label }}</span>
@@ -117,11 +86,7 @@
               </section>
 
               <section class="secondary-links">
-                <button
-                  v-for="link in userProfile.secondaryEntries"
-                  :key="link.label"
-                  class="secondary-link"
-                >
+                <button v-for="link in userProfile.secondaryEntries" :key="link.label" class="secondary-link">
                   <span>{{ link.icon }}</span>
                   <span>{{ link.label }}</span>
                 </button>
@@ -141,30 +106,18 @@
 
       <section class="feed-header">
         <div class="filters">
-          <button 
-            :class="['filter-btn', { active: activeFilter === 'recommend' }]"
-            @click="setFilter('recommend')"
-          >推荐</button>
-          <button 
-            :class="['filter-btn', { active: activeFilter === 'following' }]"
-            @click="setFilter('following')"
-          >关注</button>
-          <button 
-            v-for="topic in topics"
-            :key="topic.key"
-            :class="['filter-btn', { active: activeFilter === topic.key }]"
-            @click="setFilter(topic.key)"
-          >{{ topic.label }}</button>
+          <button :class="['filter-btn', { active: activeFilter === 'recommend' }]"
+            @click="setFilter('recommend')">推荐</button>
+          <button :class="['filter-btn', { active: activeFilter === 'following' }]"
+            @click="setFilter('following')">关注</button>
+          <button v-for="topic in topics" :key="topic.key"
+            :class="['filter-btn', { active: activeFilter === topic.key }]" @click="setFilter(topic.key)">{{ topic.label
+            }}</button>
         </div>
       </section>
 
       <section class="video-grid">
-        <article
-          v-for="video in filteredVideos"
-          :key="video.id"
-          class="video-card"
-          @click="goVideo(video)"
-        >
+        <article v-for="video in filteredVideos" :key="video.id" class="video-card" @click="goVideo(video)">
           <div class="thumbnail">
             <img :src="video.thumbnail" :alt="`${video.title} 封面`">
             <span class="duration">{{ video.duration }}</span>
@@ -400,27 +353,27 @@ export default {
     }
   },
   methods: {
-      handleNavClick(link) {
-        this.activeNav = link.key
-        if (link.key === 'my') {
-          this.$router.push({ path: '/profile' })
-          return
-        }
-        const routeMap = {
-          discover: '/',
-          live: '/live',
-          community: '/community'
-        }
-        const target = routeMap[link.key] || '/'
-        if (this.$route.path !== target) {
-          this.$router.push(target)
-        }
-      },
+    handleNavClick(link) {
+      this.activeNav = link.key
+      if (link.key === 'my') {
+        this.$router.push({ path: '/profile' })
+        return
+      }
+      const routeMap = {
+        discover: '/',
+        live: '/live',
+        community: '/community'
+      }
+      const target = routeMap[link.key] || '/'
+      if (this.$route.path !== target) {
+        this.$router.push(target)
+      }
+    },
     goToLikes() {
       this.navigateToProfileTab('likes')
     },
     goToProfile() {
-      this.$router.push({ path: '/profile' }).catch(() => {})
+      this.$router.push({ path: '/profile' }).catch(() => { })
     },
     handleQuickEntry(link) {
       if (!link?.key) return
@@ -436,11 +389,11 @@ export default {
       } catch (err) {
         console.warn('记录个人页目标标签失败', err)
       }
-      this.$router.push({ path: '/profile' }).catch(() => {})
+      this.$router.push({ path: '/profile' }).catch(() => { })
     },
     handleLogout() {
       clearAuthToken()
-      this.$router.push({ name: 'login' }).catch(() => {})
+      this.$router.push({ name: 'login' }).catch(() => { })
     },
     handlePostDropdownEnter() {
       if (this.postDropdownTimer) {
@@ -456,15 +409,15 @@ export default {
       }, 300)
     },
     goToUploadVideo() {
-      this.$router.push({ path: '/upload-video' }).catch(() => {})
+      this.$router.push({ path: '/upload-video' }).catch(() => { })
     },
     goToGoingLive() {
-      this.$router.push({ path: '/live-manage' }).catch(() => {})
+      this.$router.push({ path: '/live-manage' }).catch(() => { })
     },
     goToUserProfile(creator) {
       // 跳转到个人信息页面
       // 如果需要显示特定用户的信息，可以通过 query 参数传递用户名
-      this.$router.push({ path: '/profile', query: { user: creator } }).catch(() => {})
+      this.$router.push({ path: '/profile', query: { user: creator } }).catch(() => { })
     },
     setFilter(filterType) {
       this.activeFilter = filterType
@@ -473,60 +426,73 @@ export default {
       // 搜索功能通过 v-model 和计算属性自动实现
       // 这里可以添加额外的搜索逻辑，如搜索历史记录等
     },
+    // goVideo(video) {
+    //   if (!video) return
+    //   this.$router.push({
+    //     path: '/video',
+    //     query: {
+    //       id: video.id,
+    //       src: video.videoSrc
+    //     }
+    //   }).catch(() => {})
+    // }
     goVideo(video) {
       if (!video) return
-      this.$router.push({
-        path: '/video',
+
+      const url = this.$router.resolve({
+        path: "/video",
         query: {
           id: video.id,
           src: video.videoSrc
         }
-      }).catch(() => {})
+      }).href
+
+      window.open(url, "_blank")
     }
   },
   computed: {
-      filteredVideos() {
-        let videos = []
-        
-        // 先根据筛选条件过滤
-        if (this.activeFilter === 'recommend') {
-          // 推荐：显示所有视频
-          videos = this.shortVideos
-        } else if (this.activeFilter === 'following') {
-          // 关注：只显示关注用户的视频
-          videos = this.shortVideos.filter(video => 
-            this.followingUsers.includes(video.creator)
-          )
-        } else {
-          // 分类筛选：标签与分类一致（tags 里直接存中文分类名）
-          videos = this.shortVideos.filter(video => 
-            video.tags.includes(this.topics.find(t => t.key === this.activeFilter)?.label)
-          )
-        }
-        
-        // 再根据搜索关键词过滤（搜索作品名或用户名）
-        if (this.searchQuery && this.searchQuery.trim()) {
-          const query = this.searchQuery.trim().toLowerCase()
-          videos = videos.filter(video => 
-            video.title.toLowerCase().includes(query) ||
-            video.creator.toLowerCase().includes(query)
-          )
-        }
-        
-        return videos
+    filteredVideos() {
+      let videos = []
+
+      // 先根据筛选条件过滤
+      if (this.activeFilter === 'recommend') {
+        // 推荐：显示所有视频
+        videos = this.shortVideos
+      } else if (this.activeFilter === 'following') {
+        // 关注：只显示关注用户的视频
+        videos = this.shortVideos.filter(video =>
+          this.followingUsers.includes(video.creator)
+        )
+      } else {
+        // 分类筛选：标签与分类一致（tags 里直接存中文分类名）
+        videos = this.shortVideos.filter(video =>
+          video.tags.includes(this.topics.find(t => t.key === this.activeFilter)?.label)
+        )
       }
-    },
-    mounted() {
-      // 根据当前路由设置激活的导航项
-      if (this.$route.path === '/') {
-        this.activeNav = 'discover'
+
+      // 再根据搜索关键词过滤（搜索作品名或用户名）
+      if (this.searchQuery && this.searchQuery.trim()) {
+        const query = this.searchQuery.trim().toLowerCase()
+        videos = videos.filter(video =>
+          video.title.toLowerCase().includes(query) ||
+          video.creator.toLowerCase().includes(query)
+        )
       }
-    },
-    beforeUnmount() {
-      if (this.postDropdownTimer) {
-        clearTimeout(this.postDropdownTimer)
-        this.postDropdownTimer = null
-      }
+
+      return videos
+    }
+  },
+  mounted() {
+    // 根据当前路由设置激活的导航项
+    if (this.$route.path === '/') {
+      this.activeNav = 'discover'
+    }
+  },
+  beforeUnmount() {
+    if (this.postDropdownTimer) {
+      clearTimeout(this.postDropdownTimer)
+      this.postDropdownTimer = null
+    }
   }
 }
 </script>
@@ -1068,6 +1034,7 @@ export default {
 .remember-toggle input {
   accent-color: #ff69b4;
 }
+
 .avatar-btn {
   width: 44px;
   height: 44px;
