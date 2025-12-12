@@ -82,22 +82,7 @@ public class CircleController {
         }
     }
     
-    /**
-     * 加入圈子
-     */
-    @PostMapping("/{circleId}/join")
-    public R<Map<String, Object>> joinCircle(
-            @PathVariable Integer circleId,
-            @RequestBody Map<String, Integer> body) {
-        try {
-            Integer userId = body.get("userId");
-            Map<String, Object> result = circleService.joinCircle(circleId, userId);
-            return R.ok("加入成功", result);
-        } catch (Exception e) {
-            return R.error(e.getMessage());
-        }
-    }
-    
+      
     /**
      * 退出圈子
      */
@@ -128,23 +113,7 @@ public class CircleController {
             return R.error(e.getMessage());
         }
     }
-    
-    /**
-     * 获取圈子成员列表
-     */
-    @GetMapping("/{circleId}/members")
-    public R<Page<CircleMemberDto>> getCircleMembers(
-            @PathVariable Integer circleId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        try {
-            Page<CircleMemberDto> members = circleService.getCircleMembers(circleId, page, size);
-            return R.ok(members);
-        } catch (Exception e) {
-            return R.error(e.getMessage());
-        }
-    }
-    
+      
     /**
      * 获取用户加入的圈子列表
      */

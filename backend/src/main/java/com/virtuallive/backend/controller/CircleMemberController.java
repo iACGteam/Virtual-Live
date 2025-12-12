@@ -72,19 +72,4 @@ public class CircleMemberController {
         }
     }
     
-    /**
-     * 获取用户加入的圈子列表
-     */
-    @GetMapping("/user/{userId}/joined")
-    public R<Page<CircleMember>> getUserCircles(
-            @PathVariable Integer userId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        try {
-            Page<CircleMember> circles = circleMemberService.getUserCircles(userId, page, size);
-            return R.ok(circles);
-        } catch (Exception e) {
-            return R.error(e.getMessage());
-        }
-    }
 }
