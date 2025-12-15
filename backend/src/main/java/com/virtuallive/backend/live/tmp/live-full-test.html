@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>VirtualLive 全功能测试控制台（主播 & 观众一体）</title>
+
+    <!-- flv.js 用于播放 HTTP-FLV 直播流 -->
+    <script src="https://unpkg.com/flv.js/dist/flv.min.js"></script>
+    <!-- SockJS + STOMP 用于 WebSocket 弹幕 / 礼物 / SC -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f4f6f9;
+        }
+        h1 { text-align: center; margin-bottom: 10px; }
+        h3 { margin-top: 0; }
+
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .flex {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .col {
+            flex: 1;
+            min-width: 360px;
+        }
+        .box {
+            background: #fff;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,.08);
+        }
+        .box.env { border-left: 4px solid #1890ff; }
+        .box.auth { border-left: 4px solid #52c41a; }
+        .box.viewer { border-left: 4px solid #4caf50; }
+        .box.anchor { border-left: 4px solid #faad14; }
+        .box.admin { border-left: 4px solid #ff4d4f; }
+
+        .input-group {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .input-group label {
+            font-size: 13px;
+            min-width: 80px;
+        }
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            padding: 4px 6px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 13px;
+        }
+        textarea { resize: vertical; }
+
+        button {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: none;
+            font-size: 13px;
+            background: #1890ff;
+            color: #fff;
+            transition: 0.2s;
+        }
+        button:hover { background: #40a9ff; }
+        button.danger { background: #ff4d4f; }
+        button.danger:hover { background: #ff7875; }
+        button.success { background: #52c41a; }
+        button.success:hover { background: #73d13d; }
+        button.secondary { background: #595959; }
+        button.secondary:hover { background: #8c8c8c; }
+        button.small { padding: 3px 8px; font-size: 12px; }
+        button:disabled {
+            background: #d9d9d9;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        .status { font-weight: bold; font-size: 13px; }
+
+        .video-box {
+            position: relative;
+            background: #000;
+            border-radius: 6px;
+            overflow: hidden;
+            height: 420px;
+        }
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        .danmaku-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 40%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+        .flying-text {
+            position: absolute;
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,.8);
+            white-space: nowrap;
+            animation: fly 10s linear forwards;
+        }
+        @keyframes fly {
+            from { left: 100%; transform: translateX(0); }
+            to { left: 0; transform: translateX(-100%); }
+        }
+
+        .gift-effect-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99;
+        }
+        .rocket-anim {
+            font-size: 90px;
+            animation: rocket-fly 2s ease-in-out forwards;
+            position: absolute;
+            bottom: -100px;
+        }
+        @keyframes rocket-fly {
+            0% { bottom: -100px; transform: scale(.5); opacity: 0; }
+            20% { bottom: 20%; transform: scale(1.2); opacity: 1; }
+            80% { bottom: 60%; transform: scale(1.2); opacity: 1; }
+            100% { bottom: 120%; transform: scale(.5); opacity: 0; }
+        }
+
+        #msg-list {
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            height: 260px;
+            overflow-y: auto;
+            padding: 8px;
+            font-size: 13px;
+        }
+        .msg-item {
+            margin-bottom: 6px;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+        .msg-user {
+            color: #1890ff;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        .msg-content { color: #333; }
+        .msg-item.gift-msg {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            padding: 4px 6px;
+            border-radius: 4px;
+        }
+        .msg-item.gift-msg .msg-content {
+            color: #faad14;
+            font-weight: bold;
+        }
+
+        .json-result {
+            background: #f5f5f5;
+            border-radius: 4px;
+            padding: 5px 6px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 140px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: monospace;
+            border-radius: 4px;
+            border: 1px solid #333;
+            padding: 8px;
+            font-size: 12px;
+            max-height: 240px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 4px;
+            background: #e6f7ff;
+            color: #1890ff;
+        }
+        .tag.anchor { background: #fff7e6; color: #fa8c16; }
+        .tag.viewer { background: #f6ffed; color: #52c41a; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>VirtualLive Live 模块全功能测试台（主播 & 观众一体）</h1>
+
+    <!-- 环境配置 -->
+    <div class="box env">
+        <h3>🛠 环境配置</h3>
+        <div class="input-group">
+            <label>后端地址:</label>
+            <input id="baseUrl" value="http://localhost:8081" style="width:220px">
+            <label>默认房间ID:</label>
+            <input id="roomIdInput" type="number" value="101" style="width:72px">
+            <button class="small secondary" onclick="reloadRoomInfo()">刷新房间信息</button>
+        </div>
+        <div class="input-group">
+            <label>说明:</label>
+            <span style="font-size:12px;color:#666">
+        假定：主播用户ID≈901（vtuber001）、观众A≈902（fan901）、观众B≈903（fan902）。
+        你可以先用“账号登录/注册”区登录，也可以直接把已有 JWT 粘贴到下面。
+      </span>
+        </div>
+    </div>
+
+    <!-- 账号 / 身份管理 -->
+    <div class="flex">
+        <div class="col">
+            <div class="box auth">
+                <h3>🔐 账号登录 / 注册（真实用户系统）</h3>
+                <div class="input-group">
+                    <label>用户名:</label>
+                    <input id="authUsername" placeholder="例如 vtuber001 / fan901 / fan902" style="width:160px">
+                    <label>密码:</label>
+                    <input id="authPassword" type="password" placeholder="至少6位" style="width:120px">
+                </div>
+                <div class="input-group">
+                    <button onclick="register()">注册</button>
+                    <button onclick="login()">登录</button>
+                    <button class="secondary small" onclick="fillPreset('anchor')">填入主播</button>
+                    <button class="secondary small" onclick="fillPreset('fan901')">填入观众A</button>
+                    <button class="secondary small" onclick="fillPreset('fan902')">填入观众B</button>
+                </div>
+                <div class="input-group">
+                    <label>当前身份:</label>
+                    <select id="currentIdentity" onchange="switchIdentity()">
+                        <option value="anchor">主播(vtuber001,≈901)</option>
+                        <option value="viewer1">观众A(fan901,≈902)</option>
+                        <option value="viewer2">观众B(fan902,≈903)</option>
+                    </select>
+                </div>
+                <div class="input-group" style="align-items:flex-start">
+                    <label>JWT Token:</label>
+                    <textarea id="currentToken" rows="3" style="flex:1;font-size:11px"></textarea>
+                </div>
+                <div class="input-group">
+                    <span id="authStatus" class="status" style="color:#999">未登录</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 直播播放 & 弹幕展示 -->
+        <div class="col">
+            <div class="box viewer">
+                <h3>📺 直播画面 + 弹幕展示</h3>
+                <div class="video-box">
+                    <video id="videoElement" controls autoplay muted></video>
+                    <div id="danmakuOverlay" class="danmaku-overlay"></div>
+                    <div id="giftEffectLayer" class="gift-effect-layer"></div>
+                </div>
+                <div class="input-group" style="margin-top:6px">
+                    <button class="small" onclick="loadRoomAndPlay()">加载房间播放地址并播放</button>
+                    <button class="small secondary" onclick="stopPlayer()">停止播放</button>
+                    <span id="playStatus" class="status" style="color:#999">未播放</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WebSocket / 互动区 -->
+    <div class="flex">
+        <div class="col">
+            <div class="box viewer">
+                <h3>💬 观众互动区（WebSocket 弹幕 / 礼物 / SC）</h3>
+                <div class="input-group">
+                    <button onclick="connectWs()">🔌 连接 WebSocket</button>
+                    <button class="danger" onclick="disconnectWs()" id="btnDisconnectWs" disabled>❌ 断开</button>
+                    <span id="wsStatus" class="status" style="color:red">未连接</span>
+                </div>
+
+                <div class="input-group">
+                    <label>当前使用身份:</label>
+                    <span id="identityLabel" class="tag viewer">观众 / 主播由上面下拉选择</span>
+                </div>
+
+                <hr>
+
+                <div class="input-group">
+                    <label>普通弹幕:</label>
+                    <input id="chatContent" style="flex:1" value="测试弹幕~">
+                    <input id="chatColor" type="color" value="#ffffff" style="width:60px">
+                    <button id="btnSendChat" onclick="sendChat()" disabled>发送弹幕</button>
+                </div>
+
+                <div class="input-group">
+                    <label>礼物测试:</label>
+                    <input id="giftName" value="火箭" style="width:80px">
+                    <input id="giftCount" type="number" value="1" style="width:60px">
+                    <input id="giftPrice" type="number" value="100" style="width:80px">
+                    <button id="btnSendGift" onclick="sendGift()" disabled>🎁 送礼</button>
+                </div>
+
+                <div class="input-group">
+                    <label>SC测试:</label>
+                    <input id="scPrice" type="number" value="50" style="width:80px">
+                    <input id="scContent" value="醒目留言~" style="flex:1">
+                    <button id="btnSendSC" class="success" onclick="sendSC()" disabled>💖 发送 SC</button>
+                </div>
+
+                <p style="font-size:12px;color:#666">
+                    提示：后端限制 SC 最低 30 元；礼物 / SC 会真正调用扣费逻辑和粉丝牌逻辑，请确保测试账号有钱包余额。
+                </p>
+            </div>
+        </div>
+
+        <!-- 弹幕 / 礼物消息列表 -->
+        <div class="col">
+            <div class="box viewer">
+                <h3>📜 房间消息流（弹幕 / 礼物 / SC / 系统）</h3>
+                <div id="msg-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主播管理 / 房管管理 / 观众查询 -->
+    <div class="flex">
+        <!-- 主播管理 -->
+        <div class="col">
+            <div class="box anchor">
+                <h3>🎥 主播管理 API（使用主播身份的 JWT）</h3>
+
+                <!-- ★ 新增：根据当前登录用户创建/获取房间并自动填充房间ID -->
+                <div class="input-group">
+                    <button onclick="getMyRoom()">根据当前登录用户获取/创建房间ID</button>
+                    <span style="font-size:12px;color:#666">
+            成功后会自动把房间ID写入左上角“默认房间ID”输入框。
+          </span>
+                </div>
+
+                <div class="input-group">
+                    <button onclick="getManagerInfo()">获取推流信息 &amp; Key</button>
+                    <button class="danger" onclick="resetStreamKey()">重置推流码</button>
+                </div>
+                <div class="input-group">
+                    <label>房间标题:</label>
+                    <input id="roomTitle" style="flex:1" value="今晚开播测试场">
+                </div>
+                <div class="input-group">
+                    <label>房间简介:</label>
+                    <input id="roomDesc" style="flex:1" value="VirtualLive 测试直播间">
+                </div>
+                <div class="input-group">
+                    <label>房间分类:</label>
+                    <input id="roomCategory" style="flex:1" value="Game">
+                </div>
+                <div class="input-group">
+                    <label>封面URL:</label>
+                    <input id="roomCover" style="flex:1" value="http://example.com/cover.jpg">
+                </div>
+                <div class="input-group">
+                    <button onclick="updateRoom()">更新房间设置</button>
+                </div>
+                <div id="managerResult" class="json-result">等待操作...</div>
+            </div>
+        </div>
+
+        <!-- 房管管理 -->
+        <div class="col">
+            <div class="box admin">
+                <h3>🛡 房管权限 API（使用主播/房管身份）</h3>
+                <div class="input-group">
+                    <label>禁言用户ID:</label>
+                    <input id="muteUserId" type="number" value="902" style="width:80px">
+                    <label>秒数:</label>
+                    <input id="muteSeconds" type="number" value="60" style="width:60px">
+                </div>
+                <div class="input-group">
+                    <button class="danger" onclick="muteUser()">🚫 禁言</button>
+                    <button class="success" onclick="unmuteUser()">🟢 解禁</button>
+                </div>
+
+                <div class="input-group">
+                    <label>删除弹幕ID:</label>
+                    <input id="delDanmakuId" type="number" style="width:120px" placeholder="最近收到的会自动填">
+                    <button class="danger" onclick="deleteDanmaku()">🗑 删除弹幕</button>
+                </div>
+
+                <div id="adminResult" class="json-result">等待操作...</div>
+            </div>
+        </div>
+
+        <!-- 观众查询 -->
+        <div class="col">
+            <div class="box viewer">
+                <h3>📊 观众查询 API</h3>
+                <div class="input-group">
+                    <button onclick="getRoomInfo()">查询房间信息</button>
+                </div>
+                <div class="input-group">
+                    <label>榜单类型:</label>
+                    <select id="leaderboardType" style="width:120px">
+                        <option value="SESSION">本场榜 SESSION</option>
+                        <option value="DAY">日榜 DAY</option>
+                        <option value="WEEK">周榜 WEEK</option>
+                        <option value="MONTH">月榜 MONTH</option>
+                    </select>
+                    <button onclick="getLeaderboard()">查询打赏榜单</button>
+                </div>
+                <div id="publicResult" class="json-result">等待查询...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日志 -->
+    <div class="box">
+        <h3>📝 实时日志（调试用）</h3>
+        <div id="logArea" class="log"></div>
+    </div>
+</div>
+
+<script>
+    // ========= 全局状态 =========
+    let stompClient = null;
+    let currentRole = "anchor"; // anchor / viewer1 / viewer2
+    const tokens = {
+        anchor: null,
+        viewer1: null,
+        viewer2: null
+    };
+    let flvPlayer = null;
+
+    // ========= 工具函数 =========
+    function log(msg) {
+        const div = document.getElementById("logArea");
+        const time = new Date().toLocaleTimeString();
+        div.textContent += `[${time}] ${msg}\n`;
+        div.scrollTop = div.scrollHeight;
+        console.log(msg);
+    }
+
+    function getBaseUrl() {
+        return document.getElementById("baseUrl").value;
+    }
+    function getRoomId() {
+        return parseInt(document.getElementById("roomIdInput").value, 10);
+    }
+
+    function getCurrentToken() {
+        const raw = document.getElementById("currentToken").value.trim();
+        return raw || null;
+    }
+
+    function setCurrentToken(token) {
+        document.getElementById("currentToken").value = token || "";
+        tokens[currentRole] = token || null;
+        updateAuthStatus();
+    }
+
+    function updateAuthStatus() {
+        const status = document.getElementById("authStatus");
+        const token = getCurrentToken();
+        if (!token) {
+            status.textContent = "当前身份未登录（可直接粘贴 JWT 测试）";
+            status.style.color = "#999";
+        } else {
+            status.textContent = "当前身份已登录 / JWT 已就绪";
+            status.style.color = "green";
+        }
+        const label = document.getElementById("identityLabel");
+        if (currentRole === "anchor") {
+            label.textContent = "主播身份 (vtuber001 / userId≈901)";
+            label.className = "tag anchor";
+        } else if (currentRole === "viewer1") {
+            label.textContent = "观众A (fan901 / userId≈902)";
+            label.className = "tag viewer";
+        } else {
+            label.textContent = "观众B (fan902 / userId≈903)";
+            label.className = "tag viewer";
+        }
+    }
+
+    function fillPreset(type) {
+        const u = document.getElementById("authUsername");
+        const p = document.getElementById("authPassword");
+        if (type === "anchor") {
+            u.value = "vtuber001";
+            p.value = "123456";
+        } else if (type === "fan901") {
+            u.value = "fan901";
+            p.value = "123456";
+        } else if (type === "fan902") {
+            u.value = "fan902";
+            p.value = "123456";
+        }
+    }
+
+    function switchIdentity() {
+        const select = document.getElementById("currentIdentity");
+        currentRole = select.value;
+        document.getElementById("currentToken").value = tokens[currentRole] || "";
+        updateAuthStatus();
+    }
+
+    function buildAuthHeaders() {
+        const token = getCurrentToken();
+        const headers = { "Content-Type": "application/json" };
+        if (token) {
+            headers["Authorization"] = token.toLowerCase().startsWith("bearer ")
+                ? token
+                : "Bearer " + token;
+        }
+        return headers;
+    }
+
+    async function apiCall(endpoint, method = "GET", body = null, resultDivId = null) {
+        const url = getBaseUrl() + endpoint;
+        const headers = buildAuthHeaders();
+        log(`HTTP ${method} ${url}`);
+        try {
+            const options = { method, headers };
+            if (body) options.body = JSON.stringify(body);
+
+            const res = await fetch(url, options);
+            const text = await res.text();
+            let data;
+            try { data = JSON.parse(text); } catch (e) { data = text; }
+            const display = typeof data === "object" ? JSON.stringify(data, null, 2) : String(data);
+            if (resultDivId) {
+                document.getElementById(resultDivId).textContent = `Status: ${res.status}\n${display}`;
+            }
+            if (res.ok) {
+                log(`✅ 请求成功: ${endpoint}`);
+            } else {
+                log(`❌ 请求失败 (${res.status}): ${endpoint}`);
+            }
+            return data;
+        } catch (e) {
+            log(`💥 网络错误: ${e.message}`);
+            if (resultDivId) {
+                document.getElementById(resultDivId).textContent = `Error: ${e.message}`;
+            }
+        }
+    }
+
+    // ========= 账号登录 / 注册 =========
+    async function register() {
+        const username = document.getElementById("authUsername").value.trim();
+        const password = document.getElementById("authPassword").value.trim();
+        if (!username || !password) {
+            alert("用户名和密码不能为空");
+            return;
+        }
+        const body = {
+            username: username,
+            email: username + "@test.com",
+            password: password
+        };
+        const data = await apiCall("/api/v1/auth/register", "POST", body, null);
+        if (data && data.code === 0 && data.data && data.data.token) {
+            setCurrentToken(data.data.token);
+            alert("注册成功，已自动登录当前身份");
+        } else if (data && data.message) {
+            alert("注册失败: " + data.message);
+        } else {
+            alert("注册失败，返回内容: " + JSON.stringify(data));
+        }
+    }
+
+    async function login() {
+        const username = document.getElementById("authUsername").value.trim();
+        const password = document.getElementById("authPassword").value.trim();
+        if (!username || !password) {
+            alert("用户名和密码不能为空");
+            return;
+        }
+        const body = { username, password };
+        const data = await apiCall("/api/v1/auth/login", "POST", body, null);
+        if (data && data.code === 0 && data.data && data.data.token) {
+            setCurrentToken(data.data.token);
+            alert("登录成功，当前身份已更新 token");
+        } else if (data && data.message) {
+            alert("登录失败: " + data.message);
+        } else {
+            alert("登录失败，返回内容: " + JSON.stringify(data));
+        }
+    }
+
+    // ========= WebSocket / STOMP =========
+    function connectWs() {
+        if (stompClient && stompClient.connected) {
+            log("WebSocket 已连接");
+            return;
+        }
+        const url = getBaseUrl() + "/ws-live";
+        log("🔌 连接 WebSocket: " + url);
+        const socket = new SockJS(url);
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        const token = getCurrentToken();
+        const headers = {};
+        if (token) {
+            headers["Authorization"] = token.toLowerCase().startsWith("bearer ")
+                ? token
+                : "Bearer " + token;
+        }
+
+        const roomId = getRoomId();
+        stompClient.connect(headers, frame => {
+            log("🟢 WebSocket 已连接: " + frame);
+            updateWsStatus(true);
+
+            const topic = "/topic/danmaku/" + roomId;
+            stompClient.subscribe(topic, message => {
+                const body = JSON.parse(message.body);
+                handleIncomingMessage(body);
+            });
+            log("👂 已订阅: " + topic);
+        }, error => {
+            log("🔴 WebSocket 连接失败: " + error);
+            updateWsStatus(false);
+        });
+    }
+
+    function disconnectWs() {
+        if (stompClient) {
+            stompClient.disconnect();
+            stompClient = null;
+            log("🔴 已断开 WebSocket");
+        }
+        updateWsStatus(false);
+    }
+
+    function updateWsStatus(connected) {
+        const el = document.getElementById("wsStatus");
+        el.textContent = connected ? "已连接" : "未连接";
+        el.style.color = connected ? "green" : "red";
+        document.getElementById("btnDisconnectWs").disabled = !connected;
+        document.getElementById("btnSendChat").disabled = !connected;
+        document.getElementById("btnSendGift").disabled = !connected;
+        document.getElementById("btnSendSC").disabled = !connected;
+    }
+
+    function sendPayload(type, extra) {
+        if (!stompClient || !stompClient.connected) {
+            log("⚠️ 请先连接 WebSocket");
+            return;
+        }
+        const roomId = getRoomId();
+        const token = getCurrentToken();
+        const headers = {};
+        if (token) {
+            headers["Authorization"] = token.toLowerCase().startsWith("bearer ")
+                ? token
+                : "Bearer " + token;
+        }
+
+        const payload = Object.assign({
+            type: type,
+            roomId: roomId
+        }, extra || {});
+
+        stompClient.send("/app/send-danmaku", headers, JSON.stringify(payload));
+        log(`📤 发送 [${type}]: ` + JSON.stringify(payload));
+    }
+
+    function sendChat() {
+        const content = document.getElementById("chatContent").value || "测试弹幕";
+        const color = document.getElementById("chatColor").value || "#ffffff";
+        sendPayload("CHAT", { content, color });
+    }
+
+    function sendGift() {
+        const giftName = document.getElementById("giftName").value || "测试礼物";
+        const giftCount = parseInt(document.getElementById("giftCount").value, 10) || 1;
+        const giftPrice = parseFloat(document.getElementById("giftPrice").value) || 1;
+        sendPayload("GIFT", {
+            giftName,
+            giftCount,
+            giftPrice,
+            content: ""
+        });
+    }
+
+    function sendSC() {
+        const price = parseFloat(document.getElementById("scPrice").value) || 30;
+        const content = document.getElementById("scContent").value || "测试 SC";
+        sendPayload("SC", {
+            giftPrice: price,
+            content: content
+        });
+    }
+
+    // ========= 处理收到的消息（弹幕 / 礼物 / SC） =========
+    function handleIncomingMessage(msg) {
+        const list = document.getElementById("msg-list");
+        const div = document.createElement("div");
+
+        if (msg.type === "GIFT" || msg.type === "SC") {
+            div.className = "msg-item gift-msg";
+            div.innerHTML = `🎉 <span class="msg-user">${msg.senderName}</span> <span class="msg-content">${msg.content}</span>`;
+            playGiftAnimation(msg.giftName || (msg.type === "SC" ? "SC" : null));
+        } else {
+            div.className = "msg-item";
+            div.innerHTML = `<span class="msg-user">${msg.senderName}:</span><span class="msg-content">${msg.content}</span>`;
+            shootDanmaku(msg.content);
+        }
+
+        if (msg.danmakuId) {
+            document.getElementById("delDanmakuId").value = msg.danmakuId;
+            div.innerHTML += ` <span style="color:#999;font-size:11px">[ID=${msg.danmakuId}]</span>`;
+        }
+
+        list.appendChild(div);
+        list.scrollTop = list.scrollHeight;
+    }
+
+    function playGiftAnimation(giftName) {
+        const layer = document.getElementById("giftEffectLayer");
+        const el = document.createElement("div");
+        el.className = "rocket-anim";
+        if (giftName === "火箭" || giftName === "rocket") {
+            el.textContent = "🚀";
+        } else if (giftName === "SC") {
+            el.textContent = "💖";
+        } else {
+            el.textContent = "🎁";
+        }
+        layer.appendChild(el);
+        setTimeout(() => el.remove(), 2000);
+    }
+
+    function shootDanmaku(text) {
+        const overlay = document.getElementById("danmakuOverlay");
+        const span = document.createElement("span");
+        span.className = "flying-text";
+        span.textContent = text;
+        span.style.top = Math.floor(Math.random() * 80) + "%";
+        overlay.appendChild(span);
+        span.addEventListener("animationend", () => span.remove());
+    }
+
+    // ========= 视频播放相关 =========
+    function stopPlayer() {
+        if (flvPlayer) {
+            flvPlayer.destroy();
+            flvPlayer = null;
+        }
+        const v = document.getElementById("videoElement");
+        v.pause();
+        v.src = "";
+        document.getElementById("playStatus").textContent = "未播放";
+        document.getElementById("playStatus").style.color = "#999";
+    }
+
+    async function loadRoomAndPlay() {
+        const roomId = getRoomId();
+        const data = await apiCall(`/api/live/rooms/${roomId}`, "GET", null, "publicResult");
+        if (!data) {
+            alert("获取房间信息失败（响应为空）");
+            return;
+        }
+
+        let info;
+        if (typeof data.roomId !== "undefined") {
+            info = data;
+        } else if (typeof data.code !== "undefined" && data.code === 0 && data.data) {
+            info = data.data;
+        } else {
+            alert("获取房间信息失败（响应结构不符合预期）");
+            return;
+        }
+
+        const flvUrl = info.playUrlFlv;
+        if (!flvUrl) {
+            alert("房间当前不是直播中，或未返回 FLV 播放地址");
+            return;
+        }
+
+        stopPlayer();
+        const videoElement = document.getElementById("videoElement");
+        if (flvjs.isSupported()) {
+            flvPlayer = flvjs.createPlayer({
+                type: "flv",
+                url: flvUrl
+            });
+            flvPlayer.attachMediaElement(videoElement);
+            flvPlayer.load();
+            flvPlayer.play();
+            document.getElementById("playStatus").textContent = "播放中: " + flvUrl;
+            document.getElementById("playStatus").style.color = "green";
+            log("🎬 开始播放: " + flvUrl);
+        } else {
+            alert("当前浏览器不支持 flv.js");
+        }
+    }
+
+    async function reloadRoomInfo() {
+        await apiCall(`/api/live/rooms/${getRoomId()}`, "GET", null, "publicResult");
+    }
+
+    // ========= 主播管理 API =========
+    // ★ 新增：根据当前登录用户获取/创建房间，并自动设置 roomIdInput
+    async function getMyRoom() {
+        const data = await apiCall("/api/live/rooms/my", "GET", null, "managerResult");
+        if (!data) return;
+
+        let info;
+        if (typeof data.roomId !== "undefined") {
+            info = data;
+        } else if (typeof data.code !== "undefined" && data.code === 0 && data.data) {
+            info = data.data;
+        } else {
+            alert("获取/创建房间失败: " + JSON.stringify(data));
+            return;
+        }
+
+        if (typeof info.roomId !== "undefined") {
+            document.getElementById("roomIdInput").value = info.roomId;
+            log("为当前登录用户获取/创建的房间ID: " + info.roomId);
+        }
+    }
+
+    async function getManagerInfo() {
+        await apiCall(`/api/live/rooms/${getRoomId()}/manager/info`, "GET", null, "managerResult");
+    }
+
+    async function resetStreamKey() {
+        if (!confirm("确定要重置推流码吗？可能会导致当前推流中断！")) return;
+        await apiCall(`/api/live/rooms/${getRoomId()}/manager/stream-key`, "POST", {}, "managerResult");
+    }
+
+    async function updateRoom() {
+        const body = {
+            title: document.getElementById("roomTitle").value,
+            description: document.getElementById("roomDesc").value,
+            coverUrl: document.getElementById("roomCover").value,
+            category: document.getElementById("roomCategory").value
+        };
+        await apiCall(`/api/live/rooms/${getRoomId()}/manager/update`, "POST", body, "managerResult");
+    }
+
+    // ========= 房管 API =========
+    async function muteUser() {
+        const userId = parseInt(document.getElementById("muteUserId").value, 10);
+        const durationSeconds = parseInt(document.getElementById("muteSeconds").value, 10);
+        const body = { userId, durationSeconds };
+        await apiCall(`/api/live/rooms/${getRoomId()}/manager/mute`, "POST", body, "adminResult");
+    }
+
+    async function unmuteUser() {
+        const userId = parseInt(document.getElementById("muteUserId").value, 10);
+        const body = { userId };
+        await apiCall(`/api/live/rooms/${getRoomId()}/manager/unmute`, "POST", body, "adminResult");
+    }
+
+    async function deleteDanmaku() {
+        const id = parseInt(document.getElementById("delDanmakuId").value, 10);
+        if (!id) {
+            alert("请输入弹幕ID");
+            return;
+        }
+        await apiCall(`/api/live/rooms/${getRoomId()}/manager/danmaku/${id}`, "DELETE", null, "adminResult");
+    }
+
+    // ========= 观众查询 API =========
+    async function getRoomInfo() {
+        await apiCall(`/api/live/rooms/${getRoomId()}`, "GET", null, "publicResult");
+    }
+
+    async function getLeaderboard() {
+        const type = document.getElementById("leaderboardType").value;
+        await apiCall(`/api/live/rooms/${getRoomId()}/stats/leaderboard?type=${type}`, "GET", null, "publicResult");
+    }
+
+    // 初始化
+    window.addEventListener("load", () => {
+        updateAuthStatus();
+    });
+</script>
+</body>
+</html>

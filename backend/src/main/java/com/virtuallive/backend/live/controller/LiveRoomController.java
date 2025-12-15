@@ -3,10 +3,14 @@ package com.virtuallive.backend.live.controller;
 import com.virtuallive.backend.live.dto.LeaderboardItemDTO;
 import com.virtuallive.backend.live.dto.RoomInfoDTO;
 import com.virtuallive.backend.live.dto.RoomSettingsDTO;
+import com.virtuallive.backend.live.dto.UserInfoDTO;
 import com.virtuallive.backend.live.entity.LiveRoom;
 import com.virtuallive.backend.live.repository.LiveRoomRepository;
 import com.virtuallive.backend.live.repository.LiveSessionRepository;
+import com.virtuallive.backend.live.service.IUserService;
+import com.virtuallive.backend.live.service.LiveRoomService;
 import com.virtuallive.backend.live.service.impl.InteractionServiceImpl;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +29,9 @@ public class LiveRoomController {
     @Autowired private LiveRoomRepository liveRoomRepository;
     @Autowired private LiveSessionRepository liveSessionRepository;
     @Autowired private InteractionServiceImpl interactionService;
+
+    @Autowired private LiveRoomService liveRoomService;
+    @Autowired private IUserService userService;
 
     // 修正：默认端口改为 8088，与 Docker 外部端口保持一致
     @Value("${srs.play.host:http://localhost:8088}") private String srsPlayHost;
@@ -148,5 +155,49 @@ public class LiveRoomController {
     public ResponseEntity<List<LeaderboardItemDTO>> getLeaderboard(@PathVariable Integer roomId,
                                                                    @RequestParam(defaultValue = "SESSION") String type) {
         return ResponseEntity.ok(interactionService.getLeaderboard(roomId, type));
+    }
+
+
+    /**
+     * ★ 新增：根据当前登录主播获取/创建直播间
+     * 前端只传 token，不传 roomId
+     */
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyRoom(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || authHeader.isBlank()) {
+            return ResponseEntity.status(401).body("缺少 Authorization 头");
+        }
+        UserInfoDTO user = userService.getUserByToken(authHeader);
+        if (user == null) {
+            return ResponseEntity.status(401).body("无效的 token");
+        }
+
+        Integer vtuberId = user.getUserId().intValue();
+
+        // 这里可以加一层：只允许 vtuber 类型的用户创建房间（如果你区分了 userType）
+        // 当前先简单允许所有用户
+        LiveRoom room = liveRoomService.getOrCreateRoomForVtuber(vtuberId);
+
+        // 复用 RoomInfoDTO 的格式
+        RoomInfoDTO dto = new RoomInfoDTO();
+        dto.setRoomId(room.getRoomId());
+        dto.setTitle(room.getRoomTitle());
+        dto.setDescription(room.getDescription());
+        dto.setCoverUrl(room.getThumbnailUrl());
+        dto.setLive(room.getIsLive() != null && room.getIsLive());
+
+        if (dto.isLive()) {
+            String app = "live";
+            dto.setPlayUrlFlv(srsPlayHost + "/" + app + "/" + room.getStreamKey() + ".flv");
+            dto.setPlayUrlHls(srsPlayHost + "/" + app + "/" + room.getStreamKey() + ".m3u8");
+
+            liveSessionRepository.findFirstByRoomIdAndEndTimeIsNullOrderByStartTimeDesc(room.getRoomId())
+                    .ifPresent(session -> dto.setViewerCount(session.getViewerCount()));
+        } else {
+            dto.setViewerCount(0);
+        }
+
+        return ResponseEntity.ok(dto);
     }
 }
