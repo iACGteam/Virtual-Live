@@ -1135,18 +1135,6 @@ export default {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-<<<<<<< HEAD
-=======
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.video-card:focus-visible,
-.video-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(255, 255, 255, 0.2);
->>>>>>> b0b538b (feat(live): 完成实现SC醒目留言功能，弹幕禁言功能，直播间信息查询与修改功能；弹幕和礼物功能已接入数据库（非mock）)
   border: 1px solid rgba(255, 105, 180, 0.2);
   transition: all 0.3s ease;
 }
@@ -1156,7 +1144,6 @@ export default {
   border-color: rgba(255, 105, 180, 0.4);
   transform: translateY(-4px);
   box-shadow: 0 8px 25px rgba(255, 105, 180, 0.25);
-<<<<<<< HEAD
 }
 
 .thumbnail {
@@ -1180,8 +1167,6 @@ export default {
   padding: 4px 10px;
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
-=======
->>>>>>> b0b538b (feat(live): 完成实现SC醒目留言功能，弹幕禁言功能，直播间信息查询与修改功能；弹幕和礼物功能已接入数据库（非mock）)
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 500;
