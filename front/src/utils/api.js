@@ -1,11 +1,12 @@
-// API 基础配置
-const BASE_URL = 'http://localhost:8081/api/v1'
+// API 基础配置：优先使用环境变量；默认直连 127.0.0.1:8081（避免浏览器将 localhost 解析为 ::1 导致联通异常）
+const BASE_URL = process.env.VUE_APP_API_BASE || 'http://127.0.0.1:8081/api/v1'
 
 // 通用请求方法
 async function request(url, options = {}) {
   const token = localStorage.getItem('vlive-auth-token')
   
   const defaultOptions = {
+    mode: 'cors',
     headers: {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
@@ -22,7 +23,9 @@ async function request(url, options = {}) {
   }
   
   try {
-    const response = await fetch(`${BASE_URL}${url}`, mergedOptions)
+    const fullUrl = `${BASE_URL}${url}`
+    console.debug('[API] ->', fullUrl, mergedOptions)
+    const response = await fetch(fullUrl, mergedOptions)
     const data = await response.json()
     
     if (data.code !== 0) {
@@ -34,6 +37,24 @@ async function request(url, options = {}) {
     console.error('API Error:', error)
     throw error
   }
+}
+
+// ==================== 认证相关 API ====================
+
+// 登录
+export async function login(username, password) {
+  return request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  })
+}
+
+// 注册
+export async function register(username, email, password) {
+  return request('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, email, password })
+  })
 }
 
 // ==================== 视频相关 API ====================
@@ -53,21 +74,35 @@ export async function getVideosByCategory(category) {
   return request(`/videos/category/${category}`)
 }
 
-// ==================== 评论相关 API ====================
-
-// 获取视频评论
-export async function getComments(videoId, page = 0, size = 20, sort = 'time') {
-  return request(`/comments/video/${videoId}?page=${page}&size=${size}&sort=${sort}`)
-}
-
-// 发表评论
-export async function addComment(videoId, userId, content) {
-  return request(`/comments/video/${videoId}`, {
+// 创建视频记录（上传后入库）
+export async function createVideo(uploadDto) {
+  return request('/videos', {
     method: 'POST',
-    body: JSON.stringify({ userId, content })
+    body: JSON.stringify(uploadDto)
   })
 }
 
+// ==================== 评论相关 API ====================
+
+// 获取视频评论
+// 获取视频评论
+export async function getComments(videoId, page = 0, size = 20, sort = 'time') {
+  return request(`/comments`, {
+    method: 'GET',
+    params: { videoId, page, size, sort }
+  })
+}
+
+// 发表评论
+// 发表评论
+export async function addComment(videoId, userId, content) {
+  return request(`/comments`, {
+    method: 'POST',
+    body: { videoId, userId, content }
+  })
+}
+
+// 点赞评论
 // 点赞评论
 export async function likeComment(commentId) {
   return request(`/comments/${commentId}/like`, {
@@ -76,18 +111,28 @@ export async function likeComment(commentId) {
 }
 
 // 回复评论
-export async function replyComment(parentCommentId, videoId, userId, content) {
-  return request(`/comments/${parentCommentId}/reply`, {
+// 回复评论
+export async function replyComment(commentId, videoId, userId, content) {
+  return request(`/comments/${commentId}/reply`, {
     method: 'POST',
-    body: JSON.stringify({ videoId, userId, content })
+    body: { videoId, userId, content }
   })
 }
 
 // 删除评论
+// 删除评论
 export async function deleteComment(commentId, userId) {
-  return request(`/comments/${commentId}?userId=${userId}`, {
-    method: 'DELETE'
+  return request(`/comments/${commentId}`, {
+    method: 'DELETE',
+    params: { userId }
   })
+}
+
+// ==================== 作品/帖子（用户发布） ====================
+
+// 获取用户发布的作品/帖子（分页）
+export async function getUserPosts(userId, page = 0, size = 20) {
+  return request(`/posts/user/${userId}?page=${page}&size=${size}`)
 }
 
 // 获取评论的回复列表
@@ -142,32 +187,6 @@ export async function getCircleById(id) {
 // 获取圈子内的帖子列表
 export async function getCirclePosts(circleId, page = 0, size = 20, sort = 'new') {
   return request(`/circles/${circleId}/posts?page=${page}&size=${size}&sort=${sort}`)
-}
-
-// 加入圈子
-export async function joinCircle(circleId, userId) {
-  return request(`/circles/${circleId}/join`, {
-    method: 'POST',
-    body: JSON.stringify({ userId })
-  })
-}
-
-// 退出圈子
-export async function leaveCircle(circleId, userId) {
-  return request(`/circles/${circleId}/leave`, {
-    method: 'POST',
-    body: JSON.stringify({ userId })
-  })
-}
-
-// 检查是否是圈子成员
-export async function checkCircleMember(circleId, userId) {
-  return request(`/circles/${circleId}/check-member?userId=${userId}`)
-}
-
-// 获取圈子成员列表
-export async function getCircleMembers(circleId, page = 0, size = 20) {
-  return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
 }
 
 // ==================== 社区帖子相关 API ====================
@@ -310,6 +329,13 @@ export async function getFollowing(userId, page = 0, size = 20) {
 // 获取粉丝数和关注数
 export async function getFollowCount(userId) {
   return request(`/follow/count/${userId}`)
+}
+
+// ==================== 圈子相关 API ====================
+
+// 获取用户加入的圈子
+export async function getUserJoinedCircles(userId, page = 0, size = 20) {
+  return request(`/circles/user/${userId}/joined?page=${page}&size=${size}`)
 }
 
 // ==================== 圈子成员相关 API ====================
@@ -492,9 +518,6 @@ export default {
   getOfficialCircles,
   getCircleById,
   getCirclePosts,
-  joinCircle,
-  leaveCircle,
-  checkCircleMember,
   getCircleMembers,
   // 社区帖子相关
   getCommunityPosts,
@@ -525,7 +548,6 @@ export default {
   // 圈子成员相关
   toggleCircleMembership,
   checkCircleMembership,
-  getCircleMembers,
   getUserCircles,
   // 签到相关
   checkin,

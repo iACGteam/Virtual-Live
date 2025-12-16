@@ -23,13 +23,13 @@ public class AuthService {
     
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        // 检查用户名是否已存在
-        if (userRepository.existsByUsername(request.getUsername())) {
+        // 检查用户名是否已存在（大小写敏感）
+        if (userRepository.countByUsernameCase(request.getUsername()) > 0) {
             throw new RuntimeException("用户名已被使用");
         }
         
-        // 检查邮箱是否已存在
-        if (userRepository.existsByEmail(request.getEmail())) {
+        // 检查邮箱是否已存在（大小写敏感）
+        if (userRepository.countByEmailCase(request.getEmail()) > 0) {
             throw new RuntimeException("邮箱已被注册");
         }
         
@@ -58,7 +58,7 @@ public class AuthService {
     }
     
     public AuthResponse login(LoginRequest request) {
-        // 查找用户（支持用户名或邮箱登录）
+        // 查找用户（支持用户名或邮箱登录，大小写敏感）
         User user = userRepository.findByUsernameOrEmail(request.getUsername(), request.getUsername())
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         

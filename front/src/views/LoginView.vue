@@ -55,8 +55,8 @@
 </template>
 
 <script>
-import { getAuthToken, setAuthToken, setCurrentUser } from '@/utils/auth'
-import { findMockUser } from '@/data/mockUsers'
+import { getAuthToken, setAuthToken, setCurrentUser, setCurrentUserId } from '@/utils/auth'
+import { login as apiLogin } from '@/utils/api'
 
 export default {
   name: 'LoginView',
@@ -82,7 +82,7 @@ export default {
       const target = typeof redirect === 'string' ? redirect : '/'
       this.$router.replace(target)
     },
-    handleSubmit() {
+    async handleSubmit() {
       this.message = ''
 
       if (!this.form.username || !this.form.password) {
@@ -91,22 +91,24 @@ export default {
       }
 
       this.loading = true
-      setTimeout(() => {
-        const user = findMockUser(this.form.username, this.form.password)
-
-        if (!user) {
+      try {
+        const res = await apiLogin(this.form.username, this.form.password)
+        // res: { token, userId, username, email, avatarUrl, userType }
+        if (!res || !res.token) {
+          this.message = '登录失败：未返回有效令牌'
           this.loading = false
-          this.message = '账号或密码不正确'
           return
         }
-
-        const mockToken = `mock-token-${Date.now()}`
-        setAuthToken(mockToken, this.remember)
-        setCurrentUser(user.username, this.remember)
-        this.message = `欢迎回来，${user.name}，正在跳转…`
+        setAuthToken(res.token, this.remember)
+        setCurrentUser(res.username || this.form.username, this.remember)
+        if (res.userId) setCurrentUserId(res.userId, this.remember)
+        this.message = `欢迎回来，${res.username || this.form.username}，正在跳转…`
         this.loading = false
-        setTimeout(() => this.redirectAfterLogin(), 200)
-      }, 1000)
+        this.redirectAfterLogin()
+      } catch (e) {
+        this.loading = false
+        this.message = (e && e.message) ? e.message : '登录失败，请稍后重试'
+      }
     }
   }
 }

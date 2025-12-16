@@ -113,7 +113,8 @@
 </template>
 
 <script>
-import { uploadVideo, uploadImage } from '@/utils/api'
+import { uploadVideo, uploadImage, createVideo } from '@/utils/api'
+import { getCurrentUserId, getCurrentUser } from '@/utils/auth'
 
 export default {
   name: 'UploadVideoView',
@@ -310,60 +311,33 @@ export default {
       }
     },
     async saveUploadedVideo(file, videoUrl, coverUrl, duration) {
-      const videoId = Date.now()
-      
-      // 读取用户信息（用于获取用户名）
-      let userName = 'zk3zy' // 默认用户名
-      try {
-        const profileData = localStorage.getItem('profileUser')
-        if (profileData) {
-          const parsed = JSON.parse(profileData)
-          if (parsed.name) {
-            userName = parsed.name
-          }
-        }
-      } catch (err) {
-        console.warn('读取用户信息失败', err)
-      }
-      
-      const formattedDuration = duration 
-        ? this.formatDuration(Math.round(duration))
-        : (this.videoDuration
-          ? this.formatDuration(Math.round(this.videoDuration))
-          : this.formatDuration(Math.floor(Math.random() * 300 + 10)))
-      const primaryTag = this.topicLabelMap[this.selectedTopic] || (this.selectedTopic || '未分类')
+      // 将上传后的资源写入后端视频表
+      const authorId = getCurrentUserId() || null
       const title = (this.form.title && this.form.title.trim()) || file.name.replace(/\.[^/.]+$/, '')
       const desc = (this.form.desc && this.form.desc.trim()) || ''
-      const visibility = this.form.visibility === 'private' ? 'private' : 'public'
-      const isPrivate = visibility === 'private'
-
-      const videoData = {
-        id: videoId,
+      const primaryTag = this.topicLabelMap[this.selectedTopic] || (this.selectedTopic || '未分类')
+      // VideoUploadDto: { title, content, videoUrl, coverImageUrl, category, tags, authorId, circleId }
+      const payload = {
         title,
-        creator: userName,
-        duration: formattedDuration,
-        views: '0次观看',
-        tags: [primaryTag],
-        thumbnail: coverUrl,
-        desc,
-        visibility,
-        isPrivate,
-        uploadTime: new Date().toISOString(),
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        videoUrl: videoUrl // 后端返回的视频URL
+        content: desc || ' ',
+        videoUrl,
+        coverImageUrl: coverUrl || '',
+        category: primaryTag,
+        tags: primaryTag,
+        authorId: authorId || undefined,
       }
 
-      // 保存到localStorage
-      this.saveVideoToWorks(videoData)
-
-      // 触发自定义事件，通知其他页面更新
-      window.dispatchEvent(new Event('userWorksUpdated'))
-
-      // 显示成功提示
-      alert('视频上传成功！已添加到我的作品')
-      this.resetForm()
+      try {
+        const created = await createVideo(payload)
+        console.log('视频记录创建成功:', created)
+        alert('视频上传并入库成功！')
+        this.resetForm()
+        // 可选：跳转到视频详情页（若你有对应路由）
+        // this.$router.push({ name: 'video', params: { id: created.id } })
+      } catch (e) {
+        console.error('保存视频记录失败:', e)
+        alert('上传成功，但保存视频记录失败：' + (e.message || '未知错误'))
+      }
     },
     extractVideoDuration(file) {
       return new Promise((resolve) => {

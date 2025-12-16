@@ -1,3 +1,14 @@
+-- 使用户名/邮箱大小写敏感：将这两列的排序规则改为 utf8mb4_bin
+-- 注意：在生产环境执行前请备份数据，并确认不影响既有唯一约束。
+ALTER TABLE users
+  MODIFY username VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  MODIFY email    VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+
+-- 可选：确保唯一索引在大小写敏感的排序规则下工作（如果先前由不同排序规则创建，可考虑重建索引）：
+-- DROP INDEX idx_username ON users;
+-- CREATE UNIQUE INDEX idx_username ON users (username);
+-- DROP INDEX idx_email ON users;
+-- CREATE UNIQUE INDEX idx_email ON users (email);
 -- ========================================
 -- 数据库增量更新脚本
 -- 适用于从 init.sql 初始化的数据库

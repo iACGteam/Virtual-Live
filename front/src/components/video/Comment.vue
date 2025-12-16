@@ -40,101 +40,112 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+import { getCurrentUserId } from '@/utils/auth'
+import { getComments, addComment, replyComment, deleteComment as apiDeleteComment, likeComment } from '@/utils/api'
 
-const router = useRouter()
 const route = useRoute()
+const videoId = computed(() => parseInt(route.query.id || 0))
 
-// 评论数据示例
-const comments = ref([
-  { id: 1, user: 'Alice', content: '太棒了！', time: '2025-11-23T17:00:00', hot: 10 },
-  { id: 2, user: 'Bob', content: '非常喜欢！', time: '2025-11-23T17:05:00', hot: 15 },
-  { id: 3, user: 'Charlie', content: '学习了', time: '2025-11-23T17:10:00', hot: 8 }
-])
-
-// 评论增强
-comments.value = comments.value.map(c => ({
-  ...c,
-  likes: c.hot || 0,
-  liked: false,
-  replies: []
-}))
-
-// 选择排序方式
-const sortOrder = ref('time')
-
-const sortedComments = computed(() => {
-  return [...comments.value].sort((a, b) => {
-    if (sortOrder.value === 'time') {
-      return new Date(b.time) - new Date(a.time)
-    } else if (sortOrder.value === 'hot') {
-      return b.hot - a.hot
-    }
-    return 0
-  })
-})
+// 后端评论列表（分页）
+const comments = ref([])
+const page = ref(0)
+const size = ref(20)
+const sortOrder = ref('time') // 后端支持 time/hot
 
 const totalComments = computed(() => {
   return comments.value.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0)
 })
 
-// 点赞功能（视频或评论通用）
-const toggleLike = (item) => {
-  if (!item.liked) {
-    item.likes++
-    item.liked = true
-  } else {
-    item.likes--
-    item.liked = false
+// 加载评论
+async function loadComments() {
+  if (!videoId.value) return
+  const pageData = await getComments(videoId.value, page.value, size.value, sortOrder.value)
+  const list = Array.isArray(pageData?.content) ? pageData.content : []
+  // 统一前端需要的结构
+  comments.value = list.map(c => ({
+    id: c.id,
+    user: c.authorName || `用户${c.authorId}`,
+    content: c.content,
+    time: c.createdAt,
+    likes: c.likes || 0,
+    liked: false,
+    replies: []
+  }))
+}
+
+onMounted(async () => {
+  await loadComments()
+})
+
+// 点赞评论
+async function toggleLike(item) {
+  try {
+    const uid = getCurrentUserId()
+    if (!uid) throw new Error('未登录')
+    await likeComment(item.id)
+    item.liked = !item.liked
+    item.likes = Math.max(0, (item.likes || 0) + (item.liked ? 1 : -1))
+  } catch (e) {
+    console.warn('点赞失败', e)
   }
 }
 
-// 发布评论
+// 新增评论
 const newComment = ref("")
 const canPostComment = computed(() => newComment.value.trim().length > 0)
-const replyingTo = ref(null)
-const replyText = ref("")
-
-const postComment = () => {
+async function postComment() {
   if (!canPostComment.value) return
-
-  comments.value.unshift({
-    id: Date.now(),
-    user: "You",
-    content: newComment.value,
-    time: new Date().toISOString(),
-    likes: 0,
-    replies: []
-  })
-
-  newComment.value = ""
-  nextTick(() => updateSidebarHeight())
+  try {
+    const uid = getCurrentUserId()
+    if (!uid || !videoId.value) throw new Error('未登录或视频ID缺失')
+    await addComment(videoId.value, uid, newComment.value.trim())
+    newComment.value = ''
+    await loadComments()
+    nextTick(() => updateSidebarHeight())
+  } catch (e) {
+    console.warn('发表评论失败', e)
+  }
 }
 
 // 回复框开关
-const toggleReplyBox = (comment) => {
+const replyingTo = ref(null)
+const replyText = ref("")
+function toggleReplyBox(comment) {
   if (replyingTo.value === comment.id) {
     replyingTo.value = null
   } else {
     replyingTo.value = comment.id
-    replyText.value = ""
+    replyText.value = ''
   }
 }
 
-// 回复提交
-const submitReply = (comment) => {
+// 提交回复
+async function submitReply(comment) {
   if (!replyText.value.trim()) return
+  try {
+    const uid = getCurrentUserId()
+    if (!uid || !videoId.value) throw new Error('未登录或视频ID缺失')
+    await replyComment(comment.id, videoId.value, uid, replyText.value.trim())
+    replyText.value = ''
+    replyingTo.value = null
+    await loadComments()
+  } catch (e) {
+    console.warn('回复失败', e)
+  }
+}
 
-  comment.replies.push({
-    id: Date.now(),
-    user: "You",
-    content: replyText.value,
-    time: new Date().toISOString()
-  })
-
-  replyText.value = ""
-  replyingTo.value = null
+// 删除评论
+async function deleteComment(comment) {
+  try {
+    const uid = getCurrentUserId()
+    if (!uid) throw new Error('未登录')
+    await apiDeleteComment(comment.id, uid)
+    await loadComments()
+  } catch (e) {
+    console.warn('删除失败', e)
+  }
 }
 
 </script>

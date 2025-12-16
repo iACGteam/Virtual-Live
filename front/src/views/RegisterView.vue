@@ -72,7 +72,8 @@
 </template>
 
 <script>
-import { addMockUser, isMockEmailTaken, isMockUsernameTaken } from '@/data/mockUsers'
+import { register as apiRegister } from '@/utils/api'
+import { setAuthToken, setCurrentUser, setCurrentUserId } from '@/utils/auth'
 
 export default {
   name: 'RegisterView',
@@ -91,7 +92,7 @@ export default {
     }
   },
   methods: {
-    handleSubmit() {
+    async handleSubmit() {
       this.message = ''
 
       if (this.form.password !== this.form.confirmPassword) {
@@ -108,33 +109,33 @@ export default {
       const email = this.form.email.trim().toLowerCase()
       const password = this.form.password
 
-      if (isMockUsernameTaken(nickname)) {
-        this.message = '该用户名已被占用，请尝试其他昵称'
-        return
-      }
-
-      if (isMockEmailTaken(email)) {
-        this.message = '该邮箱已注册，请直接登录'
-        return
-      }
-
       this.loading = true
-      setTimeout(() => {
-        addMockUser({
-          username: nickname,
-          email,
-          password,
-          name: nickname
-        })
+      try {
+        const res = await apiRegister(nickname, email, password)
+        // 成功：后端已创建用户并返回 token / userId / username / email
+        if (res && res.token) {
+          setAuthToken(res.token, true)
+        }
+        if (res?.username) setCurrentUser(res.username, true)
+        if (res?.userId) setCurrentUserId(res.userId, true)
 
         this.loading = false
-        this.message = '注册成功（模拟），正在跳转至登录页…'
+        this.message = '注册成功，正在跳转…'
         const redirect = this.$route.query.redirect
-        const redirectQuery = typeof redirect === 'string' ? { redirect } : undefined
-        setTimeout(() => {
-          this.$router.replace({ name: 'login', query: redirectQuery }).catch(() => {})
-        }, 800)
-      }, 1200)
+        const target = typeof redirect === 'string' ? redirect : '/'
+        this.$router.replace(target).catch(() => {})
+      } catch (err) {
+        this.loading = false
+        const msg = err?.message || ''
+        // 统一的用户提示
+        if (msg.includes('用户名已被使用')) {
+          this.message = '该用户名已被占用，请尝试其他昵称'
+        } else if (msg.includes('邮箱已被注册')) {
+          this.message = '该邮箱已注册，请直接登录'
+        } else {
+          this.message = '注册失败，请稍后重试'
+        }
+      }
     }
   }
 }

@@ -723,7 +723,8 @@
 </template>
 
 <script>
-import { clearAuthToken, getCurrentUser } from '@/utils/auth'
+import { clearAuthToken, getCurrentUser, getCurrentUserId } from '@/utils/auth'
+import { getUserPosts, getFollowers, getFollowing, getUserFavorites, getUserJoinedCircles, getVideoById } from '@/utils/api'
 import { updateMockUserPassword } from '@/data/mockUsers'
 export default {
   name: 'ProfileView',
@@ -1084,7 +1085,12 @@ export default {
   },
   created() {
     this.loadStoredProfile()
-    this.loadUserWorks()
+    // 先尝试从后端加载我的作品，失败时回退到本地存储
+    this.loadUserWorksFromBackend().catch(() => {
+      this.loadUserWorks()
+    })
+    // 加载“我的”页面依赖的用户独有数据（关注/粉丝/圈子/收藏）
+    this.loadMySectionDataFromBackend()
   },
   computed: {
     likedVideos() {
@@ -1247,6 +1253,89 @@ export default {
     }
   },
   methods: {
+    async loadMySectionDataFromBackend() {
+      const uid = getCurrentUserId()
+      const uname = getCurrentUser()
+      if (uname) {
+        this.user.name = uname
+        this.panel.name = uname
+      }
+      if (!uid) return
+      try {
+        // 关注/粉丝列表计数
+        const [followersPage, followingPage] = await Promise.all([
+          getFollowers(uid, 0, 50),
+          getFollowing(uid, 0, 50)
+        ])
+        const followersCount = followersPage?.totalElements ?? (Array.isArray(followersPage?.content) ? followersPage.content.length : 0)
+        const followingCount = followingPage?.totalElements ?? (Array.isArray(followingPage?.content) ? followingPage.content.length : 0)
+        this.user.followers = followersCount
+        this.user.following = followingCount
+        this.panel.followers = followersCount
+        this.panel.followings = followingCount
+
+        // 加入的圈子计数
+        const circlesPage = await getUserJoinedCircles(uid, 0, 50)
+        const circlesCount = circlesPage?.totalElements ?? (Array.isArray(circlesPage?.content) ? circlesPage.content.length : 0)
+        this.panel.circles = circlesCount
+        this.user.circles = circlesCount
+
+        // 收藏（我的喜欢）列表，映射为预览卡片（少量展示）
+        const favPage = await getUserFavorites(uid, 'post', 0, 20)
+        const favList = Array.isArray(favPage?.content) ? favPage.content : []
+        // 从收藏的内容ID拉取视频标题（仅取前几项做预览）
+        const previewCount = Math.min(3, favList.length)
+        const previewFetch = favList.slice(0, previewCount).map(async fav => {
+          const vidId = fav.contentId
+          try {
+            const v = await getVideoById(vidId)
+            return {
+              id: vidId,
+              tag: '#收藏',
+              title: v?.title || `视频 ${vidId}`,
+              gradient: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)'
+            }
+          } catch {
+            return { id: vidId, tag: '#收藏', title: `视频 ${vidId}`, gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' }
+          }
+        })
+        const preview = await Promise.all(previewFetch)
+        this.panel.favorites = preview
+        // 喜欢总数（以收藏数近似呈现）
+        this.panel.likes = String(favList.length)
+      } catch (err) {
+        console.warn('加载我的数据失败', err)
+      }
+    },
+    async loadUserWorksFromBackend(page = 0, size = 20) {
+      const uid = getCurrentUserId()
+      if (!uid) throw new Error('未登录或缺少用户ID')
+      const pageData = await getUserPosts(uid, page, size)
+      // pageData 形如 { content: [...], totalElements, totalPages, ... }
+      const list = Array.isArray(pageData?.content) ? pageData.content : []
+      // 将后端 VideoDto 映射到页面需要的字段
+      const mapDuration = (sec) => {
+        if (!sec && sec !== 0) return ''
+        const s = Math.max(0, parseInt(sec, 10) || 0)
+        const mm = String(Math.floor(s / 60)).padStart(2, '0')
+        const ss = String(s % 60).padStart(2, '0')
+        return `${mm}:${ss}`
+      }
+      this.userWorks = list.map(v => ({
+        id: v.id,
+        title: v.title,
+        creator: v.authorName || this.user.name,
+        duration: mapDuration(v.duration),
+        tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
+        thumbnail: v.coverImageUrl || '',
+        views: v.views || 0,
+        uploadTime: v.createdAt || null,
+        isPrivate: false
+      }))
+      // 更新快速入口中的作品数量
+      const worksEntry = this.panel.quickEntries.find(entry => entry.key === 'works')
+      if (worksEntry) worksEntry.value = this.userWorks.length.toString()
+    },
     handleWorkSearch(event) {
       // 按回车键时触发搜索，由于使用了 computed，过滤会自动执行
       // 这里可以让输入框失焦，提供更好的用户体验
