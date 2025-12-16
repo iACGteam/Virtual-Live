@@ -1,9 +1,10 @@
 // API 基础配置：优先使用环境变量；默认直连 127.0.0.1:8081（避免浏览器将 localhost 解析为 ::1 导致联通异常）
 const BASE_URL = process.env.VUE_APP_API_BASE || 'http://127.0.0.1:8081/api/v1'
+import { getAuthToken } from './auth'
 
 // 通用请求方法
 async function request(url, options = {}) {
-  const token = localStorage.getItem('vlive-auth-token')
+  const token = getAuthToken()
   
   const defaultOptions = {
     mode: 'cors',
@@ -11,6 +12,29 @@ async function request(url, options = {}) {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
     }
+  }
+
+  // 处理 query params
+  let fullUrl = `${BASE_URL}${url}`
+  if (options.params) {
+    // 过滤掉 null 和 undefined 的参数
+    const cleanParams = Object.entries(options.params)
+      .reduce((acc, [key, value]) => {
+        if (value !== null && value !== undefined) {
+          acc[key] = value
+        }
+        return acc
+      }, {})
+    const queryString = new URLSearchParams(cleanParams).toString()
+    if (queryString) {
+      fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString
+    }
+    delete options.params
+  }
+
+  // 处理 body (自动 stringify)
+  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+    options.body = JSON.stringify(options.body)
   }
   
   const mergedOptions = {
@@ -23,7 +47,6 @@ async function request(url, options = {}) {
   }
   
   try {
-    const fullUrl = `${BASE_URL}${url}`
     console.debug('[API] ->', fullUrl, mergedOptions)
     const response = await fetch(fullUrl, mergedOptions)
     const data = await response.json()
@@ -82,23 +105,36 @@ export async function createVideo(uploadDto) {
   })
 }
 
+// 删除视频
+export async function deleteVideo(videoId, userId) {
+  return request(`/videos/${videoId}?userId=${userId}`, {
+    method: 'DELETE'
+  })
+}
+
+// 更新视频
+export async function updateVideo(videoId, userId, updateDto) {
+  return request(`/videos/${videoId}?userId=${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify(updateDto)
+  })
+}
+
 // ==================== 评论相关 API ====================
 
 // 获取视频评论
-// 获取视频评论
 export async function getComments(videoId, page = 0, size = 20, sort = 'time') {
-  return request(`/comments`, {
+  return request(`/comments/video/${videoId}`, {
     method: 'GET',
-    params: { videoId, page, size, sort }
+    params: { page, size, sort }
   })
 }
 
 // 发表评论
-// 发表评论
 export async function addComment(videoId, userId, content) {
-  return request(`/comments`, {
+  return request(`/comments/video/${videoId}`, {
     method: 'POST',
-    body: { videoId, userId, content }
+    body: { userId, content }
   })
 }
 
@@ -499,6 +535,65 @@ export async function uploadAudio(file) {
   return data.data
 }
 
+// ==================== 用户资料相关 API ====================
+
+// 获取用户资料
+export async function getUserProfile(userId) {
+  return request(`/users/${userId}/profile`)
+}
+
+// 更新用户资料
+export async function updateUserProfile(userId, data) {
+  return request(`/users/${userId}/profile`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  })
+}
+
+// ==================== 观看历史相关 API ====================
+
+// 获取观看历史
+export async function getViewHistory(userId, page = 0, size = 20) {
+  return request(`/history/user/${userId}?page=${page}&size=${size}`)
+}
+
+// 添加观看历史
+export async function addViewHistory(userId, videoId) {
+  return request(`/history/user/${userId}/video/${videoId}`, {
+    method: 'POST'
+  })
+}
+
+// 清空观看历史
+export async function clearViewHistory(userId) {
+  return request(`/history/user/${userId}`, {
+    method: 'DELETE'
+  })
+}
+
+// ==================== 角色卡相关 API ====================
+
+// 获取用户角色卡
+export async function getUserRoleCards(userId) {
+  return request(`/role-cards/user/${userId}`)
+}
+
+// 创建角色卡
+export async function createRoleCard(userId, data) {
+  return request(`/role-cards/user/${userId}`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
+}
+
+// 更新角色卡
+export async function updateRoleCard(userId, cardId, data) {
+  return request(`/role-cards/user/${userId}/${cardId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  })
+}
+
 export default {
   getVideos,
   getVideoById,
@@ -563,5 +658,16 @@ export default {
   uploadImage,
   uploadImages,
   uploadVideo,
-  uploadAudio
+  uploadAudio,
+  // 用户资料
+  getUserProfile,
+  updateUserProfile,
+  // 观看历史
+  getViewHistory,
+  addViewHistory,
+  clearViewHistory,
+  // 角色卡
+  getUserRoleCards,
+  createRoleCard,
+  updateRoleCard
 }

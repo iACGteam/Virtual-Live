@@ -258,6 +258,12 @@ export default {
         alert('请先选择要上传的视频')
         return
       }
+
+      if (!this.form.title || !this.form.title.trim()) {
+        alert('请填写视频标题')
+        return
+      }
+
       await this.processFile(this.selectedFile)
     },
     async processFile(file) {
@@ -312,19 +318,34 @@ export default {
     },
     async saveUploadedVideo(file, videoUrl, coverUrl, duration) {
       // 将上传后的资源写入后端视频表
-      const authorId = getCurrentUserId() || null
+      const authorId = getCurrentUserId()
+      if (!authorId) {
+        alert('无法获取用户信息，请重新登录')
+        return
+      }
+
       const title = (this.form.title && this.form.title.trim()) || file.name.replace(/\.[^/.]+$/, '')
-      const desc = (this.form.desc && this.form.desc.trim()) || ''
-      const primaryTag = this.topicLabelMap[this.selectedTopic] || (this.selectedTopic || '未分类')
+      // 确保简介不为空，后端可能校验，若为空则使用默认文案
+      const desc = (this.form.desc && this.form.desc.trim()) || '暂无简介' 
+      
+      let primaryTag = this.topicLabelMap[this.selectedTopic] || (this.selectedTopic || '未分类')
+      
+      // 处理私密作品逻辑：通过标签标识
+      let tags = primaryTag
+      if (this.form.visibility === 'private') {
+        tags = tags ? `${tags},__PRIVATE__` : '__PRIVATE__'
+      }
+
       // VideoUploadDto: { title, content, videoUrl, coverImageUrl, category, tags, authorId, circleId }
       const payload = {
         title,
-        content: desc || ' ',
+        content: desc,
         videoUrl,
-        coverImageUrl: coverUrl || '',
+        // 如果没有封面，传 null，避免后端空字符串校验失败
+        coverImageUrl: coverUrl || null,
         category: primaryTag,
-        tags: primaryTag,
-        authorId: authorId || undefined,
+        tags: tags,
+        authorId: authorId,
       }
 
       try {

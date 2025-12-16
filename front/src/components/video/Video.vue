@@ -9,7 +9,7 @@
           <div class="title-stats">
             <span v-if="videoInfo.views">{{ videoInfo.views }} 次观看</span>
             <span v-if="videoInfo.views" class="dot">·</span>
-            <span>{{ totalComments }} 条评论</span>
+            <span>{{ videoInfo.commentsCount || 0 }} 条评论</span>
           </div>
         </div>
       </div>
@@ -180,13 +180,213 @@
 
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Comment from './Comment.vue'
+import { addViewHistory, toggleFollow as apiToggleFollow, checkFollow, getVideoById, getVideosByCategory, getVideos, toggleVideoLike, checkLike } from '@/utils/api'
+import { getCurrentUserId } from '@/utils/auth'
+
+import cover1 from '@/assets/虚拟主播/视频封面/图像 - 1742412405144.封面.jpg'
+import cover2 from '@/assets/虚拟主播/视频封面/图像 - “在这里见到我，很惊讶吗？”.封面.jpg'
+import cover3 from '@/assets/虚拟主播/视频封面/图像 - 【live2d模型展示】又是白毛与小猫咪（远古库存版）.封面.jpg'
+import cover4 from '@/assets/虚拟主播/视频封面/图像 - 【Live2d模型展示】请问您今天要来点猫猫吗.封面.jpg'
+import cover5 from '@/assets/虚拟主播/视频封面/图像 - 【live2d量贩模型】jk社恐小黑猫，适合内向宝宝的可爱日常公皮，支持vb.封面.jpg'
+import cover6 from '@/assets/虚拟主播/视频封面/图像 - 所有知名虚拟主播的立牌.封面.jpg'
+import cover7 from '@/assets/虚拟主播/视频封面/图像 - 超级简单的虚拟形象直播教程！4分钟教会你添加虚拟人物！.封面.jpg'
+import video1 from '@/assets/虚拟主播/视频/video-1.mp4'
+import video2 from '@/assets/虚拟主播/视频/video-2.mp4'
+import video3 from '@/assets/虚拟主播/视频/video-3.mp4'
+import video4 from '@/assets/虚拟主播/视频/video-4.mp4'
+import video5 from '@/assets/虚拟主播/视频/video-5.mp4'
+import video6 from '@/assets/虚拟主播/视频/video-6.mp4'
+import video7 from '@/assets/虚拟主播/视频/video-7.mp4'
 
 const router = useRouter()
 const route = useRoute()
 const totalComments = ref(0)
+
+const videoCovers = [cover1, cover2, cover3, cover4, cover5, cover6, cover7]
+const coverCycle = index => videoCovers[index % videoCovers.length]
+const videoSources = [video1, video2, video3, video4, video5, video6, video7]
+const shuffledVideoSources = [...videoSources].sort(() => Math.random() - 0.5)
+const videoSourceCycle = index => shuffledVideoSources[index % shuffledVideoSources.length]
+
+const localVideos = [
+  {
+    id: 1,
+    title: '星海航线直播幕后花絮',
+    creator: 'NebulaNova',
+    duration: '02:18',
+    views: '5.8万次观看',
+    tags: ['虚拟singer'],
+    thumbnail: coverCycle(0),
+    videoSrc: videoSourceCycle(0)
+  },
+  {
+    id: 2,
+    title: '虚拟偶像舞台 · 夜幕版本',
+    creator: 'LumiRay',
+    duration: '01:05',
+    views: '3.1万次观看',
+    tags: ['虚拟男V'],
+    thumbnail: coverCycle(1),
+    videoSrc: videoSourceCycle(1)
+  },
+  {
+    id: 3,
+    title: '粉丝互动问答高能合集',
+    creator: 'KiraEcho',
+    duration: '03:44',
+    views: '2.4万次观看',
+    tags: ['虚拟gamer'],
+    thumbnail: coverCycle(2),
+    videoSrc: videoSourceCycle(2)
+  },
+  {
+    id: 4,
+    title: '全息角色建模 timelapse',
+    creator: 'MoriTech',
+    duration: '02:57',
+    views: '1.9万次观看',
+    tags: ['虚拟声优'],
+    thumbnail: coverCycle(3),
+    videoSrc: videoSourceCycle(3)
+  },
+  {
+    id: 5,
+    title: '赛博朋克主题竖屏 MV',
+    creator: 'Vexa',
+    duration: '01:42',
+    views: '4.6万次观看',
+    tags: ['虚拟singer'],
+    thumbnail: coverCycle(4),
+    videoSrc: videoSourceCycle(4)
+  },
+  {
+    id: 6,
+    title: '直播事故剪辑：趣味合集',
+    creator: 'Patchy',
+    duration: '02:10',
+    views: '6.2万次观看',
+    tags: ['虚拟gamer'],
+    thumbnail: coverCycle(5),
+    videoSrc: videoSourceCycle(5)
+  },
+  {
+    id: 7,
+    title: 'AI 虚拟形象调教日常',
+    creator: 'SigmaBot',
+    duration: '01:33',
+    views: '3.7万次观看',
+    tags: ['虚拟声优'],
+    thumbnail: coverCycle(6),
+    videoSrc: videoSourceCycle(6)
+  },
+  {
+    id: 8,
+    title: '赛博城市观光 Vlog',
+    creator: 'MetroMuse',
+    duration: '02:05',
+    views: '2.9万次观看',
+    tags: ['虚拟男V'],
+    thumbnail: coverCycle(7),
+    videoSrc: videoSourceCycle(7)
+  },
+  {
+    id: 9,
+    title: '虚拟美食节目 · 宇宙餐桌',
+    creator: 'ChefNova',
+    duration: '03:12',
+    views: '4.2万次观看',
+    tags: ['虚拟男V'],
+    thumbnail: coverCycle(8),
+    videoSrc: videoSourceCycle(8)
+  },
+  {
+    id: 10,
+    title: '电竞解说高燃瞬间',
+    creator: 'CasterRay',
+    duration: '01:58',
+    views: '7.6万次观看',
+    tags: ['虚拟男V'],
+    thumbnail: coverCycle(9),
+    videoSrc: videoSourceCycle(9)
+  },
+  {
+    id: 11,
+    title: '深夜电台 · 陪伴系列',
+    creator: 'EchoWave',
+    duration: '04:05',
+    views: '3.3万次观看',
+    tags: ['虚拟声优'],
+    thumbnail: coverCycle(10),
+    videoSrc: videoSourceCycle(10)
+  },
+  {
+    id: 12,
+    title: '全息舞狮春节特辑',
+    creator: 'Dynasty Duo',
+    duration: '02:26',
+    views: '5.1万次观看',
+    tags: ['虚拟singer'],
+    thumbnail: coverCycle(11),
+    videoSrc: videoSourceCycle(11)
+  },
+  {
+    id: 13,
+    title: '音乐制作直播：即时 Remix',
+    creator: 'BeatForge',
+    duration: '02:48',
+    views: '4.9万次观看',
+    tags: ['虚拟singer'],
+    thumbnail: coverCycle(12),
+    videoSrc: videoSourceCycle(12)
+  },
+  {
+    id: 14,
+    title: '虚拟野外求生挑战',
+    creator: 'WildBytes',
+    duration: '03:20',
+    views: '2.2万次观看',
+    tags: ['虚拟gamer'],
+    thumbnail: coverCycle(13),
+    videoSrc: videoSourceCycle(13)
+  },
+  {
+    id: 15,
+    title: '粉丝共创剧情互动剧',
+    creator: 'StorySync',
+    duration: '03:08',
+    views: '6.8万次观看',
+    tags: ['虚拟声优'],
+    thumbnail: coverCycle(14),
+    videoSrc: videoSourceCycle(14)
+  }
+]
+
+// 监听路由变化，实现同组件跳转刷新
+watch(
+  () => route.query.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      loadVideo()
+      // 记录观看历史
+      recordHistory(newId)
+    }
+  }
+)
+
+// 记录观看历史
+const recordHistory = async (vid) => {
+  const uid = getCurrentUserId()
+  if (uid && vid) {
+    try {
+      await addViewHistory(uid, vid)
+    } catch (e) {
+      console.warn('记录历史失败', e)
+    }
+  }
+}
 
 let timeUpdateHandler = null
 
@@ -198,12 +398,6 @@ const videoSrc = ref('https://www.w3schools.com/html/mov_bbb.mp4')
 const videoInfo = ref(null)
 // 释放 blob 记录
 let blobUrl = null
-
-const isFollowing = ref(false)
-
-const toggleFollow = () => {
-  isFollowing.value = !isFollowing.value
-}
 
 
 
@@ -259,6 +453,10 @@ onMounted(() => {
 // 展示弹幕
 function showDanmu(dm) {
   if (!danmuEnabled.value) return;
+  
+  // 防止同一条弹幕在短时间内重复显示（解决 timeupdate 多次触发问题）
+  if (activeDanmus.value.some(d => d.id === dm.id)) return;
+
   const topMax =
     danmuArea.value === "full"
       ? 200
@@ -390,16 +588,63 @@ const danmuArea = ref("full");
 // ==================== 弹幕管理设置 =====================
 
 // 点赞功能（视频或评论通用）
-const toggleLike = (item) => {
-  if (!item.liked) {
-    item.likes++
-    item.liked = true
-  } else {
-    item.likes--
-    item.liked = false
+const toggleLike = async (item) => {
+  const uid = getCurrentUserId()
+  if (!uid) {
+    alert('请先登录')
+    return
+  }
+
+  try {
+    await toggleVideoLike(item.id, uid)
+    
+    if (!item.liked) {
+      item.likes++
+      item.liked = true
+    } else {
+      item.likes--
+      item.liked = false
+    }
+  } catch (e) {
+    console.error('点赞操作失败', e)
   }
 }
 
+
+// ======== 关注状态 ========
+const isFollowing = ref(false)
+
+const toggleFollow = async () => {
+  const uid = getCurrentUserId()
+  if (!uid) {
+    alert('请先登录')
+    return
+  }
+  
+  // 这里假设关注的是视频作者，实际应该用 videoInfo.value.creatorId
+  // 暂时用一个模拟ID或从视频信息获取
+  const targetId = videoInfo.value?.creatorId || 1 
+  
+  try {
+    await apiToggleFollow(uid, targetId)
+    isFollowing.value = !isFollowing.value
+  } catch (e) {
+    console.warn('关注失败', e)
+  }
+}
+
+const checkFollowStatus = async () => {
+  const uid = getCurrentUserId()
+  const targetId = videoInfo.value?.creatorId || 1
+  if (uid && targetId) {
+    try {
+      const status = await checkFollow(uid, targetId)
+      isFollowing.value = status
+    } catch (e) {
+      console.warn('获取关注状态失败', e)
+    }
+  }
+}
 
 // ======== 加入圈子状态 ========
 const isJoined = ref(false)
@@ -430,98 +675,122 @@ const goToChannel = () => {
   console.log("跳转到作者主页逻辑这里写")
 }
 
-// ========= 推荐视频假数据 (可替换真实 API) =========
-const recommendedVideos = ref([
-  {
-    id: 101,
-    title: "标题",
-    author: "作者",
-    views: "12万",
-    thumbnail: "https://picsum.photos/200/120?1"
-  },
-  {
-    id: 102,
-    title: "标题",
-    author: "作者",
-    views: "8.4万",
-    thumbnail: "https://picsum.photos/200/120?2"
-  },
-  {
-    id: 103,
-    title: "标题",
-    author: "作者",
-    views: "34万",
-    thumbnail: "https://picsum.photos/200/120?3"
-  },
-  {
-    id: 104,
-    title: "标题",
-    author: "作者",
-    views: "19万",
-    thumbnail: "https://picsum.photos/200/120?4"
-  },
-  {
-    id: 105,
-    title: "标题",
-    author: "作者",
-    views: "3.3万",
-    thumbnail: "https://picsum.photos/200/120?5"
-  },
-  {
-    id: 106,
-    title: "标题",
-    author: "作者",
-    views: "6.1万",
-    thumbnail: "https://picsum.photos/200/120?6"
-  },
-  {
-    id: 107,
-    title: "标题",
-    author: "作者",
-    views: "4.7万",
-    thumbnail: "https://picsum.photos/200/120?7"
-  },
-  {
-    id: 108,
-    title: "标题",
-    author: "作者",
-    views: "2.9万",
-    thumbnail: "https://picsum.photos/200/120?8"
-  },
-  {
-    id: 109,
-    title: "标题",
-    author: "作者",
-    views: "9.6万",
-    thumbnail: "https://picsum.photos/200/120?9"
-  },
-  {
-    id: 110,
-    title: "标题",
-    author: "作者",
-    views: "1.1万",
-    thumbnail: "https://picsum.photos/200/120?10"
-  },
-  {
-    id: 111,
-    title: "标题",
-    author: "作者",
-    views: "7.5万",
-    thumbnail: "https://picsum.photos/200/120?11"
-  },
-  {
-    id: 112,
-    title: "标题",
-    author: "作者",
-    views: "5.2万",
-    thumbnail: "https://picsum.photos/200/120?12"
-  }
-])
+// ========= 推荐视频 =========
+const recommendedVideos = ref([])
 
-const getViewsById = (id) => {
-  if (!id) return null
-  const found = recommendedVideos.value.find(v => String(v.id) === String(id))
-  return found ? found.views : null
+// 点击推荐视频 -> 跳转播放
+const openRecommend = (item) => {
+  // 如果是同一个视频，不跳转
+  if (String(item.id) === String(route.query.id)) return
+
+  // 跳转到新视频
+  router.push({
+    path: "/video",
+    query: { 
+      id: item.id,
+      src: item.videoSrc // 传递视频源
+    }
+  }).then(() => {
+    // 滚动到顶部
+    window.scrollTo(0, 0)
+  })
+}
+
+const resolveUrl = (url) => {
+  if (!url) return 'https://picsum.photos/200/120'
+  // 如果是 http、blob、data 协议，或者是本地资源路径（包含 assets），直接返回
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:') || url.includes('assets')) return url
+  const cleanUrl = url.startsWith('/') ? url.slice(1) : url
+  return `http://127.0.0.1:8081/${cleanUrl}`
+}
+
+// 自动加载视频
+const loadVideo = async () => {
+  const videoId = route.query.id
+  if (!videoId) return
+
+  const uid = getCurrentUserId()
+
+  try {
+    // 1. 获取视频详情
+    const data = await getVideoById(videoId)
+    if (data) {
+      videoInfo.value = {
+        id: data.id,
+        title: data.title,
+        creator: data.authorName,
+        creatorId: data.authorId,
+        subs: '6666', // 暂时没有订阅数
+        likes: data.likes || 0,
+        views: data.views || 0,
+        commentsCount: data.commentsCount || 0, // 绑定评论数
+        duration: data.duration,
+        description: data.content,
+        category: data.category,
+        liked: false // 默认未点赞
+      }
+
+      // 记录观看历史 & 检查点赞状态
+      if (uid) {
+        addViewHistory(uid, videoId).catch(e => console.warn('记录历史失败', e))
+        checkLike(uid, videoId, 'video').then(res => {
+          videoInfo.value.liked = res
+        }).catch(e => console.warn('检查点赞失败', e))
+      }
+      
+      // 设置视频源：优先使用路由参数中的 src（来自 HomeView 的本地资源）
+      if (route.query.src) {
+        videoSrc.value = route.query.src
+      } else if (data.videoUrl) {
+        videoSrc.value = resolveUrl(data.videoUrl)
+      } else {
+        // 兼容旧的本地存储逻辑（如果有的话）
+        // ...
+        videoSrc.value = 'https://www.w3schools.com/html/mov_bbb.mp4' // 默认兜底
+      }
+
+      // 2. 获取推荐视频（使用本地数据）
+      loadRecommendations(data.category)
+    }
+  } catch (err) {
+    console.error('加载视频失败:', err)
+    // 即使后端失败，如果前端有 src，也尝试播放
+    if (route.query.src) {
+       videoSrc.value = route.query.src
+       // 尝试从本地数据中恢复 info
+       const localInfo = localVideos.find(v => String(v.id) === String(videoId))
+       if (localInfo) {
+          videoInfo.value = {
+             id: localInfo.id,
+             title: localInfo.title,
+             creator: localInfo.creator,
+             views: localInfo.views,
+             description: '本地演示视频',
+             likes: 0
+          }
+          loadRecommendations()
+       }
+    }
+  }
+}
+
+// 加载推荐视频
+const loadRecommendations = async (category) => {
+  // 使用本地数据作为推荐源，模拟“迁移过来”的效果
+  const list = localVideos
+  
+  if (Array.isArray(list)) {
+    recommendedVideos.value = list
+      .filter(v => String(v.id) !== String(route.query.id)) // 排除当前视频
+      .map(v => ({
+        id: v.id,
+        title: v.title,
+        author: v.creator,
+        views: v.views || 0,
+        thumbnail: v.thumbnail,
+        videoSrc: v.videoSrc // 确保传递 src
+      }))
+  }
 }
 
 const pageRef = ref(null)
@@ -536,90 +805,25 @@ const updateSidebarHeight = () => {
   sidebarMinHeight.value = `${height}px`
 }
 
-// 点击推荐视频 -> 跳转播放
-const openRecommend = (item) => {
-  router.push({
-    path: "/video",
-    query: { id: item.id, src: videoSrc.value, views: item.views }
-  })
-}
-
-// 自动加载视频
-const loadVideo = () => {
-  const videoSrc_query = route.query.src
-  if (videoSrc_query) {
-    videoSrc.value = videoSrc_query
-    const videoId = route.query.id
-    const viewFromList = getViewsById(videoId)
-    if (videoId) {
-      videoInfo.value = {
-        id: videoId,
-        title: `视频 ${videoId}`,
-        creator: 'VirtuaLive',
-        subs: '6666',
-        likes: '888',
-        views: route.query.views || viewFromList || '',
-        duration: '',
-        description: route.query.desc || ''
-      }
-    }
-    return
-  }
-
-  const videoId = route.query.id
-  const viewFromList = getViewsById(videoId)
-  if (videoId) {
-    try {
-      const userWorks = localStorage.getItem('userWorks')
-      if (userWorks) {
-        const works = JSON.parse(userWorks)
-        const video = works.find(w => w.id === Number(videoId))
-
-        if (video) {
-          videoInfo.value = {
-            ...video,
-            views: route.query.views || viewFromList || video.views || videoInfo.value?.views || '',
-            duration: video.duration || '',
-            description: video.description || route.query.desc || ''
-          }
-
-          const blobUrl = sessionStorage.getItem(`videoBlob_${videoId}`)
-          if (blobUrl) {
-            videoSrc.value = blobUrl
-            return
-          }
-
-          if (video.videoData) {
-            if (video.videoData.startsWith('data:')) {
-              videoSrc.value = video.videoData
-            } else {
-              const byteCharacters = atob(video.videoData)
-              const byteNumbers = new Array(byteCharacters.length)
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i)
-              }
-              const byteArray = new Uint8Array(byteNumbers)
-              const blob = new Blob([byteArray], { type: video.fileType || 'video/mp4' })
-              blobUrl = URL.createObjectURL(blob)
-              videoSrc.value = blobUrl
-            }
-            return
-          }
-        }
-      }
-    } catch (err) {
-      console.error('加载视频失败:', err)
-    }
-  }
-
-  videoSrc.value = 'https://www.w3schools.com/html/mov_bbb.mp4'
-}
-
 // onMounted(() => {
 //   loadVideo()
 //   updateSidebarHeight()
 //   window.addEventListener('resize', updateSidebarHeight)
 // })
+
+onMounted(async () => {
+  loadVideo()
+  updateSidebarHeight()
+  window.addEventListener('resize', updateSidebarHeight)
+  
+  // 初始加载时记录历史
+  if (route.query.id) {
+    await recordHistory(route.query.id)
+  }
+  
+  // 检查关注状态
+  await checkFollowStatus()
+})
 
 onBeforeUnmount(() => {
   if (blobUrl) {

@@ -15,7 +15,7 @@
         </div>
 
         <ul class="comments-list">
-            <li v-for="comment in sortedComments" :key="comment.id">
+            <li v-for="comment in comments" :key="comment.id">
                 <div class="comment-item">
                     <strong>{{ comment.user }}:</strong> {{ comment.content }}
                     <div class="comment-actions">
@@ -40,10 +40,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getCurrentUserId } from '@/utils/auth'
-import { getComments, addComment, replyComment, deleteComment as apiDeleteComment, likeComment } from '@/utils/api'
+import { getComments, addComment, replyComment, deleteComment as apiDeleteComment, likeComment, getCommentReplies } from '@/utils/api'
 
 const route = useRoute()
 const videoId = computed(() => parseInt(route.query.id || 0))
@@ -53,6 +53,11 @@ const comments = ref([])
 const page = ref(0)
 const size = ref(20)
 const sortOrder = ref('time') // 后端支持 time/hot
+
+watch(sortOrder, () => {
+  page.value = 0
+  loadComments()
+})
 
 const totalComments = computed(() => {
   return comments.value.reduce((sum, c) => sum + 1 + (c.replies?.length || 0), 0)
@@ -66,13 +71,32 @@ async function loadComments() {
   // 统一前端需要的结构
   comments.value = list.map(c => ({
     id: c.id,
-    user: c.authorName || `用户${c.authorId}`,
+    user: c.username || `用户${c.userId}`,
     content: c.content,
     time: c.createdAt,
     likes: c.likes || 0,
     liked: false,
     replies: []
   }))
+
+  // 加载每个评论的回复（默认加载前3条）
+  comments.value.forEach(comment => loadReplies(comment))
+}
+
+async function loadReplies(comment) {
+  try {
+    const data = await getCommentReplies(comment.id, 0, 3)
+    if (data && Array.isArray(data.content)) {
+      comment.replies = data.content.map(r => ({
+        id: r.id,
+        user: r.username || `用户${r.userId}`,
+        content: r.content,
+        time: r.createdAt
+      }))
+    }
+  } catch (e) {
+    console.warn(`加载评论 ${comment.id} 的回复失败`, e)
+  }
 }
 
 onMounted(async () => {
@@ -103,7 +127,7 @@ async function postComment() {
     await addComment(videoId.value, uid, newComment.value.trim())
     newComment.value = ''
     await loadComments()
-    nextTick(() => updateSidebarHeight())
+    // nextTick(() => updateSidebarHeight())
   } catch (e) {
     console.warn('发表评论失败', e)
   }

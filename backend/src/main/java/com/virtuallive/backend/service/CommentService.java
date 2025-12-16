@@ -22,14 +22,15 @@ public class CommentService {
     private final VideoRepository videoRepository;
     private final UserRepository userRepository;
     
+    @Transactional(readOnly = true)
     public Page<CommentDto> getComments(Integer videoId, int page, int size, String sort) {
         Pageable pageable = PageRequest.of(page, size);
         
         Page<Comment> comments;
         if ("hot".equals(sort)) {
-            comments = commentRepository.findByPost_PostIdAndIsDeletedFalseOrderByLikesDesc(videoId, pageable);
+            comments = commentRepository.findByPost_PostIdAndParentCommentIsNullAndIsDeletedFalseOrderByLikesDesc(videoId, pageable);
         } else {
-            comments = commentRepository.findByPost_PostIdAndIsDeletedFalseOrderByCreatedAtDesc(videoId, pageable);
+            comments = commentRepository.findByPost_PostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(videoId, pageable);
         }
         
         return comments.map(this::convertToDto);
@@ -128,6 +129,7 @@ public class CommentService {
     /**
      * 获取评论的回复列表
      */
+    @Transactional(readOnly = true)
     public Page<CommentDto> getReplies(Integer parentCommentId, int page, int size) {
         Comment parentComment = commentRepository.findById(parentCommentId)
                 .orElseThrow(() -> new RuntimeException("评论不存在"));

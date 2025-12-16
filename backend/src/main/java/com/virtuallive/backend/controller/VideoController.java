@@ -92,4 +92,27 @@ public class VideoController {
             return R.error(e.getMessage());
         }
     }
+
+    @DeleteMapping("/{id}")
+    public R<String> deleteVideo(@PathVariable Integer id, @RequestParam Integer userId) {
+        try {
+            videoService.deleteVideo(id, userId);
+            return R.ok("删除成功");
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}")
+    public R<VideoDto> updateVideo(
+            @PathVariable Integer id,
+            @RequestParam Integer userId,
+            @RequestBody VideoUploadDto uploadDto) {
+        try {
+            VideoDto video = videoService.updateVideo(id, userId, uploadDto);
+            return R.ok("更新成功", video);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
 }

@@ -26,6 +26,7 @@ public class VideoService {
     private final VideoProcessingService videoProcessingService;
     private final UserRepository userRepository;
 
+    @Transactional(readOnly = true)
     public Page<VideoDto> getVideos(int page, int size, String sort) {
         Pageable pageable = PageRequest.of(page, size);
         
@@ -39,6 +40,7 @@ public class VideoService {
         return videos.map(this::convertToDto);
     }
     
+    @Transactional
     public VideoDto getVideoById(Integer id) {
         Video video = videoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("视频不存在"));
@@ -50,6 +52,7 @@ public class VideoService {
         return convertToDto(video);
     }
     
+    @Transactional(readOnly = true)
     public List<VideoDto> getVideosByCategory(String category) {
         Pageable pageable = PageRequest.of(0, 20);
         return videoRepository.findByCategoryAndIsDeletedFalse(category, pageable)
@@ -58,7 +61,7 @@ public class VideoService {
                 .collect(Collectors.toList());
     }
     
-    private VideoDto convertToDto(Video video) {
+    public VideoDto convertToDto(Video video) {
         return VideoDto.builder()
                 .id(video.getPostId())
                 .title(video.getTitle())
@@ -192,5 +195,36 @@ public class VideoService {
         }
 
         log.info("批量更新完成: 成功={}, 失败={}", successCount, failCount);
+    }
+
+    @Transactional
+    public void deleteVideo(Integer id, Integer userId) {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("视频不存在"));
+        
+        if (!video.getAuthor().getUserId().equals(userId)) {
+            throw new RuntimeException("无权删除此视频");
+        }
+        
+        video.setIsDeleted(true);
+        videoRepository.save(video);
+    }
+
+    @Transactional
+    public VideoDto updateVideo(Integer id, Integer userId, VideoUploadDto updateDto) {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("视频不存在"));
+        
+        if (!video.getAuthor().getUserId().equals(userId)) {
+            throw new RuntimeException("无权修改此视频");
+        }
+        
+        if (updateDto.getTitle() != null) video.setTitle(updateDto.getTitle());
+        if (updateDto.getContent() != null) video.setContent(updateDto.getContent());
+        if (updateDto.getCategory() != null) video.setCategory(updateDto.getCategory());
+        if (updateDto.getTags() != null) video.setTags(updateDto.getTags());
+        if (updateDto.getCoverImageUrl() != null) video.setCoverImageUrl(updateDto.getCoverImageUrl());
+        
+        return convertToDto(videoRepository.save(video));
     }
 }

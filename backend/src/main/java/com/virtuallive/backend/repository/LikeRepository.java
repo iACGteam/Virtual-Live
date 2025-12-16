@@ -27,4 +27,7 @@ public interface LikeRepository extends JpaRepository<Like, Integer> {
     
     // 删除点赞记录
     void deleteByUserAndContentTypeAndContentId(User user, Like.ContentType contentType, Integer contentId);
+
+    @Query("SELECT COUNT(l) FROM Like l, Video v WHERE l.contentId = v.postId AND l.contentType = 'post' AND v.author.userId = :userId")
+    long countVideoLikesByAuthorId(@org.springframework.data.repository.query.Param("userId") Integer userId);
 }

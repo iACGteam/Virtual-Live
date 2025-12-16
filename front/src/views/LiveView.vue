@@ -193,7 +193,8 @@
     import liveCover6 from '@/assets/虚拟主播/直播封面/live-cover-6.jpg'
     import liveCover7 from '@/assets/虚拟主播/直播封面/live-cover-7.jpg'
     import liveCover8 from '@/assets/虚拟主播/直播封面/live-cover-8.jpg'
-  import { clearAuthToken } from '@/utils/auth'
+  import { clearAuthToken, getCurrentUserId } from '@/utils/auth'
+  import { getUserProfile, getFollowing, getUserFavorites, getViewHistory, getUserPosts } from '@/utils/api'
 
     const liveCovers = [
       liveCover1,
@@ -223,7 +224,7 @@
           { key: 'vmale', label: '虚拟男V', icon: '🧑‍🎤' }
         ],
         // 关注用户列表（从 ProfileView 中获取的关注用户）
-        followingUsers: ['NebulaNova', 'LumiRay', 'KiraEcho', 'DANK1NG', 'NiKo', 'reailty', '森阳(无畏契约)'],
+        followingUsers: [],
         navLinks: [
           { key: 'discover', label: '发现内容', icon: '✨' },
           { key: 'live', label: '直播', icon: '📡' },
@@ -233,17 +234,13 @@
         userProfile: {
           initials: 'VL',
           avatar: avatarImg,
-          name: 'zk3zy',
-          followings: 250,
-          followers: 86,
-          likes: '3.0万',
-          favorites: [
-            { id: 1, tag: '#Live', title: '治愈童声 #见面会', gradient: 'linear-gradient(125deg, #fdfcfb 0%, #e2d1c3 100%)' },
-            { id: 2, tag: '#校园', title: '大学生惊喜一天', gradient: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)' },
-            { id: 3, tag: '#MV', title: 'GALI 新歌上线', gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' }
-          ],
+          name: '加载中...',
+          followings: 0,
+          followers: 0,
+          likes: '0',
+          favorites: [],
           quickEntries: [
-            { key: 'history', icon: '🕒', label: '观看历史', value: '30天内' },
+            { key: 'history', icon: '🕒', label: '观看历史', value: '0' },
             { key: 'works', icon: '🎬', label: '我的作品', value: '0' }
           ],
           rememberLogin: true
@@ -373,6 +370,59 @@
       }
     },
     methods: {
+      async loadUserProfile() {
+        const uid = getCurrentUserId()
+        if (!uid) return
+        try {
+          const profile = await getUserProfile(uid)
+          if (profile) {
+            this.userProfile.name = profile.username
+            this.userProfile.avatar = profile.avatarUrl || avatarImg
+            this.userProfile.followers = profile.followersCount || 0
+            this.userProfile.followings = profile.followingCount || 0
+            this.userProfile.likes = profile.likesCount || 0
+          }
+          
+          // Load works count
+          const worksData = await getUserPosts(uid, 0, 1)
+          const worksEntry = this.userProfile.quickEntries.find(e => e.key === 'works')
+          if (worksEntry && worksData) {
+            worksEntry.value = worksData.totalElements || '0'
+          }
+          
+          // Load history count
+          const historyData = await getViewHistory(uid, 0, 1)
+          const historyEntry = this.userProfile.quickEntries.find(e => e.key === 'history')
+          if (historyEntry && historyData) {
+            historyEntry.value = historyData.totalElements > 99 ? '99+' : String(historyData.totalElements || 0)
+          }
+          
+          // Load favorites (preview)
+          const favData = await getUserFavorites(uid, 'post', 0, 3)
+          if (favData && favData.content) {
+             this.userProfile.favorites = favData.content.map((fav, index) => ({
+               id: fav.contentId,
+               tag: '#收藏',
+               title: `收藏内容 ${index + 1}`,
+               gradient: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)'
+             }))
+          }
+        } catch (err) {
+          console.warn('加载个人资料失败', err)
+        }
+      },
+      async loadFollowingUsers() {
+        const uid = getCurrentUserId()
+        if (!uid) return
+        try {
+          const followingData = await getFollowing(uid, 0, 10)
+          if (followingData && followingData.content) {
+            this.followingUsers = followingData.content.map(f => f.username)
+          }
+        } catch (err) {
+          console.warn('加载关注列表失败', err)
+        }
+      },
       handleNavClick(link) {
         this.activeNav = link.key
         if (link.key === 'my') {
@@ -485,6 +535,8 @@
       }
     },
     mounted() {
+      this.loadUserProfile()
+      this.loadFollowingUsers()
       // 根据当前路由设置激活的导航项
       if (this.$route.path === '/live') {
         this.activeNav = 'live'

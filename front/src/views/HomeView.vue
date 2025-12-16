@@ -149,7 +149,8 @@ import video4 from '@/assets/虚拟主播/视频/video-4.mp4'
 import video5 from '@/assets/虚拟主播/视频/video-5.mp4'
 import video6 from '@/assets/虚拟主播/视频/video-6.mp4'
 import video7 from '@/assets/虚拟主播/视频/video-7.mp4'
-import { clearAuthToken } from '@/utils/auth'
+import { clearAuthToken, getCurrentUserId } from '@/utils/auth'
+import { getUserProfile, getFollowing, getUserFavorites, getViewHistory, getUserPosts, getVideos } from '@/utils/api'
 
 const videoCovers = [cover1, cover2, cover3, cover4, cover5, cover6, cover7]
 const coverCycle = index => videoCovers[index % videoCovers.length]
@@ -173,7 +174,7 @@ export default {
         { key: 'vmale', label: '虚拟男V', icon: '🧑‍🎤' }
       ],
       // 关注用户列表（从 ProfileView 中获取的关注用户）
-      followingUsers: ['NebulaNova', 'LumiRay', 'KiraEcho', 'DANK1NG', 'NiKo', 'reailty', '森阳(无畏契约)'],
+      followingUsers: [],
       navLinks: [
         { key: 'discover', label: '发现内容', icon: '✨' },
         { key: 'live', label: '直播', icon: '📡' },
@@ -183,21 +184,18 @@ export default {
       userProfile: {
         initials: 'VL',
         avatar: avatarImg,
-        name: 'zk3zy',
-        followings: 250,
-        followers: 86,
-        likes: '3.0万',
-        favorites: [
-          { id: 1, tag: '#Live', title: '治愈童声 #见面会', gradient: 'linear-gradient(125deg, #fdfcfb 0%, #e2d1c3 100%)' },
-          { id: 2, tag: '#校园', title: '大学生惊喜一天', gradient: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)' },
-          { id: 3, tag: '#MV', title: 'GALI 新歌上线', gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' }
-        ],
+        name: '加载中...',
+        followings: 0,
+        followers: 0,
+        likes: '0',
+        favorites: [],
         quickEntries: [
-          { key: 'history', icon: '🕒', label: '观看历史', value: '30天内' },
+          { key: 'history', icon: '🕒', label: '观看历史', value: '0' },
           { key: 'works', icon: '🎬', label: '我的作品', value: '0' }
         ],
         rememberLogin: true
       },
+      backendVideos: [], // 从后端加载的视频
       shortVideos: [
         {
           id: 1,
@@ -353,6 +351,96 @@ export default {
     }
   },
   methods: {
+    async loadBackendVideos() {
+      try {
+        const res = await getVideos(0, 100, 'newest')
+        if (res && res.content) {
+          const mapDuration = (sec) => {
+            if (!sec && sec !== 0) return '00:00'
+            const s = Math.max(0, parseInt(sec, 10) || 0)
+            const mm = String(Math.floor(s / 60)).padStart(2, '0')
+            const ss = String(s % 60).padStart(2, '0')
+            return `${mm}:${ss}`
+          }
+          
+          const resolveUrl = (url) => {
+            if (!url) return null
+            if (url.startsWith('http') || url.startsWith('blob:')) return url
+            const cleanUrl = url.startsWith('/') ? url.slice(1) : url
+            return `http://127.0.0.1:8081/${cleanUrl}`
+          }
+
+          this.backendVideos = res.content
+            .filter(v => v.id > 15) // 过滤掉 ID 1-15 的视频，因为它们已经在 shortVideos 中硬编码了
+            .filter(v => !v.tags || !v.tags.includes('__PRIVATE__')) // 过滤掉私密视频
+            .map(v => ({
+              id: v.id,
+              title: v.title,
+              creator: v.authorName || '未知用户',
+              duration: mapDuration(v.duration),
+              views: v.views ? `${v.views}次观看` : '0次观看',
+              tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
+              thumbnail: resolveUrl(v.coverImageUrl) || 'https://picsum.photos/320/180', // 默认封面
+              videoSrc: resolveUrl(v.videoUrl)
+            }))
+        }
+      } catch (err) {
+        console.warn('加载后端视频失败', err)
+      }
+    },
+    async loadUserProfile() {
+      const uid = getCurrentUserId()
+      if (!uid) return
+      try {
+        const profile = await getUserProfile(uid)
+        if (profile) {
+          this.userProfile.name = profile.username
+          this.userProfile.avatar = profile.avatarUrl || avatarImg
+          this.userProfile.followers = profile.followersCount || 0
+          this.userProfile.followings = profile.followingCount || 0
+          this.userProfile.likes = profile.likesCount || 0
+        }
+        
+        // Load works count
+        const worksData = await getUserPosts(uid, 0, 1)
+        const worksEntry = this.userProfile.quickEntries.find(e => e.key === 'works')
+        if (worksEntry && worksData) {
+          worksEntry.value = worksData.totalElements || '0'
+        }
+        
+        // Load history count
+        const historyData = await getViewHistory(uid, 0, 1)
+        const historyEntry = this.userProfile.quickEntries.find(e => e.key === 'history')
+        if (historyEntry && historyData) {
+          historyEntry.value = historyData.totalElements > 99 ? '99+' : String(historyData.totalElements || 0)
+        }
+        
+        // Load favorites (preview)
+        const favData = await getUserFavorites(uid, 'post', 0, 3)
+        if (favData && favData.content) {
+           this.userProfile.favorites = favData.content.map((fav, index) => ({
+             id: fav.contentId,
+             tag: '#收藏',
+             title: `收藏内容 ${index + 1}`,
+             gradient: 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)'
+           }))
+        }
+      } catch (err) {
+        console.warn('加载个人资料失败', err)
+      }
+    },
+    async loadFollowingUsers() {
+      const uid = getCurrentUserId()
+      if (!uid) return
+      try {
+        const followingData = await getFollowing(uid, 0, 10)
+        if (followingData && followingData.content) {
+          this.followingUsers = followingData.content.map(f => f.username)
+        }
+      } catch (err) {
+        console.warn('加载关注列表失败', err)
+      }
+    },
     handleNavClick(link) {
       this.activeNav = link.key
       if (link.key === 'my') {
@@ -426,16 +514,6 @@ export default {
       // 搜索功能通过 v-model 和计算属性自动实现
       // 这里可以添加额外的搜索逻辑，如搜索历史记录等
     },
-    // goVideo(video) {
-    //   if (!video) return
-    //   this.$router.push({
-    //     path: '/video',
-    //     query: {
-    //       id: video.id,
-    //       src: video.videoSrc
-    //     }
-    //   }).catch(() => {})
-    // }
     goVideo(video) {
       if (!video) return
 
@@ -451,21 +529,25 @@ export default {
     }
   },
   computed: {
+    allVideos() {
+      // 合并本地硬编码视频和后端加载的视频
+      return [...this.shortVideos, ...this.backendVideos]
+    },
     filteredVideos() {
       let videos = []
 
       // 先根据筛选条件过滤
       if (this.activeFilter === 'recommend') {
         // 推荐：显示所有视频
-        videos = this.shortVideos
+        videos = this.allVideos
       } else if (this.activeFilter === 'following') {
         // 关注：只显示关注用户的视频
-        videos = this.shortVideos.filter(video =>
+        videos = this.allVideos.filter(video =>
           this.followingUsers.includes(video.creator)
         )
       } else {
         // 分类筛选：标签与分类一致（tags 里直接存中文分类名）
-        videos = this.shortVideos.filter(video =>
+        videos = this.allVideos.filter(video =>
           video.tags.includes(this.topics.find(t => t.key === this.activeFilter)?.label)
         )
       }
@@ -483,6 +565,9 @@ export default {
     }
   },
   mounted() {
+    this.loadUserProfile()
+    this.loadFollowingUsers()
+    this.loadBackendVideos()
     // 根据当前路由设置激活的导航项
     if (this.$route.path === '/') {
       this.activeNav = 'discover'
