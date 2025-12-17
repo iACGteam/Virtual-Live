@@ -1,4 +1,4 @@
-package com.virtuallive.service.impl;
+package com.virtuallive.service;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
