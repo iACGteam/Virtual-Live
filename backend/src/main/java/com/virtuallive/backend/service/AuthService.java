@@ -1,5 +1,7 @@
 package com.virtuallive.backend.service;
 
+import com.virtuallive.backend.live.entity.UserWallet;
+import com.virtuallive.backend.live.repository.UserWalletRepository;
 import com.virtuallive.backend.model.dto.AuthResponse;
 import com.virtuallive.backend.model.dto.LoginRequest;
 import com.virtuallive.backend.model.dto.RegisterRequest;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
 
 import java.time.LocalDateTime;
 
@@ -18,6 +21,7 @@ import java.time.LocalDateTime;
 public class AuthService {
     
     private final UserRepository userRepository;
+    private final UserWalletRepository userWalletRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     
@@ -43,6 +47,12 @@ public class AuthService {
                 .build();
         
         user = userRepository.save(user);
+        
+        // 初始化用户钱包，初始余额为10000
+        UserWallet wallet = new UserWallet();
+        wallet.setUserId(user.getUserId());
+        wallet.setBalance(new BigDecimal("10000"));
+        userWalletRepository.save(wallet);
         
         // 生成 token
         String token = jwtUtil.generateToken(user.getUsername());
