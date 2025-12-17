@@ -1,6 +1,7 @@
-// API 基础配置：优先使用环境变量；默认直连 127.0.0.1:8081（避免浏览器将 localhost 解析为 ::1 导致联通异常）
-const BASE_URL = process.env.VUE_APP_API_BASE || 'http://127.0.0.1:8081/api/v1'
 import { getAuthToken } from './auth'
+
+// API 基础配置：优先使用环境变量；默认使用相对路径 /api/v1 以利用 vue.config.js 的代理
+const BASE_URL = process.env.VUE_APP_API_BASE || '/api/v1'
 
 // 通用请求方法
 async function request(url, options = {}) {
@@ -389,10 +390,10 @@ export async function checkCircleMembership(circleId, userId) {
   return request(`/circles/${circleId}/check?userId=${userId}`)
 }
 
-// // 获取圈子成员列表
-// export async function getCircleMembers(circleId, page = 0, size = 20) {
-//   return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
-// }
+// 获取圈子成员列表
+export async function getCircleMembers(circleId, page = 0, size = 20) {
+  return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
+}
 
 // 获取用户加入的圈子列表
 export async function getUserCircles(userId, page = 0, size = 20) {
