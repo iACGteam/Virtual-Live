@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>粉丝牌等级测试面板（Live 模块）</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f4f6f9; }
+        h1 { text-align: center; color: #333; }
+        h3 { margin-top: 0; color: #444; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
+        .box { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .log { background: #1e1e1e; color: #00ff00; font-family: monospace; height: 260px; overflow-y: scroll; padding: 10px; border-radius: 5px; border: 1px solid #333; font-size: 13px; }
+        .input-group { margin-bottom: 8px; }
+        label { display: inline-block; width: 90px; font-size: 0.9em; font-weight: bold; }
+        input { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; }
+        button { cursor: pointer; padding: 6px 12px; border: none; border-radius: 4px; background-color: #007bff; color: white; transition: 0.2s; margin-right: 4px; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        button.sc { background-color: #e91e63; }
+        button.sc:hover { background-color: #c2185b; }
+        .status { font-weight: bold; margin-left: 10px; }
+        .tips { font-size: 12px; color: #666; line-height: 1.6; }
+        hr { margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<h1>🎖 粉丝牌等级测试面板（Live 后端）</h1>
+
+<div class="box">
+    <h3>🛠 环境配置</h3>
+    <div class="input-group">
+        <label>后端地址:</label>
+        <!-- ★ 根据你 live 后端的端口改，比如 8080 或 8081 -->
+        <input type="text" id="baseUrl" value="http://localhost:8080" style="width: 220px;">
+    </div>
+    <div class="input-group">
+        <label>直播间ID:</label>
+        <!-- ★ 默认使用 room_id=101，对应 vtuber_id=11 -->
+        <input type="number" id="roomIdInput" value="101" style="width: 80px;">
+    </div>
+    <div class="input-group">
+        <label>测试 Token:</label>
+        <!-- ★ 这里的 token 实际上最终都会被 MockUserService 映射成 userId=88 -->
+        <input type="text" id="tokenInput" value="admin-token-123" style="width: 260px;">
+    </div>
+    <p class="tips">
+        说明：<br>
+        1. 当前 live 后端使用 <code>MockUserService</code>，不管 Token 是什么，都会当作数据库中的用户 <strong>user_id = 88</strong>。<br>
+        2. 请先在数据库中保证 <code>user_follows</code> 表存在 <code>(follower_id=88, following_id=11)</code> 的关注关系。<br>
+        3. 请确认 <code>live_rooms</code> 中 <code>room_id = 101</code> 的 <code>vtuber_id = 11</code>。
+    </p>
+</div>
+
+<div class="box">
+    <h3>💬 WebSocket & 礼物 / SC 测试</h3>
+
+    <div class="input-group">
+        <button onclick="connectWs()">🔌 连接 WebSocket</button>
+        <button onclick="disconnectWs()" id="btnDisconnect" disabled>❌ 断开</button>
+        <span id="wsStatus" class="status" style="color: red;">未连接</span>
+    </div>
+
+    <hr>
+
+    <div class="input-group">
+        <label>普通弹幕:</label>
+        <input type="text" id="chatContent" value="主播好帅！" style="width: 200px;">
+        <button onclick="sendChat()" id="btnSendChat" disabled>发送弹幕</button>
+    </div>
+
+    <div class="input-group">
+        <label>礼物测试:</label>
+        <input type="text" id="giftName" value="火箭" style="width: 80px;" placeholder="礼物名">
+        <input type="number" id="giftCount" value="1" style="width: 50px;" placeholder="数量">
+        <input type="number" id="giftPrice" value="1" style="width: 60px;" placeholder="单价(元)">
+        <button onclick="sendGift()" id="btnSendGift" disabled>🎁 送礼</button>
+    </div>
+
+    <div class="input-group">
+        <label>SC测试:</label>
+        <input type="number" id="scPrice" value="50" style="width: 60px;" placeholder="金额(元)">
+        <input type="text" id="scContent" value="加油加油！" style="width: 180px;" placeholder="SC内容">
+        <button onclick="sendSC()" id="btnSendSC" class="sc" disabled>💖 发送SC</button>
+    </div>
+
+    <p class="tips">
+        建议测试顺序（每步送完之后，在数据库 <code>fan_badges</code> 里查询 <code>vtuber_id=11 & fan_id=88</code>）：<br>
+        - 先只关注，不送礼：应为 Lv.1（如果已有送礼记录，可能直接更高）<br>
+        - 总额 ≥ 1 元：Lv.2<br>
+        - 总额 ≥ 3 元：Lv.3<br>
+        - 总额 ≥ 5 元：Lv.4<br>
+        - 总额 ≥ 10 元：Lv.5<br>
+        - 总额 ≥ 30 元：Lv.6<br>
+        - 总额 ≥ 100 元：Lv.7<br>
+        - 后续按门槛表逐步升到更高等级
+    </p>
+</div>
+
+<div class="box">
+    <h3>📝 日志</h3>
+    <div id="logArea" class="log"></div>
+</div>
+
+<script>
+    let stompClient = null;
+
+    function log(msg) {
+        const area = document.getElementById('logArea');
+        area.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+        area.scrollTop = area.scrollHeight;
+        console.log(msg);
+    }
+
+    function getBaseUrl() { return document.getElementById('baseUrl').value; }
+    function getRoomId() { return parseInt(document.getElementById('roomIdInput').value, 10); }
+    function getToken() { return document.getElementById('tokenInput').value; }
+
+    function updateWsStatus(connected) {
+        const status = document.getElementById('wsStatus');
+        status.textContent = connected ? "已连接" : "未连接";
+        status.style.color = connected ? "green" : "red";
+        document.getElementById('btnDisconnect').disabled = !connected;
+        document.getElementById('btnSendChat').disabled = !connected;
+        document.getElementById('btnSendGift').disabled = !connected;
+        document.getElementById('btnSendSC').disabled = !connected;
+    }
+
+    function connectWs() {
+        const url = getBaseUrl() + "/ws-live";
+        log("🔌 连接 WebSocket: " + url);
+
+        const socket = new SockJS(url);
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        const headers = { "token": getToken() };
+
+        stompClient.connect(headers, function(frame) {
+            log("🟢 WebSocket 已连接: " + frame);
+            updateWsStatus(true);
+
+            const topic = "/topic/danmaku/" + getRoomId();
+            stompClient.subscribe(topic, function(message) {
+                const body = JSON.parse(message.body);
+                let extra = "";
+                if (body.danmakuId) {
+                    extra = ` [danmakuId=${body.danmakuId}]`;
+                }
+                log(`📩 收到消息: type=${body.type}, content="${body.content}"${extra}`);
+            });
+            log("👂 已订阅房间弹幕: " + topic);
+
+        }, function(error) {
+            log("🔴 连接失败: " + error);
+            updateWsStatus(false);
+        });
+    }
+
+    function disconnectWs() {
+        if (stompClient) {
+            stompClient.disconnect();
+            stompClient = null;
+        }
+        updateWsStatus(false);
+        log("🔴 已断开 WebSocket");
+    }
+
+    function sendPayload(type, extra) {
+        if (!stompClient) {
+            log("⚠️ 请先连接 WebSocket");
+            return;
+        }
+        const payload = Object.assign({
+            type: type,
+            roomId: getRoomId()
+        }, extra || {});
+        stompClient.send("/app/send-danmaku", { "token": getToken() }, JSON.stringify(payload));
+        log(`📤 发送 ${type}: ` + JSON.stringify(payload));
+    }
+
+    function sendChat() {
+        const content = document.getElementById('chatContent').value || "测试弹幕";
+        sendPayload("CHAT", {
+            content: content,
+            color: "#000000"
+        });
+    }
+
+    function sendGift() {
+        const name = document.getElementById('giftName').value || "测试礼物";
+        const count = parseInt(document.getElementById('giftCount').value, 10) || 1;
+        const price = parseFloat(document.getElementById('giftPrice').value) || 1;
+        sendPayload("GIFT", {
+            giftName: name,
+            giftCount: count,
+            giftPrice: price,
+            content: ""  // content 在后端会被覆盖成“送出了 xxx xN”
+        });
+    }
+
+    function sendSC() {
+        const price = parseFloat(document.getElementById('scPrice').value) || 30;
+        const content = document.getElementById('scContent').value || "测试 SC";
+        sendPayload("SC", {
+            giftPrice: price,
+            content: content
+        });
+    }
+</script>
+
+</body>
+</html>

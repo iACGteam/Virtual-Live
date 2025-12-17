@@ -389,10 +389,10 @@ export async function checkCircleMembership(circleId, userId) {
   return request(`/circles/${circleId}/check?userId=${userId}`)
 }
 
-// 获取圈子成员列表
-export async function getCircleMembers(circleId, page = 0, size = 20) {
-  return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
-}
+// // 获取圈子成员列表
+// export async function getCircleMembers(circleId, page = 0, size = 20) {
+//   return request(`/circles/${circleId}/members?page=${page}&size=${size}`)
+// }
 
 // 获取用户加入的圈子列表
 export async function getUserCircles(userId, page = 0, size = 20) {

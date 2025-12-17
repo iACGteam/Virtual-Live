@@ -10,4 +10,8 @@ import java.util.Optional;
 public interface LiveRoomRepository extends JpaRepository<LiveRoom, Integer> {
     // 自动生成 SQL: select * from live_rooms where stream_key = ?
     Optional<LiveRoom> findByStreamKey(String streamKey);
+
+    // ★ 新增：根据主播 userId 查房间（一个主播一个房间，用 Optional 即可）
+    Optional<LiveRoom> findFirstByVtuberId(Integer vtuberId);
+
 }

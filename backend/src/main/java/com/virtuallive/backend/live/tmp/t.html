@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>直播系统全功能测试控制台</title>
+    <!-- 引入 SockJS 和 STOMP 库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f4f6f9; }
+        h1 { text-align: center; color: #333; }
+        h3 { margin-top: 0; color: #444; border-bottom: 2px solid #ddd; padding-bottom: 5px; }
+        h4 { margin: 10px 0 5px; color: #666; font-size: 0.9em; }
+
+        .container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .column { flex: 1; min-width: 300px; }
+
+        .box { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .box.admin { border-left: 5px solid #ff9800; } /* 管理员区域用橙色标记 */
+        .box.viewer { border-left: 5px solid #4caf50; } /* 观众区域用绿色标记 */
+
+        .log { background: #1e1e1e; color: #00ff00; font-family: monospace; height: 400px; overflow-y: scroll; padding: 10px; border-radius: 5px; border: 1px solid #333; font-size: 13px; }
+
+        .input-group { margin-bottom: 8px; }
+        label { display: inline-block; width: 70px; font-size: 0.9em; font-weight: bold; }
+        input, select { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        button { cursor: pointer; padding: 6px 12px; border: none; border-radius: 4px; background-color: #007bff; color: white; transition: 0.2s; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #a71d2a; }
+        button.success { background-color: #28a745; }
+        button.success:hover { background-color: #218838; }
+
+        .status { font-weight: bold; margin-left: 10px; }
+        .json-result { background: #eee; padding: 5px; font-size: 12px; margin-top: 5px; white-space: pre-wrap; max-height: 100px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+<h1>📡 直播 API 终极测试台</h1>
+
+<!-- 全局配置 -->
+<div class="box">
+    <h3>🛠️ 全局环境配置</h3>
+    <div class="input-group">
+        <label>后端地址:</label> <input type="text" id="baseUrl" value="http://localhost:8081" style="width: 200px;">
+        <label>直播间ID:</label> <input type="number" id="roomIdInput" value="101" style="width: 60px;">
+    </div>
+    <div class="input-group">
+        <label>Token:</label> <input type="text" id="tokenInput" value="admin-token-123" style="width: 250px;" placeholder="admin-token-123 用于测试主播功能">
+        <span style="font-size: 12px; color: #666;">(注: 使用 admin-token-123 模拟主播/房管，普通用户可用其他字符串)</span>
+    </div>
+</div>
+
+<div class="container">
+    <!-- 左侧：WebSocket 互动区 -->
+    <div class="column">
+        <div class="box viewer">
+            <h3>💬 观众互动 (WebSocket)</h3>
+            <div class="input-group">
+                <button onclick="connect()">🔌 连接 WebSocket</button>
+                <button onclick="disconnect()" disabled id="btnDisconnect" class="danger">❌ 断开</button>
+                <span id="wsStatus" class="status" style="color: red">未连接</span>
+            </div>
+
+            <hr>
+
+            <h4>普通弹幕 (Chat)</h4>
+            <div class="input-group">
+                <input type="text" id="msgContent" value="主播好帅！" placeholder="内容">
+                <input type="color" id="msgColor" value="#000000">
+                <button onclick="sendChat()" disabled id="btnSendChat">发送</button>
+            </div>
+
+            <h4>礼物 (Gift)</h4>
+            <div class="input-group">
+                <input type="text" id="giftName" value="火箭" placeholder="礼物名" style="width: 80px;">
+                <input type="number" id="giftCount" value="1" style="width: 40px;" placeholder="数量">
+                <input type="number" id="giftPrice" value="100" style="width: 60px;" placeholder="单价">
+                <button onclick="sendGift()" disabled id="btnSendGift">🎁 送礼</button>
+            </div>
+
+            <h4>醒目留言 (SC)</h4>
+            <p style="font-size: 12px; color: #666;">SC 即使被禁言也可发送（测试禁言功能用）</p>
+            <div class="input-group">
+                <input type="number" id="scPrice" value="50" style="width: 60px;" placeholder="金额">
+                <input type="text" id="scContent" value="加油加油！" placeholder="SC内容">
+                <button onclick="sendSC()" disabled id="btnSendSC" style="background-color: #e91e63;">💖 发送SC</button>
+            </div>
+        </div>
+
+        <div class="box viewer">
+            <h3>📊 观众查询 API</h3>
+            <div class="input-group">
+                <button onclick="getRoomInfo()">查询直播间信息 (Info)</button>
+            </div>
+            <div class="input-group">
+                <select id="leaderboardType">
+                    <option value="SESSION">本场榜 (SESSION)</option>
+                    <option value="DAY">日榜 (DAY)</option>
+                    <option value="WEEK">周榜 (WEEK)</option>
+                </select>
+                <button onclick="getLeaderboard()">查询打赏榜单</button>
+            </div>
+            <div id="publicApiResult" class="json-result">等待查询...</div>
+        </div>
+    </div>
+
+    <!-- 右侧：管理区 -->
+    <div class="column">
+        <div class="box admin">
+            <h3>🎥 主播管理 API (需鉴权)</h3>
+            <div class="input-group">
+                <button onclick="getManagerInfo()">获取推流信息 & Key</button>
+                <button onclick="resetStreamKey()" class="danger">重置推流码</button>
+            </div>
+
+            <h4>更新房间设置</h4>
+            <div class="input-group">
+                <label>标题:</label> <input type="text" id="roomTitle" placeholder="新标题" value="今晚吃鸡大吉大利">
+            </div>
+            <div class="input-group">
+                <label>简介:</label> <input type="text" id="roomDesc" placeholder="新简介" value="新人求关注">
+            </div>
+            <div class="input-group">
+                <label>分类:</label> <input type="text" id="roomCategory" placeholder="分类 (如 Game)" value="Game">
+            </div>
+            <div class="input-group">
+                <label>封面:</label> <input type="text" id="roomCover" placeholder="封面图片URL" value="http://example.com/cover.jpg">
+            </div>
+            <div class="input-group" style="margin-top: 5px;">
+                <button onclick="updateRoom()">更新设置</button>
+            </div>
+            <div id="managerApiResult" class="json-result">等待操作...</div>
+        </div>
+
+        <div class="box admin">
+            <h3>🛡️ 房管权限 API</h3>
+            <h4>禁言控制</h4>
+            <div class="input-group">
+                <input type="number" id="muteUserId" placeholder="用户ID(如88)" value="88" style="width: 80px;">
+                <input type="number" id="muteDuration" placeholder="秒数" value="60" style="width: 60px;">
+                <button onclick="muteUser()" class="danger">🚫 禁言</button>
+                <button onclick="unmuteUser()" class="success">🟢 解除禁言</button>
+            </div>
+
+            <h4>删除弹幕</h4>
+            <div class="input-group">
+                <input type="number" id="delDanmakuId" placeholder="弹幕ID (发送后返回)" style="width: 140px;">
+                <button onclick="deleteDanmaku()" class="danger">🗑️ 删除</button>
+            </div>
+            <div id="adminApiResult" class="json-result">等待操作...</div>
+        </div>
+    </div>
+</div>
+
+<h3>📝 实时日志</h3>
+<div class="log" id="logArea"></div>
+
+<script>
+    let stompClient = null;
+
+    // --- 辅助函数 ---
+    function log(msg) {
+        const div = document.getElementById('logArea');
+        div.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        div.scrollTop = div.scrollHeight;
+        console.log(msg);
+    }
+
+    function getBaseUrl() { return document.getElementById('baseUrl').value; }
+    function getRoomId() { return document.getElementById('roomIdInput').value; }
+    function getToken() { return document.getElementById('tokenInput').value; }
+
+    // 通用 Fetch 封装
+    async function apiCall(endpoint, method = 'GET', body = null, resultDivId = null) {
+        const url = `${getBaseUrl()}${endpoint}`;
+        const headers = {
+            'Content-Type': 'application/json',
+            'token': getToken() // 关键：将 Token 放入 Header
+        };
+
+        log(`📡 HTTP ${method} ${url}`);
+
+        try {
+            const options = { method, headers };
+            if (body) options.body = JSON.stringify(body);
+
+            const res = await fetch(url, options);
+            const text = await res.text();
+
+            let data;
+            try { data = JSON.parse(text); } catch (e) { data = text; }
+
+            const display = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+
+            if (resultDivId) {
+                document.getElementById(resultDivId).innerText = `Status: ${res.status}\n${display}`;
+            }
+
+            if (res.ok) {
+                log(`✅ 请求成功: ${endpoint}`);
+            } else {
+                log(`❌ 请求失败 (${res.status}): ${endpoint}`);
+            }
+            return data;
+        } catch (e) {
+            log(`💥 网络错误: ${e.message}`);
+            if (resultDivId) document.getElementById(resultDivId).innerText = `Error: ${e.message}`;
+        }
+    }
+
+    // --- 1. WebSocket 功能 ---
+    function connect() {
+        const roomId = getRoomId();
+        const url = `${getBaseUrl()}/ws-live`; // SockJS 端点
+
+        log(`🔌 正在连接 SockJS: ${url} ...`);
+        const socket = new SockJS(url);
+        stompClient = Stomp.over(socket);
+        stompClient.debug = null; // 关闭 STOMP 调试日志
+
+        const headers = { 'token': getToken() };
+
+        stompClient.connect(headers, function (frame) {
+            log('🟢 STOMP 连接建立成功!');
+            updateWsStatus(true);
+
+            // 订阅弹幕
+            const topic = `/topic/danmaku/${roomId}`;
+            stompClient.subscribe(topic, function (message) {
+                const body = JSON.parse(message.body);
+                // 收到消息后，如果是自己发的，可以记录下 ID 方便测试删除
+                let extraInfo = "";
+                if(body.danmakuId) {
+                    extraInfo = ` [ID: ${body.danmakuId}]`;
+                    // 自动填充到删除框，方便测试
+                    document.getElementById('delDanmakuId').value = body.danmakuId;
+                }
+                log(`📩 收到广播: ${body.content}${extraInfo}`);
+            });
+            log(`👂 已订阅: ${topic}`);
+
+        }, function (error) {
+            log('🔴 连接失败: ' + error);
+            updateWsStatus(false);
+        });
+    }
+
+    function disconnect() {
+        if (stompClient) stompClient.disconnect();
+        updateWsStatus(false);
+        log("🔴 已断开连接");
+    }
+
+    function sendPayload(type, additionalData) {
+        if (!stompClient) return log("⚠️ 请先连接 WebSocket");
+
+        const payload = {
+            type: type,
+            roomId: parseInt(getRoomId()),
+            ...additionalData
+        };
+
+        // Header 也要带 Token，虽然连接时带了，但某些后端实现可能依赖每次发送的 Header
+        stompClient.send("/app/send-danmaku", { 'token': getToken() }, JSON.stringify(payload));
+        log(`📤 发送 [${type}]: ${JSON.stringify(payload)}`);
+    }
+
+    function sendChat() {
+        sendPayload('CHAT', {
+            content: document.getElementById('msgContent').value,
+            color: document.getElementById('msgColor').value
+        });
+    }
+
+    function sendGift() {
+        sendPayload('GIFT', {
+            giftName: document.getElementById('giftName').value,
+            giftCount: parseInt(document.getElementById('giftCount').value),
+            giftPrice: parseFloat(document.getElementById('giftPrice').value),
+            content: ''
+        });
+    }
+
+    function sendSC() {
+        sendPayload('SC', {
+            giftPrice: parseFloat(document.getElementById('scPrice').value),
+            content: document.getElementById('scContent').value
+        });
+    }
+
+    function updateWsStatus(connected) {
+        const el = document.getElementById('wsStatus');
+        el.innerText = connected ? "已连接" : "未连接";
+        el.style.color = connected ? "green" : "red";
+        document.getElementById('btnDisconnect').disabled = !connected;
+        document.getElementById('btnSendChat').disabled = !connected;
+        document.getElementById('btnSendGift').disabled = !connected;
+        document.getElementById('btnSendSC').disabled = !connected;
+    }
+
+
+    // --- 2. 观众查询 API ---
+    function getRoomInfo() {
+        apiCall(`/api/live/rooms/${getRoomId()}`, 'GET', null, 'publicApiResult');
+    }
+
+    function getLeaderboard() {
+        const type = document.getElementById('leaderboardType').value;
+        apiCall(`/api/live/rooms/${getRoomId()}/stats/leaderboard?type=${type}`, 'GET', null, 'publicApiResult');
+    }
+
+
+    // --- 3. 主播管理 API ---
+    function getManagerInfo() {
+        apiCall(`/api/live/rooms/${getRoomId()}/manager/info`, 'GET', null, 'managerApiResult');
+    }
+
+    function resetStreamKey() {
+        if(!confirm("确定要重置推流码吗？会导致当前推流中断！")) return;
+        apiCall(`/api/live/rooms/${getRoomId()}/manager/stream-key`, 'POST', {}, 'managerApiResult');
+    }
+
+    function updateRoom() {
+        // 更新：获取新增的分类和封面字段
+        const body = {
+            title: document.getElementById('roomTitle').value,
+            description: document.getElementById('roomDesc').value,
+            coverUrl: document.getElementById('roomCover').value,
+            category: document.getElementById('roomCategory').value
+        };
+        apiCall(`/api/live/rooms/${getRoomId()}/manager/update`, 'POST', body, 'managerApiResult');
+    }
+
+
+    // --- 4. 房管权限 API ---
+    function muteUser() {
+        const body = {
+            userId: parseInt(document.getElementById('muteUserId').value),
+            durationSeconds: parseInt(document.getElementById('muteDuration').value)
+        };
+        apiCall(`/api/live/rooms/${getRoomId()}/manager/mute`, 'POST', body, 'adminApiResult');
+    }
+
+    // 新增：解除禁言函数
+    function unmuteUser() {
+        const body = {
+            userId: parseInt(document.getElementById('muteUserId').value)
+        };
+        apiCall(`/api/live/rooms/${getRoomId()}/manager/unmute`, 'POST', body, 'adminApiResult');
+    }
+
+    function deleteDanmaku() {
+        const id = document.getElementById('delDanmakuId').value;
+        if (!id) return alert("请输入弹幕ID");
+        apiCall(`/api/live/rooms/${getRoomId()}/manager/danmaku/${id}`, 'DELETE', null, 'adminApiResult');
+    }
+
+</script>
+</body>
+</html>

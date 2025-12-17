@@ -1,0 +1,3 @@
+获取数据库信息：
+docker exec -it virtuallive-mysql-dev mysqldump -u root -proot123456 --single-transaction virtuallive_dev > virtuallive_dev.sql
+

@@ -1,4 +1,3 @@
-// src/main/java/com/virtuallive/backend/live/entity/LiveRoom.java
 package com.virtuallive.backend.live.entity;
 
 import jakarta.persistence.*;
@@ -15,11 +14,22 @@ public class LiveRoom {
 
     private Integer vtuberId;
     private String roomTitle;
+    private String description;
+    private String category;
+    private String thumbnailUrl;
 
-    private Boolean isLive; // 对应数据库 tinyint(1)
+    private Boolean isLive; // tinyint(1)
 
     @Column(unique = true)
-    private String streamKey; // 核心：推流密钥
+    private String streamKey;
 
+    private String rtmpServer; // SRS 服务器地址
+
+    @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 }
