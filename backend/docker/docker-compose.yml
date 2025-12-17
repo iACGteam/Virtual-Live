@@ -47,7 +47,7 @@ services:
     volumes:
       - ../srs_conf/srs.conf:/usr/local/srs/conf/srs.conf # 挂载配置文件
     networks:
-      - virtuallive-network
+       - virtuallive-network
     # 关键配置：让 Docker 容器能通过 host.docker.internal 访问你本机 IDEA 运行的程序
     extra_hosts:
       - "host.docker.internal:host-gateway"

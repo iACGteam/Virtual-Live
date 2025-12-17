@@ -642,6 +642,122 @@ ALTER TABLE vtuber_avatars ADD COLUMN IF NOT EXISTS customization_data LONGTEXT 
 ALTER TABLE vtuber_avatars ADD FOREIGN KEY (template_id) REFERENCES avatar_templates(template_id) ON DELETE SET NULL;
 ALTER TABLE vtuber_avatars ADD INDEX IF NOT EXISTS idx_template (template_id);
 
+-- ========================================
+-- 代码中实际使用但缺失的表结构补充
+-- ========================================
+
+-- 角色卡牌表 (RoleCardRepository实际使用)
+CREATE TABLE role_cards (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  gender VARCHAR(50),
+  birthday VARCHAR(10),
+  height INT,
+  hobby VARCHAR(100),
+  background_story TEXT,
+  portrait TEXT,
+  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  submit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id),
+  INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 角色卡牌性格标签表 (在RoleCard实体中引用)
+CREATE TABLE role_card_personality_tags (
+  role_card_id INT NOT NULL,
+  tag VARCHAR(100),
+  FOREIGN KEY (role_card_id) REFERENCES role_cards(id) ON DELETE CASCADE,
+  INDEX idx_role_card (role_card_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 角色卡牌种族标签表 (在RoleCard实体中引用)
+CREATE TABLE role_card_race_tags (
+  role_card_id INT NOT NULL,
+  tag VARCHAR(100),
+  FOREIGN KEY (role_card_id) REFERENCES role_cards(id) ON DELETE CASCADE,
+  INDEX idx_role_card (role_card_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 角色卡牌外观标签表 (在RoleCard实体中引用)
+CREATE TABLE role_card_appearance_tags (
+  role_card_id INT NOT NULL,
+  tag VARCHAR(100),
+  FOREIGN KEY (role_card_id) REFERENCES role_cards(id) ON DELETE CASCADE,
+  INDEX idx_role_card (role_card_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 直播间禁言表 (RoomBanRepository实际使用)
+CREATE TABLE room_bans (
+  ban_id INT PRIMARY KEY AUTO_INCREMENT,
+  room_id INT NOT NULL,
+  user_id INT NOT NULL,
+  end_time TIMESTAMP,
+  reason VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (room_id) REFERENCES live_rooms(room_id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  INDEX idx_room (room_id),
+  INDEX idx_user (user_id),
+  INDEX idx_end_time (end_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 视频观看历史表 (ViewHistoryRepository实际使用，表名video_view_history)
+CREATE TABLE video_view_history (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  video_id INT NOT NULL,
+  viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (video_id) REFERENCES community_posts(post_id) ON DELETE CASCADE,
+  INDEX idx_user (user_id),
+  INDEX idx_video (video_id),
+  INDEX idx_viewed_at (viewed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 社区成员表 (CircleMemberRepository实际使用)
+CREATE TABLE circle_members (
+  member_id INT PRIMARY KEY AUTO_INCREMENT,
+  circle_id INT NOT NULL,
+  user_id INT NOT NULL,
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  post_count INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (circle_id) REFERENCES fan_circles(circle_id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  INDEX idx_circle (circle_id),
+  INDEX idx_user (user_id),
+  INDEX idx_joined_at (joined_at),
+  UNIQUE KEY unique_circle_member (circle_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 每日签到表 (DailyCheckinRepository实际使用)
+CREATE TABLE daily_checkins (
+  checkin_id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  circle_id INT NOT NULL,
+  checkin_date DATE NOT NULL,
+  continuous_days INT DEFAULT 1,
+  total_days INT DEFAULT 1,
+  reward_points INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (circle_id) REFERENCES fan_circles(circle_id) ON DELETE CASCADE,
+  INDEX idx_user_circle (user_id, circle_id),
+  INDEX idx_checkin_date (checkin_date),
+  UNIQUE KEY unique_user_circle_date (user_id, circle_id, checkin_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 添加community_posts表的circle_id字段 (在Video实体中实际使用)
+ALTER TABLE community_posts
+ADD COLUMN circle_id INT NULL,
+ADD INDEX idx_circle_id (circle_id);
+
+-- 修复fan_badges表的唯一索引约束 (FanBadgeServiceImpl中明确要求)
+ALTER TABLE fan_badges
+ADD UNIQUE KEY uniq_vtuber_fan (vtuber_id, fan_id);
+
 -- 授予开发用户权限
 GRANT ALL PRIVILEGES ON virtuallive_dev.* TO 'virtual_live'@'%';
 FLUSH PRIVILEGES;
