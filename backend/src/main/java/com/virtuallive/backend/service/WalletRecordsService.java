@@ -1,37 +1,42 @@
-package com.virtuallive.service;
+package com.virtuallive.backend.service;
 
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.virtuallive.common.R;
-import com.virtuallive.entity.UserWallet;
-import com.virtuallive.entity.WalletRecords;
-import com.virtuallive.mapper.UserWalletMapper;
-import com.virtuallive.service.WalletRecordsService;
+import com.virtuallive.backend.model.dto.R; // 适配backend包的通用返回体
+import com.virtuallive.backend.model.entity.UserWallet;
+import com.virtuallive.backend.model.entity.WalletRecords;
+import com.virtuallive.backend.repository.UserWalletRepository;
+import com.virtuallive.backend.repository.WalletRecordsRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * 钱包变动记录服务实现类（移除充值功能）
+ * 钱包变动记录服务实现类（移除充值功能，JPA风格适配）
  */
 @Service
-public class WalletRecordsServiceImpl extends ServiceImpl<com.virtuallive.mapper.WalletRecordsMapper, WalletRecords> implements WalletRecordsService {
+@RequiredArgsConstructor // 替代@Autowired，通过构造器注入Repository
+public class WalletRecordsService {
 
-    private static final Logger log = LoggerFactory.getLogger(WalletRecordsServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(WalletRecordsService.class);
 
-    @Autowired
-    private UserWalletMapper userWalletMapper;
+    // 注入JPA Repository（替代MyBatis Mapper）
+    private final UserWalletRepository userWalletRepository;
+    private final WalletRecordsRepository walletRecordsRepository;
 
     /**
-     * 获取钱包核心信息（修复：从按ID查改为按用户ID查）
+     * 获取钱包核心信息（JPA实现：按用户ID查询钱包）
      */
-    @Override
     public R<Map<String, Object>> getWalletInfo(Long userId) {
         try {
             if (userId == null || userId <= 0) {
@@ -39,12 +44,13 @@ public class WalletRecordsServiceImpl extends ServiceImpl<com.virtuallive.mapper
                 return R.error("用户ID不能为空且必须为正数");
             }
             
-            // 核心修复：按用户ID查询钱包（而非钱包ID）
-            UserWallet wallet = userWalletMapper.selectByUserId(userId);
+            // JPA方式：按用户ID查询钱包（替代MyBatis的selectByUserId）
+            Optional<UserWallet> walletOptional = userWalletRepository.findByUserId(userId);
             
-            if (wallet != null) {
+            if (walletOptional.isPresent()) {
+                UserWallet wallet = walletOptional.get();
                 Map<String, Object> data = new HashMap<>();
-                // 改用BigDecimal计算，避免Double精度丢失
+                // BigDecimal精度计算（避免Double丢失精度）
                 BigDecimal balance = BigDecimal.valueOf(wallet.getBalance());
                 BigDecimal totalEarned = BigDecimal.valueOf(wallet.getTotalEarned());
                 BigDecimal totalSpent = BigDecimal.valueOf(wallet.getTotalSpent());
@@ -55,10 +61,10 @@ public class WalletRecordsServiceImpl extends ServiceImpl<com.virtuallive.mapper
                 data.put("total_spent", totalSpent);
                 data.put("total_income", totalIncome);
                 // 补充返回钱包ID和更新时间（注册时间）
-                data.put("wallet_id", wallet.getId());
+                data.put("wallet_id", wallet.getWalletId());
                 data.put("update_time", wallet.getUpdateTime());
                 
-                log.info("获取用户ID为{}的钱包信息成功，钱包ID={}", userId, wallet.getId());
+                log.info("获取用户ID为{}的钱包信息成功，钱包ID={}", userId, wallet.getWalletId());
                 return R.success(data, "获取成功");
             } else {
                 log.warn("用户ID为{}的钱包不存在", userId);
@@ -71,9 +77,8 @@ public class WalletRecordsServiceImpl extends ServiceImpl<com.virtuallive.mapper
     }
 
     /**
-     * 获取钱包变动记录（分页）
+     * 获取钱包变动记录（分页，JPA实现）
      */
-    @Override
     public R<Page<WalletRecords>> getWalletRecords(Long userId, Date startTime, Date endTime, Integer type, long current, long size) {
         try {
             if (userId == null || userId <= 0) {
@@ -81,11 +86,13 @@ public class WalletRecordsServiceImpl extends ServiceImpl<com.virtuallive.mapper
                 return R.error("用户ID不能为空且必须为正数");
             }
             
-            Page<WalletRecords> page = new Page<>(current, size);
-            // 调用Mapper的分页查询方法（支持时间/类型筛选）
-            page.setRecords(baseMapper.getWalletRecords(page, userId, startTime, endTime, type));
+            // JPA分页配置（页码从0开始，对应MyBatis的current-1）
+            Pageable pageable = PageRequest.of((int) (current - 1), (int) size, Sort.by(Sort.Direction.DESC, "createTime"));
             
-            log.info("获取用户ID为{}的钱包变动记录成功，当前页={}，总条数={}", userId, current, page.getTotal());
+            // 调用Repository的分页查询方法（需在WalletRecordsRepository中定义）
+            Page<WalletRecords> page = walletRecordsRepository.findWalletRecordsByCondition(userId, startTime, endTime, type, pageable);
+            
+            log.info("获取用户ID为{}的钱包变动记录成功，当前页={}，总条数={}", userId, current, page.getTotalElements());
             return R.success(page, "获取成功");
         } catch (Exception e) {
             log.error("获取用户ID为{}的钱包变动记录失败: {}", userId, e.getMessage(), e);
@@ -94,30 +101,27 @@ public class WalletRecordsServiceImpl extends ServiceImpl<com.virtuallive.mapper
     }
 
     /**
-     * 新增：初始化钱包记录（用户注册时调用，记录初始余额来源）
+     * 初始化钱包记录（用户注册时调用，记录初始余额来源）
      * 仅记录初始10000元余额，无充值逻辑
      */
+    @Transactional(rollbackFor = Exception.class) // 事务保证
     public void initWalletRecord(Long userId) {
-        try {
-            UserWallet wallet = userWalletMapper.selectByUserId(userId);
-            if (wallet == null) {
-                log.warn("用户ID为{}初始化钱包记录失败：钱包不存在", userId);
-                throw new RuntimeException("钱包不存在，无法初始化记录");
-            }
-            
-            // 新增初始余额记录（类型：系统赠送，金额10000）
-            WalletRecords record = new WalletRecords();
-            record.setUserId(userId);
-            record.setAmount(10000.00); // 初始余额
-            record.setType(0); // 0:收入
-            record.setCreateTime(wallet.getUpdateTime()); // 与钱包更新时间（注册时间）一致
-            record.setRemark("注册赠送初始余额");
-            baseMapper.insert(record);
-            
-            log.info("用户ID为{}的钱包初始记录创建成功，初始余额10000元", userId);
-        } catch (Exception e) {
-            log.error("用户ID为{}初始化钱包记录失败: {}", userId, e.getMessage(), e);
-            throw new RuntimeException("初始化钱包记录失败", e);
-        }
+        // JPA方式：查询钱包（不存在则抛异常）
+        UserWallet wallet = userWalletRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("用户ID为" + userId + "的钱包不存在，无法初始化记录"));
+        
+        // 构建初始余额记录（Builder模式，对齐目标格式）
+        WalletRecords record = WalletRecords.builder()
+                .userId(userId)
+                .amount(10000.00) // 初始余额
+                .type(0) // 0:收入
+                .createTime(wallet.getUpdateTime()) // 与钱包更新时间（注册时间）一致
+                .remark("注册赠送初始余额")
+                .build();
+        
+        // JPA保存记录（替代MyBatis的insert）
+        walletRecordsRepository.save(record);
+        
+        log.info("用户ID为{}的钱包初始记录创建成功，初始余额10000元", userId);
     }
 }
