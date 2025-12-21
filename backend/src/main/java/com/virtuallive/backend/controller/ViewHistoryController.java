@@ -2,6 +2,7 @@ package com.virtuallive.backend.controller;
 
 import com.virtuallive.backend.model.dto.R;
 import com.virtuallive.backend.model.dto.VideoDto;
+import com.virtuallive.backend.model.dto.ViewHistoryDto;
 import com.virtuallive.backend.service.ViewHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,12 +19,12 @@ public class ViewHistoryController {
     private final ViewHistoryService viewHistoryService;
     
     @GetMapping("/user/{userId}")
-    public R<Page<VideoDto>> getViewHistory(
+    public R<Page<ViewHistoryDto>> getViewHistory(
             @PathVariable Integer userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         try {
-            Page<VideoDto> history = viewHistoryService.getViewHistory(userId, page, size);
+            Page<ViewHistoryDto> history = viewHistoryService.getViewHistory(userId, page, size);
             return R.ok(history);
         } catch (Exception e) {
             return R.error(e.getMessage());

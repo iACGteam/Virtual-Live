@@ -4,58 +4,67 @@
       <SearchBar v-model="searchQuery" @search="handleSearch"></SearchBar>
     </div>
 
-
-    <!-- 最新 / 最热 -->
+    <!-- Tabs -->
     <div class="nav-tabs">
       <div v-for="item in navList" :key="item" :class="['tab-item', activeTab === item ? 'active' : '']"
-        @click="activeTab = item">
+        @click="changeTab(item)">
         {{ item }}
       </div>
     </div>
 
-    <!-- 粉丝圈列表 -->
-    <div class="circle-list">
-      <div v-if="filteredCircles.length === 0" class="empty-circles">未加入任何圈子，快去探索吧～</div>
-      <div v-for="circle in filteredCircles" :key="circle.id" class="circle-card">
-        <div class="circle-header">
-          <img :src="circle.avatar" class="avatar">
-          <div class="info">
-            <p class="name">{{ circle.name }}</p>
-            <p class="count">{{ circle.count }} 粉丝已加入</p>
-          </div>
-
-          <div class="join-area">
-            <div class="join-btn-wrap">
-              <div class="join-actions" v-if="circle.followed">
-                <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
-                  进入
-                </el-button>
-                <el-button class="action-btn exit-btn" size="medium" @click="exitCircle(circle)">
-                  退出
-                </el-button>
-              </div>
-              <div v-else class="join-single">
-                <el-button class="action-btn join-btn" size="medium" @click="followCircle(circle)">加入</el-button>
-                <span class="join-note">未关注的圈子需要粉丝等级≥3 方可加入</span>
-              </div>
-            </div>
+    <!-- Circle List -->
+    <div class="circle-list" v-loading="loading">
+      <div v-if="!loading && circles.length === 0" class="empty-circles">
+        {{ emptyMessage }}
+      </div>
+      <div v-for="circle in circles" :key="circle.id" class="circle-card">
+        <div class="circle-content-wrapper">
+          <!-- Left: Cover Image -->
+          <div class="circle-cover-wrapper">
+            <img :src="circle.coverUrl || defaultAvatar" class="circle-cover-img" @error="handleImageError">
           </div>
           
-        </div>
-
-        <!-- 图片预览行 -->
-        <div class="circle-photos">
-          <el-scrollbar>
-            <div class="scrollbar-flex-content">
-              <img v-for="img in circle.photos" :key="img" :src="img" class="photo">
+          <!-- Right: Info & Actions -->
+          <div class="circle-main-info">
+            <div class="info-header">
+              <div class="info-text">
+                <p class="name">{{ circle.name }}</p>
+                <p class="count">{{ circle.memberCount }} 粉丝已加入</p>
+              </div>
+              
+              <div class="join-area">
+                <div class="join-btn-wrap">
+                  <!-- My Circles: Enter / Dissolve -->
+                  <div class="join-actions" v-if="activeTab === '我的圈子'">
+                    <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
+                      进入
+                    </el-button>
+                    <el-button class="action-btn exit-btn" type="danger" size="medium" @click="handleDissolve(circle)">
+                      解散
+                    </el-button>
+                  </div>
+                  
+                  <!-- Other Tabs: Enter / Exit (if joined) or Join -->
+                  <div class="join-actions" v-else-if="circle.followed">
+                    <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
+                      进入
+                    </el-button>
+                    <el-button class="action-btn exit-btn" size="medium" @click="handleExit(circle)">
+                      退出
+                    </el-button>
+                  </div>
+                  
+                  <div v-else class="join-single">
+                    <el-button class="action-btn join-btn" size="medium" @click="handleJoin(circle)">加入</el-button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </el-scrollbar>
-        </div>
 
-        
-
-        <div class="circle-desc" v-if="circle.desc">
-          {{ circle.desc }}
+            <div class="circle-desc" v-if="circle.description">
+              {{ circle.description }}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -64,6 +73,9 @@
 
 <script>
 import SearchBar from '../SearchBar.vue'
+import { getCircles, getMyCreatedCircles, getUserJoinedCircles, joinCircle, leaveCircle, dissolveCircle } from '@/utils/api'
+import { getCurrentUserId } from '@/utils/auth'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
   components: { SearchBar },
@@ -71,70 +83,155 @@ export default {
   data() {
     return {
       searchQuery: '',
-      activeTab: '关注',
-      navList: ['关注', '最新', '最热'],
-
-      // 后端获取
-      circles: [
-        {
-          id: 1,
-          name: "阿萨Aza的圈子",
-          avatar: require("@/assets/community/avatar1.jpg"),
-          count: "7248",
-          followed: true,
-          photos: [
-            require("@/assets/community/aza.jpg"),
-            require("@/assets/community/aza.jpg"),
-            require("@/assets/community/aza.jpg"),
-            require("@/assets/community/aza.jpg"),
-          ],
-          desc: "VirtuaRealProject所属六期生虚拟主播“阿萨Aza是一个爱唱歌、爱打游戏的普普通通打工仔"
-        },
-        {
-          id: 2,
-          name: "KONG控的圈子",
-          avatar: require("@/assets/community/avatar3.jpg"),
-          count: "1.8万",
-          followed: false,
-          photos: [
-            require("@/assets/community/k.jpg"),
-            require("@/assets/community/k.jpg"),
-            require("@/assets/community/k.jpg"),
-            require("@/assets/community/k.jpg"),
-          ],
-          desc: "这里是对控的碎碎念备忘录"
-        }
-      ]
+      activeTab: '关注', // Default tab
+      navList: ['关注', '最新', '最热', '所有圈子', '我的圈子'],
+      circles: [],
+      loading: false,
+      joinedCircleIds: [], // To track joined status
+      defaultAvatar: 'https://picsum.photos/100',
+      page: 0,
+      size: 20
     }
   },
 
+  computed: {
+    emptyMessage() {
+      if (this.activeTab === '我的圈子') return '你还没有创建任何圈子'
+      if (this.activeTab === '关注') return '你还没有加入任何圈子'
+      return '暂无圈子数据'
+    }
+  },
+
+  async mounted() {
+    await this.fetchJoinedStatus()
+    this.fetchData()
+  },
+
   methods: {
-    // tab 切换
+    async fetchJoinedStatus() {
+      const userId = getCurrentUserId()
+      if (!userId) return
+      try {
+        const res = await getUserJoinedCircles(userId, 0, 100)
+        if (res && res.content) {
+          this.joinedCircleIds = res.content.map(c => c.id)
+        }
+      } catch (e) {
+        console.error('Failed to fetch joined circles', e)
+      }
+    },
+
+    async fetchData() {
+      this.loading = true
+      this.circles = []
+      const userId = getCurrentUserId()
+      
+      try {
+        let res
+        if (this.activeTab === '关注') {
+          if (!userId) {
+             this.circles = []
+             this.loading = false
+             return
+          }
+          res = await getUserJoinedCircles(userId, this.page, this.size)
+        } else if (this.activeTab === '我的圈子') {
+          if (!userId) {
+             this.circles = []
+             this.loading = false
+             return
+          }
+          res = await getMyCreatedCircles(userId, this.page, this.size)
+        } else if (this.activeTab === '最新') {
+          res = await getCircles(this.page, this.size, 'new')
+        } else if (this.activeTab === '最热') {
+          res = await getCircles(this.page, this.size, 'hot')
+        } else if (this.activeTab === '所有圈子') {
+          res = await getCircles(this.page, this.size, 'random')
+        }
+
+        if (res && res.content) {
+          this.circles = res.content.map(c => ({
+            ...c,
+            avatar: c.avatarUrl,
+            coverUrl: c.coverImageUrl,
+            followed: this.joinedCircleIds.includes(c.id) || (this.activeTab === '关注') || (this.activeTab === '我的圈子')
+          }))
+        }
+      } catch (e) {
+        console.error('Fetch error', e)
+      } finally {
+        this.loading = false
+      }
+    },
+
     changeTab(tab) {
       this.activeTab = tab
+      this.page = 0
+      this.fetchData()
     },
 
-    followCircle(circle) {
-      circle.followed = true
+    async handleJoin(circle) {
+      const userId = getCurrentUserId()
+      if (!userId) {
+        this.$router.push('/login')
+        return
+      }
+      try {
+        await joinCircle(circle.id, userId)
+        ElMessage.success('加入成功')
+        circle.followed = true
+        this.joinedCircleIds.push(circle.id)
+        circle.memberCount++
+      } catch (e) {
+        ElMessage.error('加入失败: ' + (e.message || '未知错误'))
+      }
     },
 
-    exitCircle(circle) {
-      circle.followed = false
+    async handleExit(circle) {
+      const userId = getCurrentUserId()
+      if (!userId) return
+      try {
+        await leaveCircle(circle.id, userId)
+        ElMessage.success('已退出圈子')
+        circle.followed = false
+        this.joinedCircleIds = this.joinedCircleIds.filter(id => id !== circle.id)
+        circle.memberCount--
+        if (this.activeTab === '关注') {
+          this.circles = this.circles.filter(c => c.id !== circle.id)
+        }
+      } catch (e) {
+        ElMessage.error('退出失败')
+      }
+    },
+
+    async handleDissolve(circle) {
+      const userId = getCurrentUserId()
+      try {
+        await ElMessageBox.confirm('确定要解散这个圈子吗？此操作不可恢复。', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+        
+        await dissolveCircle(circle.id, userId)
+        ElMessage.success('圈子已解散')
+        this.circles = this.circles.filter(c => c.id !== circle.id)
+      } catch (e) {
+        if (e !== 'cancel') {
+           ElMessage.error('解散失败')
+        }
+      }
     },
 
     enterCircle(circle) {
-      if (!circle.followed) {
-        alert('请先关注该圈子');
-        return;
-      }
       this.goDetail(circle)
     },
 
     handleSearch() {
-      // 触发搜索，实际过滤由 computed 完成
+      // Implement search if needed
     },
 
-    // 点击跳转到圈子详情页
     goDetail(circle) {
       this.$router.push({
         path: "/com-detail",
@@ -144,29 +241,10 @@ export default {
           avatar: circle.avatar
         }
       });
-    }
-  }
-
-,  computed: {
-    filteredCircles() {
-      const keyword = this.searchQuery.trim().toLowerCase();
-      let list = this.circles;
-
-      if (keyword) {
-        list = list.filter(c => (c.name || '').toLowerCase().includes(keyword));
-      }
-
-      if (this.activeTab === '关注') {
-        list = list.filter(c => c.followed);
-      }
-
-      if (this.activeTab === '最热') {
-        // 简单按粉丝数排序，注意字符串转数字
-        list = [...list].sort((a, b) => parseInt((b.count + '').replace(/\D/g, '') || 0) - parseInt((a.count + '').replace(/\D/g, '') || 0));
-      }
-
-      // '最新' 暂按原顺序
-      return list;
+    },
+    
+    handleImageError(e) {
+      e.target.src = this.defaultAvatar
     }
   }
 }
@@ -174,7 +252,6 @@ export default {
 
 
 <style scoped>
-
 .scrollbar-flex-content {
   display: flex;
   width: fit-content;
@@ -182,13 +259,13 @@ export default {
 
 .community-page {
   padding: 20px;
-  color: #fff;
+  color: #2d2d2d;
   width: 80%;
 }
 
 .search-bar {
   width: 80%;
-  margin:0px 0px 20px 30px;
+  margin: 0px 0px 20px 30px;
 }
 
 .nav-tabs {
@@ -196,21 +273,26 @@ export default {
   gap: 20px;
   font-size: 18px;
   margin-bottom: 20px;
+  cursor: pointer;
 }
 
 .tab-item {
-  cursor: pointer;
-  color: rgba(45, 45, 45, 0.8);
-  transition: all 0.2s;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.3s;
+  color: #ff69b4;
+  background: rgba(255, 105, 180, 0.1);
 }
 
 .tab-item.active {
-  color: black;
+  background: linear-gradient(135deg, #ff69b4 0%, #9370db 100%);
+  color: #fff;
   font-weight: bold;
-  border-bottom: 2px solid #8b5cf6;
+  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);
 }
 
 .tab-item:hover {
+  background: rgba(255, 105, 180, 0.2);
   transform: translateY(-2px);
 }
 
@@ -222,150 +304,130 @@ export default {
 }
 
 .empty-circles {
-  padding: 32px;
   text-align: center;
-  color: #999;
-  font-size: 16px;
-  background: #fff;
-  border: 1px dashed #ddd;
-  border-radius: 8px;
+  padding: 40px;
+  color: #666;
+  font-size: 1.1rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 105, 180, 0.3);
 }
 
 .circle-card {
-  background: #fefbff;
+  background: rgba(255, 255, 255, 0.8);
   border-radius: 16px;
-  border: 2px solid rgba(255, 105, 180, 0.2);
-  padding: 16px;
-  
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 105, 180, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
-.circle-header {
+.circle-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(255, 105, 180, 0.15);
+  border-color: rgba(255, 105, 180, 0.4);
+}
+
+.circle-content-wrapper {
   display: flex;
-  align-items: center;
-  margin-bottom: 14px;
+  gap: 20px;
 }
 
-.avatar {
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  margin-right: 12px;
+.circle-cover-wrapper {
+  width: 160px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 105, 180, 0.2);
 }
 
-.info .name {
-  font-size: 18px;
-  font-weight: 600;
-  
+.circle-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
 }
 
-.info .name {
-  font-size: 18px;
-  font-weight: 600;
-
-  background: linear-gradient(90deg, #ff87e0, #a67bff, #7aa8ff);
-  -webkit-background-clip: text;
-  color: transparent;
-
-  /* text-shadow:
-    0 0 6px rgba(255, 135, 224, 0.6),
-    0 0 12px rgba(166, 123, 255, 0.5),
-    0 0 18px rgba(122, 168, 255, 0.4); */
+.circle-card:hover .circle-cover-img {
+  transform: scale(1.05);
 }
 
-.info .count {
-  color: #ccc;
-  font-size: 14px;
-  color: rgba(45, 45, 45, 0.7);
-}
-
-.action-btn {
-  border-radius: 15px;
-  color: #fff;
-  font-size: 0.8rem;
-  border: none;
-  transition: all 0.2s;
-  box-shadow:
-    0 4px 10px rgba(255, 141, 228, 0.4),
-    0 2px 6px rgba(169, 114, 255, 0.3);
-}
-
-.enter-btn {
-  background: linear-gradient(135deg, #7aa8ff 0%, #409eff 100%);
-}
-
-.exit-btn {
-  background: linear-gradient(135deg, #ff9bb1 0%, #ff6b81 100%);
-}
-
-.join-btn {
-  background: linear-gradient(135deg, #ff8de4 0%, #a972ff 100%);
-}
-
-.join-area {
-  margin-left: auto;
+.circle-main-info {
+  flex: 1;
   display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.info-header {
+  display: flex;
+  justify-content: space-between;
   align-items: flex-start;
 }
 
-.join-btn-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+.name {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin: 0 0 6px 0;
+  color: #2d2d2d;
 }
 
-.join-actions {
-  display: flex;
-  gap: 8px;
+.count {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0;
 }
 
-.join-single {
+.join-area {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
+  align-items: center;
+}
+
+.action-btn {
+  border-radius: 20px;
+  padding: 8px 24px;
+  font-weight: 600;
+}
+
+.enter-btn {
+  background: linear-gradient(135deg, #ff69b4 0%, #9370db 100%);
+  border: none;
+  color: #fff;
+}
+
+.exit-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+  margin-left: 10px;
+}
+
+.join-btn {
+  background: transparent;
+  border: 1px solid #ff69b4;
+  color: #ff69b4;
+}
+
+.join-btn:hover {
+  background: rgba(255, 105, 180, 0.1);
 }
 
 .join-note {
-  font-size: 12px;
-  color: rgba(45, 45, 45, 0.7);
-  white-space: nowrap;
-  text-align: right;
-}
-
-.action-btn:hover {
-  color: white;
-  transform: translateY(-3px);
-  box-shadow:
-    0 6px 14px rgba(255, 141, 228, 0.5),
-    0 4px 10px rgba(169, 114, 255, 0.4);
-}
-
-.circle-photos {
-  display: flex;
-  gap: 30px;
-  margin-bottom: 10px;
-}
-
-.photo {
-  width: 160px;
-  height: 240px;
-  border-radius: 12px;
-  object-fit: cover;
-  gap: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 10px;
-  text-align: center;
-  border-radius: 24px;
-  overflow: hidden;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-left: 10px;
 }
 
 .circle-desc {
-  color: #ccc;
-  font-size: 14px;
-  padding-left: 4px;
-  color: rgba(45, 45, 45, 0.7);
+  font-size: 0.95rem;
+  color: #555;
+  line-height: 1.5;
+  margin-top: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

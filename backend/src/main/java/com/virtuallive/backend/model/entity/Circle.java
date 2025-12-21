@@ -49,6 +49,9 @@ public class Circle {
     @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
+
+    @Column(name = "creator_id")
+    private Integer creatorId;
     
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

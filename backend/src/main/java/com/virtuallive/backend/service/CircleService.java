@@ -32,11 +32,57 @@ public class CircleService {
         Page<Circle> circles;
         if ("hot".equals(sort) || "popular".equals(sort)) {
             circles = circleRepository.findPopularCircles(pageable);
+        } else if ("random".equals(sort)) {
+            circles = circleRepository.findRandomCircles(pageable);
         } else {
             circles = circleRepository.findByIsActiveTrueOrderByCreatedAtDesc(pageable);
         }
         
         return circles.map(this::convertToDto);
+    }
+
+    @Transactional
+    public CircleDto createCircle(com.virtuallive.backend.model.dto.CircleCreateDto createDto) {
+        // Validate user
+        if (!userRepository.existsById(createDto.getCreatorId())) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        Circle circle = Circle.builder()
+                .name(createDto.getName())
+                .description(createDto.getDescription())
+                .coverImageUrl(createDto.getCoverImageUrl())
+                .avatarUrl(createDto.getAvatarUrl())
+                .category(createDto.getCategory())
+                .creatorId(createDto.getCreatorId())
+                .memberCount(1) // Creator is the first member
+                .build();
+        
+        circle = circleRepository.save(circle);
+        
+        // Auto join the creator
+        joinCircle(circle.getCircleId(), createDto.getCreatorId());
+        
+        return convertToDto(circle);
+    }
+
+    public Page<CircleDto> getMyCircles(Integer userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return circleRepository.findByCreatorIdAndIsActiveTrue(userId, pageable)
+                .map(this::convertToDto);
+    }
+
+    @Transactional
+    public void dissolveCircle(Integer circleId, Integer userId) {
+        Circle circle = circleRepository.findById(circleId)
+                .orElseThrow(() -> new RuntimeException("圈子不存在"));
+        
+        if (circle.getCreatorId() != null && !circle.getCreatorId().equals(userId)) {
+            throw new RuntimeException("只有圈主可以解散圈子");
+        }
+        
+        circle.setIsActive(false); // Soft delete
+        circleRepository.save(circle);
     }
     
     public Page<CircleDto> searchCircles(String keyword, int page, int size) {
@@ -207,6 +253,7 @@ public class CircleService {
                 .postCount(circle.getPostCount())
                 .category(circle.getCategory())
                 .isOfficial(circle.getIsOfficial())
+                .creatorId(circle.getCreatorId())
                 .createdAt(circle.getCreatedAt())
                 .build();
     }

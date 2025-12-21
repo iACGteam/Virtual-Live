@@ -49,7 +49,11 @@
     </div>
 
     <div class="content-list">
-      <div v-for="card in filteredCards" :key="card.id" class="card" :class="{ highlight: card.highlight }">
+      <div v-if="loading" class="loading-state">加载中...</div>
+      <div v-else-if="filteredCards.length === 0" class="empty-state">
+        暂无帖子，快来发布第一条吧！
+      </div>
+      <div v-else v-for="card in filteredCards" :key="card.id" class="card" :class="{ highlight: card.highlight }">
 
         <!-- 卡片内容 -->
         <div class="card-header">
@@ -65,8 +69,19 @@
           <div class="card-body">
             <p class="title">{{ card.title }}</p>
             <p class="excerpt">{{ card.excerpt }}</p>
+            
+            <!-- 图片展示 -->
             <div class="card-images" v-if="card.images && card.images.length">
               <img v-for="(img, index) in card.images" :key="index" :src="img" class="post-image" />
+            </div>
+
+            <!-- 视频展示 -->
+            <div class="card-video" v-if="card.videoUrl">
+              <div v-if="!card.showVideo" class="video-cover" @click="playVideo(card)">
+                <div class="play-icon">▶</div>
+                <span class="play-text">播放视频</span>
+              </div>
+              <video v-else :src="card.videoUrl" controls autoplay class="post-video"></video>
             </div>
 
           </div>
@@ -143,10 +158,20 @@
           📷 上传图片
           <input type="file" accept="image/*" multiple @change="handleImageUpload" />
         </label>
+        
+        <label class="upload-btn">
+          🎥 上传视频
+          <input type="file" accept="video/*" @change="handleVideoUpload" />
+        </label>
 
         <div class="preview-box">
           <img v-for="(img, index) in newPost.images" :key="index" :src="img" class="preview-img"
             @click="removeImage(index)" />
+            
+          <div v-if="newPost.videoUrl" class="preview-video-wrapper">
+             <video :src="newPost.videoUrl" class="preview-video" controls></video>
+             <button class="remove-video-btn" @click="removeVideo">×</button>
+          </div>
         </div>
       </div>
 
@@ -160,74 +185,32 @@
 </template>
 
 <script>
+import { getCirclePosts, createCommunityPost, uploadImage, uploadVideo } from '@/utils/api'
+import { getCurrentUserId } from '@/utils/auth'
+
 export default {
   data() {
     return {
       defaultAvatar: require("@/assets/avatar.jpg"),
       followed: false,
       showPostBox: false,
+      loading: false,
       newPost: {
         title: "",
         content: "",
-        images: []
+        images: [],
+        imageFiles: [],
+        videoUrl: "",
+        videoFile: null
       },
       com: {
         id: 1,
-        name: "官方社团",
-        count: 23000,
-        days: 5
+        name: "加载中...",
+        count: 0,
+        days: 0,
+        avatar: ''
       },
-      cards: [
-        {
-          id: 1,
-          user: "用户A",
-          userId: "user-a",
-          time: "2 小时前",
-          title: "哈哈哈",
-          excerpt: '又是解禁的一张🥹是收藏集的阿萨Aza，也是带薪画上了 ​。',
-          avatar: require('@/assets/community/aza2.jpg'),
-          likes: 0,
-          liked: false,
-          showComments: false,
-          newComment: "",
-          replyTo: null,
-          highlight: false,
-          comments: [
-            {
-              user: "用户A",
-              text: "写得不错！",
-              avatar: require('@/assets/avatar.jpg'),
-              time: "2小时前",
-              fanLevel: 3
-            },
-            {
-              user: "用户B",
-              text: "很有帮助！",
-              avatar: require('@/assets/avatar.jpg'),
-              time: "1天前",
-              fanLevel: 2
-            }
-          ],
-          images: [require('@/assets/community/aza2.jpg'),],
-        },
-        {
-          id: 2,
-          user: "官方账号",
-          userId: "official",
-          time: "昨天",
-          title: "𝗛𝗮𝗽𝗽𝘆 𝟲𝘁𝗵 𝗔𝗻𝗻𝗶𝘃𝗲𝗿𝘀𝗮𝗿𝘆! ​",
-          excerpt: '',
-          avatar: require('@/assets/avatar.jpg'),
-          likes: 3,
-          liked: true,
-          showComments: false,
-          newComment: "",
-          replyTo: null,
-          highlight: false,
-          comments: [],
-          images: [require('@/assets/community/aza4.jpg')],
-        }
-      ],
+      cards: [],
       joined: false,
       signed: false,
       toast: {
@@ -236,10 +219,45 @@ export default {
       },
       navList: ['最新', '最热'],
       activeTab: '最新',
-
     }
   },
   methods: {
+    async fetchPosts() {
+      if (!this.com.id) return
+      this.loading = true
+      try {
+        const res = await getCirclePosts(this.com.id, 0, 20, this.activeTab === '最新' ? 'new' : 'hot')
+        if (res && res.content) {
+          this.cards = res.content.map(post => ({
+            id: post.id,
+            user: post.authorName || '匿名用户',
+            userId: post.authorId,
+            time: post.createdAt || '刚刚',
+            title: post.title,
+            excerpt: post.content,
+            avatar: post.authorAvatar || this.defaultAvatar,
+            likes: post.likes || 0,
+            liked: false,
+            showComments: false,
+            newComment: "",
+            replyTo: null,
+            highlight: false,
+            comments: [], // Comments would need a separate fetch or be included in DTO
+            images: post.imageUrls || [],
+            videoUrl: post.videoUrl,
+            showVideo: false
+          }))
+        } else {
+          this.cards = []
+        }
+      } catch (err) {
+        console.error('Failed to fetch posts', err)
+        // Fallback to empty if error, don't show mock data
+        this.cards = []
+      } finally {
+        this.loading = false
+      }
+    },
     goUser(card) {
       // 跳转到用户界面，携带用户标识
       const userId = card.userId || card.user || '';
@@ -265,10 +283,6 @@ export default {
       // 执行签到逻辑
       this.signed = true;
       this.com.days += 1;
-      // 给第一个卡片一个简短高亮反馈
-      this.cards[0].highlight = true;
-      setTimeout(() => (this.cards[0].highlight = false), 800);
-
       this.showToast('签到成功！连续签到+' + 1);
     },
     showToast(msg = '', ms = 1200) {
@@ -327,98 +341,119 @@ export default {
       // this.showToast(this.followed ? "已关注该博主" : "已取消关注");
     },
 
-    publishPost() {
+    async publishPost() {
       if (!this.newPost.title.trim()) {
         this.showToast("标题不能为空");
         return;
       }
 
-      const newCard = {
-        id: Date.now(),
-        user: "我",
-        userId: "self",
-        time: "刚刚",
-        title: this.newPost.title,
-        excerpt: this.newPost.content.substring(0, 30),
-        avatar: require('@/assets/avatar.jpg'),
-        likes: 0,
-        liked: false,
-        showComments: false,
-        newComment: "",
-        replyTo: null,
-        highlight: true,
-        comments: [],
-        images: [...this.newPost.images]
-      };
+      const userId = getCurrentUserId()
+      if (!userId) {
+        this.showToast("请先登录");
+        return;
+      }
 
-      this.cards.unshift(newCard);
+      this.showToast("正在发布...");
 
-      // 清空输入框
-      this.newPost.title = "";
-      this.newPost.content = "";
-      this.newPost.images = [];
+      try {
+        let finalVideoUrl = ""
+        if (this.newPost.videoFile) {
+           const videoRes = await uploadVideo(this.newPost.videoFile)
+           finalVideoUrl = typeof videoRes === 'string' ? videoRes : videoRes.url
+        }
 
-      this.showPostBox = false;
+        const uploadedImageUrls = []
+        if (this.newPost.imageFiles && this.newPost.imageFiles.length > 0) {
+          for (const file of this.newPost.imageFiles) {
+            const imgRes = await uploadImage(file)
+            const url = typeof imgRes === 'string' ? imgRes : imgRes.url
+            uploadedImageUrls.push(url)
+          }
+        }
+        
+        const payload = {
+          circleId: this.com.id,
+          authorId: userId,
+          title: this.newPost.title,
+          content: this.newPost.content,
+          imageUrls: uploadedImageUrls,
+          videoUrl: finalVideoUrl
+        }
 
-      this.showToast("发布成功");
+        await createCommunityPost(payload)
+        
+        this.showToast("发布成功");
+        this.showPostBox = false;
+        
+        // Reset form
+        this.newPost = { title: "", content: "", images: [], imageFiles: [], videoUrl: "", videoFile: null }
+        
+        // Refresh list
+        this.fetchPosts()
 
-      setTimeout(() => (newCard.highlight = false), 800);
-    }
-    ,
+      } catch (err) {
+        console.error(err)
+        this.showToast("发布失败");
+      }
+    },
     handleImageUpload(e) {
       const files = Array.from(e.target.files);
-
       if (this.newPost.images.length + files.length > 2) {
         this.showToast("最多只能选择 2 张图片");
         return;
       }
-
+      
       files.forEach(file => {
+        this.newPost.imageFiles.push(file)
         const reader = new FileReader();
         reader.onload = (event) => {
           this.newPost.images.push(event.target.result);
         };
         reader.readAsDataURL(file);
       });
-
-      // 清空 input，否则无法重复选择同一张图片
       e.target.value = null;
     },
-
+    handleVideoUpload(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      if (file.size > 100 * 1024 * 1024) {
+        this.showToast("视频大小不能超过 100MB")
+        return
+      }
+      this.newPost.videoFile = file
+      this.newPost.videoUrl = URL.createObjectURL(file) // Preview
+    },
     removeImage(index) {
       this.newPost.images.splice(index, 1);
+      this.newPost.imageFiles.splice(index, 1);
+    },
+    removeVideo() {
+      this.newPost.videoFile = null
+      this.newPost.videoUrl = ""
+    },
+    playVideo(card) {
+      card.showVideo = true
     }
-
-
   },
   computed: {
     filteredCards() {
-      // 返回新的数组副本，避免 sort 改变原数组顺序
-      const list = this.cards.slice();
-      if (this.activeTab === '最新') {
-        // 假设卡片没有时间字段，用 id 倒序代表最新
-        return list.sort((a, b) => b.id - a.id);
-      }
-      if (this.activeTab === '最热') {
-        return list.sort((a, b) => b.likes - a.likes);
-      }
-      return list;
+      return this.cards; // Sorting handled by API
     },
-    // comName() {
-    //   return this.$route.query.name
-    // },
-    // comAvatar() {
-    //   return this.$route.query.avatar
-    // }
   },
   mounted() {
     const q = this.$route.query;
-
     if (q.name) this.com.name = q.name;
     if (q.avatar) this.com.avatar = q.avatar;
-    if (q.id) this.com.id = q.id;
+    if (q.id) {
+      this.com.id = q.id;
+      this.fetchPosts();
+    }
+  },
+  watch: {
+    activeTab() {
+      this.fetchPosts()
+    }
   }
-
 }
 </script>
 
@@ -985,5 +1020,81 @@ header {
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid rgba(255, 182, 193, 0.3);
+}
+
+.preview-video-wrapper {
+  position: relative;
+  width: 100px;
+  height: 60px;
+  margin-left: 10px;
+}
+
+.preview-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.remove-video-btn {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 40px 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.card-video {
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  position: relative;
+}
+
+.post-video {
+  width: 100%;
+  max-height: 400px;
+  display: block;
+}
+
+.video-cover {
+  width: 100%;
+  height: 200px;
+  background: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+}
+
+.play-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+  opacity: 0.9;
+}
+
+.play-text {
+  font-size: 14px;
+  opacity: 0.8;
 }
 </style>

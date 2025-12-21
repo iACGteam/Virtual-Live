@@ -20,9 +20,9 @@ public class CircleMemberController {
     
     private final CircleMemberService circleMemberService;
     
-    /**
-     * 加入/退出圈子
-     */
+    /*
+     * 加入/退出圈子 - 已迁移至 CircleController
+     *
     @PostMapping("/{circleId}/join")
     public R<Map<String, Object>> toggleMembership(
             @PathVariable Integer circleId,
@@ -40,6 +40,7 @@ public class CircleMemberController {
             return R.error(e.getMessage());
         }
     }
+    */
     
     /**
      * 检查是否是圈子成员

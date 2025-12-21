@@ -29,4 +29,11 @@ public interface CircleRepository extends JpaRepository<Circle, Integer> {
     
     // 查找官方圈子
     Page<Circle> findByIsOfficialTrueAndIsActiveTrueOrderByMemberCountDesc(Pageable pageable);
+
+    // 查找用户创建的圈子
+    Page<Circle> findByCreatorIdAndIsActiveTrue(Integer creatorId, Pageable pageable);
+
+    // 随机查找圈子 (Native Query for MySQL)
+    @Query(value = "SELECT * FROM fan_circles WHERE is_active = true ORDER BY RAND()", nativeQuery = true)
+    Page<Circle> findRandomCircles(Pageable pageable);
 }

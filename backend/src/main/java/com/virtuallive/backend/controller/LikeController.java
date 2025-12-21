@@ -93,4 +93,19 @@ public class LikeController {
             return R.error(e.getMessage());
         }
     }
+
+    /**
+     * 获取用户点赞的视频
+     */
+    @GetMapping("/user/{userId}")
+    public R<org.springframework.data.domain.Page<com.virtuallive.backend.model.dto.VideoDto>> getLikedVideos(
+            @PathVariable Integer userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        try {
+            return R.ok(likeService.getLikedVideos(userId, page, size));
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
 }

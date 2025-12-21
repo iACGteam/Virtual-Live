@@ -43,6 +43,7 @@
           <div class="dropdown-menu">
             <button class="dropdown-item" @click="goToUploadVideo">发布视频</button>
             <button class="dropdown-item" @click="goToGoingLive">开直播</button>
+            <button class="dropdown-item" @click="goToCreateCircle">创建圈子</button>
           </div>
         </div>
         <div class="avatar-dropdown">
@@ -57,9 +58,9 @@
               <div>
                 <p class="profile-name">{{ panel.name }}</p>
                 <p class="profile-stats">
-                  <span class="clickable" @click.stop="openFollowModal('following')">关注 {{ panel.followings }}</span>
-                  · <span class="clickable" @click.stop="openFollowModal('followers')">粉丝 {{ panel.followers }}</span>
-                  · <span class="clickable" @click.stop="openFollowModal('circles')">圈子 {{ panel.circles }}</span>
+                  <span class="clickable" @click.stop="handleSidebarStatClick('following')">关注 {{ panel.followings }}</span>
+                  · <span class="clickable" @click.stop="handleSidebarStatClick('followers')">粉丝 {{ panel.followers }}</span>
+                  · <span class="clickable" @click.stop="handleSidebarStatClick('circles')">圈子 {{ panel.circles }}</span>
                 </p>
               </div>
             </div>
@@ -137,8 +138,11 @@
           <div class="info">
             <div class="name-row">
               <h1>{{ user.name }}</h1>
-              <button class="edit-btn" @click="openEditModal">
+              <button v-if="isOwner" class="edit-btn" @click="openEditModal">
                 ✏️
+              </button>
+              <button v-else class="follow-btn" @click="toggleFollowUser" :class="{ 'followed': isFollowingUser }">
+                {{ isFollowingUser ? '已关注' : '关注' }}
               </button>
             </div>
             <div class="stats">
@@ -149,7 +153,7 @@
             </div>
             <p class="signature">{{ user.signature }}</p>
           </div>
-          <button class="role-card-btn" @click="openRoleCardModal">
+          <button v-if="isOwner" class="role-card-btn" @click="openRoleCardModal">
             🎭 {{ currentRoleCard ? '编辑角色卡' : '申请角色卡' }}
           </button>
         </div>
@@ -400,106 +404,145 @@
           </div>
         </div>
 
-        <!-- 作品列表 -->
-        <div v-if="activeTab === 'works'">
-          <div v-if="myWorks.length" class="video-grid">
-            <article
-              v-for="video in myWorks"
-              :key="video.id"
-              class="video-card"
-              :class="{ 'batch-mode': isBatchMode }"
-              @click="handleVideoClick(video)"
-            >
-              <div class="thumbnail" :style="getThumbnailStyle(video)">
-                <span class="duration">{{ video.duration }}</span>
-                <label
-                  v-if="isBatchMode"
-                  class="video-checkbox"
-                  @click.stop
+        <div
+          v-if="activeTab === 'works' && myWorks.length"
+          class="video-grid"
+        >
+          <article
+            v-for="video in myWorks"
+            :key="video.id"
+            class="video-card"
+            :class="{ 'batch-mode': isBatchMode }"
+            @click="handleVideoClick(video)"
+          >
+            <div class="thumbnail" :style="getThumbnailStyle(video)">
+              <span class="duration">{{ video.duration }}</span>
+              <label
+                v-if="isBatchMode"
+                class="video-checkbox"
+                @click.stop
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedItems.includes(video.id)"
+                  @change="toggleSelectItem(video.id)"
                 >
-                  <input
-                    type="checkbox"
-                    :checked="selectedItems.includes(video.id)"
-                    @change="toggleSelectItem(video.id)"
-                  >
-                </label>
-              </div>
-              <div class="video-meta">
-                <h3>{{ video.title }}</h3>
-                <p class="creator">@{{ video.creator }}</p>
-                <p class="stats">
-                  {{ video.views }} · {{ video.tags.join(' · ') }}
-                </p>
-              </div>
-            </article>
+              </label>
+            </div>
+            <div class="video-meta">
+              <h3>{{ video.title }}</h3>
+              <p class="creator">@{{ video.creator }}</p>
+              <p class="stats">
+                {{ video.views }} · {{ video.tags.join(' · ') }}
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <div
+          v-else-if="activeTab === 'likes' && likedVideos.length"
+          class="video-grid"
+        >
+          <article
+            v-for="video in likedVideos"
+            :key="video.id"
+            class="video-card"
+            :class="{ 'batch-mode': isBatchMode }"
+            @click="handleVideoClick(video)"
+          >
+            <div class="thumbnail" :style="getThumbnailStyle(video)">
+              <span class="duration">{{ video.duration }}</span>
+              <label
+                v-if="isBatchMode"
+                class="video-checkbox"
+                @click.stop
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedItems.includes(video.id)"
+                  @change="toggleSelectItem(video.id)"
+                >
+              </label>
+            </div>
+            <div class="video-meta">
+              <h3>{{ video.title }}</h3>
+              <p class="creator">@{{ video.creator }}</p>
+              <p class="stats">
+                {{ video.views }} · {{ video.tags.join(' · ') }}
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <div
+          v-else-if="activeTab === 'history' && historyVideos.length"
+          class="history-list"
+        >
+          <div v-if="groupedHistory.today.length" class="history-group">
+            <h3 class="group-title">今天</h3>
+            <div class="video-grid">
+              <article
+                v-for="video in groupedHistory.today"
+                :key="video.id"
+                class="video-card"
+                @click="handleVideoClick(video)"
+              >
+                <div class="thumbnail" :style="getThumbnailStyle(video)">
+                  <span class="duration">{{ video.duration }}</span>
+                </div>
+                <div class="video-meta">
+                  <h3>{{ video.title }}</h3>
+                  <p class="creator">@{{ video.creator }}</p>
+                  <p class="stats">{{ video.views }}</p>
+                </div>
+              </article>
+            </div>
           </div>
-          <div v-else class="empty-state">
-            <p>暂无作品</p>
+          
+          <div v-if="groupedHistory.yesterday.length" class="history-group">
+            <h3 class="group-title">昨天</h3>
+            <div class="video-grid">
+              <article
+                v-for="video in groupedHistory.yesterday"
+                :key="video.id"
+                class="video-card"
+                @click="handleVideoClick(video)"
+              >
+                <div class="thumbnail" :style="getThumbnailStyle(video)">
+                  <span class="duration">{{ video.duration }}</span>
+                </div>
+                <div class="video-meta">
+                  <h3>{{ video.title }}</h3>
+                  <p class="creator">@{{ video.creator }}</p>
+                  <p class="stats">{{ video.views }}</p>
+                </div>
+              </article>
+            </div>
+          </div>
+          
+          <div v-if="groupedHistory.beforeYesterday.length" class="history-group">
+            <h3 class="group-title">前天</h3>
+            <div class="video-grid">
+              <article
+                v-for="video in groupedHistory.beforeYesterday"
+                :key="video.id"
+                class="video-card"
+                @click="handleVideoClick(video)"
+              >
+                <div class="thumbnail" :style="getThumbnailStyle(video)">
+                  <span class="duration">{{ video.duration }}</span>
+                </div>
+                <div class="video-meta">
+                  <h3>{{ video.title }}</h3>
+                  <p class="creator">@{{ video.creator }}</p>
+                  <p class="stats">{{ video.views }}</p>
+                </div>
+              </article>
+            </div>
           </div>
         </div>
 
-        <!-- 喜欢列表 -->
-        <div v-else-if="activeTab === 'likes'">
-          <div v-if="likedVideos.length" class="video-grid">
-            <article
-              v-for="video in likedVideos"
-              :key="video.id"
-              class="video-card"
-              :class="{ 'batch-mode': isBatchMode }"
-              @click="handleVideoClick(video)"
-            >
-              <div class="thumbnail" :style="getThumbnailStyle(video)">
-                <span class="duration">{{ video.duration }}</span>
-                <label
-                  v-if="isBatchMode"
-                  class="video-checkbox"
-                  @click.stop
-                >
-                  <input
-                    type="checkbox"
-                    :checked="selectedItems.includes(video.id)"
-                    @change="toggleSelectItem(video.id)"
-                  >
-                </label>
-              </div>
-              <div class="video-meta">
-                <h3>{{ video.title }}</h3>
-                <p class="creator">@{{ video.creator }}</p>
-                <p class="stats">
-                  {{ video.views }} · {{ video.tags.join(' · ') }}
-                </p>
-              </div>
-            </article>
-          </div>
-          <div v-else class="empty-state">
-            <p>暂无喜欢的视频</p>
-          </div>
-        </div>
-
-        <!-- 观看历史 -->
-        <div v-else-if="activeTab === 'history'">
-          <div v-if="viewHistoryList.length > 0" class="video-grid">
-            <article
-              v-for="video in viewHistoryList"
-              :key="video.id"
-              class="video-card"
-              @click="goToVideo(video)"
-            >
-              <div class="thumbnail" :style="getThumbnailStyle(video)">
-                <span class="duration">{{ video.duration }}</span>
-              </div>
-              <div class="video-meta">
-                <h3>{{ video.title }}</h3>
-                <p class="creator">@{{ video.creator }}</p>
-                <p class="stats">
-                  {{ video.views }} · {{ video.tags.join(' · ') }}
-                </p>
-              </div>
-            </article>
-          </div>
-          <div v-else class="empty-state">
-            <p>暂无观看历史</p>
-          </div>
+        <div v-else class="empty-state">
         </div>
       </section>
     </main>
@@ -788,7 +831,26 @@
 
 <script>
 import { clearAuthToken, getCurrentUser, getCurrentUserId } from '@/utils/auth'
-import { getUserPosts, getFollowers, getFollowing, getUserFavorites, getUserJoinedCircles, getVideoById, getUserProfile, updateUserProfile, getUserRoleCards, createRoleCard, updateRoleCard, deleteVideo, updateVideo, getViewHistory } from '@/utils/api'
+import { 
+  getUserPosts, 
+  getFollowers, 
+  getFollowing, 
+  getUserFavorites, 
+  getUserJoinedCircles, 
+  getVideoById,
+  getUserProfile,
+  getUserVideos,
+  getUserLikedVideos,
+  getUserHistory,
+  getUserCircles,
+  deleteVideo,
+  toggleVideoLike,
+  toggleFollow as apiToggleFollow,
+  checkFollow
+} from '@/utils/api'
+import { updateMockUserPassword } from '@/data/mockUsers'
+import { getDemoAsset } from '@/utils/demoDataMap'
+
 export default {
   name: 'ProfileView',
   data() {
@@ -809,7 +871,7 @@ export default {
         followers: 0,
         circles: 0,
         likes: 0,
-        signature: '...',
+        signature: '',
         sn: '',
         age: 0
       },
@@ -819,7 +881,7 @@ export default {
         followings: 0,
         followers: 0,
         circles: 0,
-        likes: '0', // 这里显示的是“我的喜欢”数量
+        likes: '0',
         favorites: [],
         quickEntries: [
           { key: 'history', icon: '🕒', label: '观看历史', value: '0' },
@@ -833,16 +895,6 @@ export default {
         { key: 'history', label: '观看历史' },
       ],
       activeTab: 'works',
-      viewHistoryList: [],
-      userWorks: [],
-      userLikes: [],
-      followingList: [],
-      followersList: [],
-      circlesList: [],
-      // 批量管理
-      isBatchMode: false,
-      selectedItems: [],
-      // 筛选
       workType: 'all', // 'all' 或 'private'
       workSearchQuery: '', // 作品搜索关键词
       showDateFilter: false, // 是否显示日期筛选面板
@@ -890,24 +942,60 @@ export default {
       followingList: [],
       circlesList: [],
       followersList: [],
-      userLikes: [],
+      shortVideos: [],
+      historyVideos: [],
+      likedVideoIds: [1, 5, 7, 10, 13, 15],
       userWorks: [],
-      roleCards: []
+      isOwner: true,
+      isFollowingUser: false
     }
   },
   created() {
-    this.loadUserProfile()
-    this.loadUserRoleCards()
-    this.loadUserWorks()
-    this.loadUserLikes()
-    this.loadViewHistoryList()
-    this.loadUserRelationships()
+    this.loadStoredProfile()
+    // 先尝试从后端加载我的作品，失败时回退到本地存储
+    this.loadUserWorksFromBackend().catch(() => {
+      this.loadUserWorks()
+    })
     // 加载“我的”页面依赖的用户独有数据（关注/粉丝/圈子/收藏）
     this.loadMySectionDataFromBackend()
   },
   computed: {
+    groupedHistory() {
+      const groups = {
+        today: [],
+        yesterday: [],
+        beforeYesterday: []
+      }
+      
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      
+      const beforeYesterday = new Date(today)
+      beforeYesterday.setDate(beforeYesterday.getDate() - 2)
+      
+      this.historyVideos.forEach(video => {
+        if (!video.viewedAt) return
+        const viewDate = new Date(video.viewedAt)
+        viewDate.setHours(0, 0, 0, 0)
+        
+        if (viewDate.getTime() === today.getTime()) {
+          groups.today.push(video)
+        } else if (viewDate.getTime() === yesterday.getTime()) {
+          groups.yesterday.push(video)
+        } else if (viewDate.getTime() === beforeYesterday.getTime()) {
+          groups.beforeYesterday.push(video)
+        }
+      })
+      
+      return groups
+    },
     likedVideos() {
-      return this.userLikes
+      return this.shortVideos.filter(video =>
+        this.likedVideoIds.includes(video.id)
+      )
     },
     myWorks() {
       let works = this.userWorks || []
@@ -917,9 +1005,10 @@ export default {
         // 私密作品模式下，只显示私密作品
         works = works.filter(work => work.isPrivate === true)
       } else {
-        // 默认（'all'）模式下，只显示公开作品（非私密）
+        // 默认（公开）模式下，不显示私密作品
         works = works.filter(work => !work.isPrivate)
       }
+      // workType === 'all' 时显示所有作品，不需要额外过滤
       
       // 根据搜索关键词过滤
       if (this.workSearchQuery.trim()) {
@@ -1011,8 +1100,20 @@ export default {
       return list
     },
     currentRoleCard() {
-      if (this.roleCards && this.roleCards.length > 0) {
-        return this.roleCards[0]
+      // 从localStorage获取角色卡，直接显示最新的
+      try {
+        const roleCards = JSON.parse(localStorage.getItem('roleCards') || '[]')
+        if (roleCards.length > 0) {
+          // 按提交时间排序，取最新的
+          const sortedCards = [...roleCards].sort((a, b) => {
+            const timeA = new Date(a.submitTime || 0).getTime()
+            const timeB = new Date(b.submitTime || 0).getTime()
+            return timeB - timeA
+          })
+          return sortedCards[0]
+        }
+      } catch (err) {
+        console.warn('加载角色卡失败', err)
       }
       return null
     }
@@ -1028,27 +1129,27 @@ export default {
       // 当路由变化时，重新加载作品（从上传页面返回时）
       this.loadUserWorks()
     },
-    activeTab(newTab) {
+    activeTab() {
+      this.loadActiveTabData()
       // 切换标签页时退出批量管理模式
       if (this.isBatchMode) {
         this.exitBatchMode()
       }
-      // 切换标签页时刷新数据
-      if (newTab === 'works') {
-        this.loadUserWorks()
-      } else if (newTab === 'likes') {
-        this.loadUserLikes()
-      } else if (newTab === 'history') {
-        this.loadViewHistoryList()
-      }
     },
   },
   mounted() {
+    this.loadMySectionDataFromBackend()
     this.consumePendingProfileTab()
+    // 监听storage事件，当其他页面保存作品时自动更新
+    window.addEventListener('storage', this.handleStorageChange)
+    // 监听自定义事件，当上传页面保存作品时自动更新
+    window.addEventListener('userWorksUpdated', this.loadUserWorks)
     // 点击外部关闭日期筛选面板
     document.addEventListener('click', this.handleClickOutside)
   },
   beforeUnmount() {
+    window.removeEventListener('storage', this.handleStorageChange)
+    window.removeEventListener('userWorksUpdated', this.loadUserWorks)
     document.removeEventListener('click', this.handleClickOutside)
     if (this.sortDropdownTimer) {
       clearTimeout(this.sortDropdownTimer)
@@ -1056,74 +1157,228 @@ export default {
     }
   },
   methods: {
-    async loadUserRelationships() {
-      const uid = getCurrentUserId()
+    async loadMySectionDataFromBackend() {
+      const currentUid = getCurrentUserId()
+      const queryId = this.$route.query.id
+      const uid = queryId ? parseInt(queryId) : currentUid
+      
       if (!uid) return
+
+      this.isOwner = (uid === currentUid)
       
       try {
-        // Load Following
-        const followingData = await getFollowing(uid, 0, 100)
-        if (followingData && followingData.content) {
-          this.followingList = followingData.content.map(f => ({
-            id: f.id,
-            name: f.username,
-            avatar: f.avatarUrl || require('@/assets/avatar.jpg'),
-            title: f.bio || '暂无简介',
-            description: f.bio || '',
-            followStatus: 'followed',
-            verified: false,
-            followTime: f.createdAt ? new Date(f.createdAt).getTime() : Date.now()
-          }))
-          this.user.following = followingData.totalElements
-          this.panel.followings = followingData.totalElements
+        // 0. 如果不是本人，检查关注状态
+        if (!this.isOwner && currentUid) {
+            try {
+                const status = await checkFollow(currentUid, uid)
+                this.isFollowingUser = status
+            } catch (e) {
+                console.warn('Check follow status failed', e)
+            }
         }
 
-        // Load Followers
-        const followersData = await getFollowers(uid, 0, 100)
-        if (followersData && followersData.content) {
-          this.followersList = followersData.content.map(f => ({
-            id: f.id,
-            name: f.username,
-            avatar: f.avatarUrl || require('@/assets/avatar.jpg'),
-            title: f.bio || '暂无简介',
-            description: f.bio || '',
-            followStatus: 'mutual', // Simplified logic
-            verified: false,
-            followTime: f.createdAt ? new Date(f.createdAt).getTime() : Date.now()
-          }))
-          this.user.followers = followersData.totalElements
-          this.panel.followers = followersData.totalElements
+        // 1. 获取用户个人资料
+        const profile = await getUserProfile(uid)
+        if (profile) {
+            this.user = {
+                ...this.user,
+                id: profile.id,
+                name: profile.username,
+                avatar: profile.avatarUrl || this.user.avatar,
+                following: profile.followingCount || 0,
+                followers: profile.followersCount || 0,
+                circles: profile.circlesCount || 0,
+                likes: profile.likesCount || 0,
+                signature: profile.introduction || '暂无简介',
+            }
+            
+            if (this.isOwner) {
+                this.panel = {
+                    ...this.panel,
+                    name: profile.username,
+                    avatar: profile.avatarUrl || this.panel.avatar,
+                    followings: profile.followingCount || 0,
+                    followers: profile.followersCount || 0,
+                    circles: profile.circlesCount || 0,
+                    likes: String(profile.likesCount || 0),
+                }
+            }
+        }
+        
+        // 如果不是本人，单独加载本人的 Sidebar 数据
+        if (!this.isOwner && currentUid) {
+             const myProfile = await getUserProfile(currentUid)
+             if (myProfile) {
+                 this.panel = {
+                    ...this.panel,
+                    name: myProfile.username,
+                    avatar: myProfile.avatarUrl || this.panel.avatar,
+                    followings: myProfile.followingCount || 0,
+                    followers: myProfile.followersCount || 0,
+                    circles: myProfile.circlesCount || 0,
+                    likes: String(myProfile.likesCount || 0),
+                 }
+             }
         }
 
-        // Load Circles
-        const circlesData = await getUserCircles(uid, 0, 100)
-        if (circlesData && circlesData.content) {
-          this.circlesList = circlesData.content.map(c => ({
-            id: c.id,
-            name: c.name,
-            avatar: c.coverUrl || require('@/assets/community/avatar1.jpg'),
-            title: c.description || '暂无简介',
-            description: c.description || '',
-            followStatus: 'joined'
-          }))
-          this.user.circles = circlesData.totalElements
-          this.panel.circles = circlesData.totalElements
+        // 2. 加载关注列表
+        const followingRes = await getFollowing(uid, 0, 100)
+        if (followingRes && followingRes.content) {
+          this.followingList = followingRes.content.map(item => {
+            // 后端返回的是 UserFollow 对象，包含 follower 和 following
+            // 在关注列表中，我是 follower，我要看的是 following (被关注者)
+            const targetUser = item.following || item
+            return {
+              id: targetUser.userId || targetUser.id,
+              name: targetUser.username || targetUser.name || '未知用户',
+              avatar: targetUser.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (targetUser.username || 'user'),
+              title: targetUser.title || '用户',
+              description: targetUser.introduction || '暂无简介',
+              followStatus: 'followed', // 在关注列表中，状态肯定是已关注
+              verified: false,
+              followTime: item.followDate ? new Date(item.followDate).getTime() : new Date().getTime()
+            }
+          })
+        } else {
+          this.followingList = []
         }
-      } catch (err) {
-        console.warn('加载用户关系数据失败', err)
+
+        // 3. 加载粉丝列表
+        const followersRes = await getFollowers(uid, 0, 100)
+        if (followersRes && followersRes.content) {
+          const followingIds = new Set(this.followingList.map(u => u.id))
+          this.followersList = followersRes.content.map(item => {
+            // 在粉丝列表中，我是 following，我要看的是 follower (粉丝)
+            const targetUser = item.follower || item
+            return {
+              id: targetUser.userId || targetUser.id,
+              name: targetUser.username || targetUser.name || '未知用户',
+              avatar: targetUser.avatarUrl || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (targetUser.username || 'user'),
+              description: targetUser.introduction || '暂无简介',
+              followStatus: followingIds.has(targetUser.userId || targetUser.id) ? 'mutual' : 'not-followed',
+              verified: false
+            }
+          })
+        } else {
+          this.followersList = []
+        }
+
+        // 4. 加载圈子列表
+        const circlesRes = await getUserJoinedCircles(uid, 0, 100)
+        if (circlesRes && circlesRes.content) {
+          // 使用列表的总数来更新显示，确保一致性
+          if (typeof circlesRes.totalElements === 'number') {
+            this.user.circles = circlesRes.totalElements
+            if (this.isOwner) this.panel.circles = circlesRes.totalElements
+          }
+
+          this.circlesList = circlesRes.content.map(circle => ({
+            id: circle.id,
+            name: circle.name,
+            avatar: circle.avatarUrl || circle.coverImageUrl || require('@/assets/community/avatar1.jpg'),
+            title: '圈子',
+            description: circle.description || '暂无描述'
+          }))
+        } else {
+          this.circlesList = []
+        }
+
+          // 5. 加载喜欢列表用于预览
+          const likesRes = await getUserLikedVideos(uid, 0, 3)
+        const likedVideos = likesRes.content || []
+        this.panel.favorites = likedVideos.map(v => ({
+            id: v.id,
+            tag: v.category || '#视频',
+            title: v.title,
+            gradient: v.coverImageUrl ? `url(${v.coverImageUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%)'
+        }))
+
+        // 6. 加载当前标签页数据
+        this.loadActiveTabData()
+        
+      } catch (e) {
+        console.error('Failed to load profile data', e)
       }
     },
-    async loadMySectionDataFromBackend() {
+
+    async loadActiveTabData() {
+        const uid = this.$route.query.id || getCurrentUserId()
+        if (!uid) return
+        
+        try {
+            if (this.activeTab === 'works') {
+                // Works are handled by loadUserWorks
+            } else if (this.activeTab === 'likes') {
+                const res = await getUserLikedVideos(uid, 0, 20)
+                const videos = res.content || []
+                this.shortVideos = videos.map(v => ({
+                    id: v.id,
+                    title: v.title,
+                    creator: v.authorName,
+                    duration: this.formatDuration(v.duration),
+                    views: `${v.views}次观看`,
+                    tags: v.tags ? v.tags.split(',') : [],
+                    thumbnailColor: v.coverImageUrl ? `url(${v.coverImageUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
+                }))
+                this.likedVideoIds = this.shortVideos.map(v => v.id)
+            } else if (this.activeTab === 'history') {
+                const res = await getUserHistory(uid, 0, 50)
+                const historyItems = res.content || []
+                this.historyVideos = historyItems.map(item => ({
+                    ...item.video,
+                    viewedAt: item.viewedAt,
+                    creator: item.video.authorName,
+                    duration: this.formatDuration(item.video.duration),
+                    views: `${item.video.views}次观看`,
+                    tags: item.video.tags ? item.video.tags.split(',') : [],
+                    thumbnailColor: item.video.coverImageUrl ? `url(${item.video.coverImageUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
+                }))
+            }
+        } catch (e) {
+            console.error('Failed to load tab data', e)
+        }
+    },
+    
+    formatDuration(seconds) {
+        if (!seconds) return '00:00'
+        const m = Math.floor(seconds / 60)
+        const s = seconds % 60
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    },
+
+    async loadMySectionDataFromBackend_OLD() {
       const uid = getCurrentUserId()
+      const uname = getCurrentUser()
+      if (uname) {
+        this.user.name = uname
+        this.panel.name = uname
+      }
       if (!uid) return
       try {
+        // 关注/粉丝列表计数
+        const [followersPage, followingPage] = await Promise.all([
+          getFollowers(uid, 0, 50),
+          getFollowing(uid, 0, 50)
+        ])
+        const followersCount = followersPage?.totalElements ?? (Array.isArray(followersPage?.content) ? followersPage.content.length : 0)
+        const followingCount = followingPage?.totalElements ?? (Array.isArray(followingPage?.content) ? followingPage.content.length : 0)
+        this.user.followers = followersCount
+        this.user.following = followingCount
+        this.panel.followers = followersCount
+        this.panel.followings = followingCount
+
+        // 加入的圈子计数
+        const circlesPage = await getUserJoinedCircles(uid, 0, 50)
+        const circlesCount = circlesPage?.totalElements ?? (Array.isArray(circlesPage?.content) ? circlesPage.content.length : 0)
+        this.panel.circles = circlesCount
+        this.user.circles = circlesCount
+
         // 收藏（我的喜欢）列表，映射为预览卡片（少量展示）
         const favPage = await getUserFavorites(uid, 'post', 0, 20)
         const favList = Array.isArray(favPage?.content) ? favPage.content : []
         // 从收藏的内容ID拉取视频标题（仅取前几项做预览）
         const previewCount = Math.min(3, favList.length)
         const previewFetch = favList.slice(0, previewCount).map(async fav => {
-          if (!fav || !fav.contentId) return null
           const vidId = fav.contentId
           try {
             const v = await getVideoById(vidId)
@@ -1137,161 +1392,68 @@ export default {
             return { id: vidId, tag: '#收藏', title: `视频 ${vidId}`, gradient: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' }
           }
         })
-        const preview = (await Promise.all(previewFetch)).filter(p => p !== null)
+        const preview = await Promise.all(previewFetch)
         this.panel.favorites = preview
+        // 喜欢总数（以收藏数近似呈现）
+        this.panel.likes = String(favList.length)
       } catch (err) {
         console.warn('加载我的数据失败', err)
       }
     },
-    async loadViewHistoryList() {
-      const uid = getCurrentUserId()
-      if (!uid) return
-      try {
-        const pageData = await getViewHistory(uid, 0, 100)
-        const list = Array.isArray(pageData?.content) ? pageData.content : []
-        
-        // 更新快速入口中的观看历史数量
-        const historyEntry = this.panel.quickEntries.find(entry => entry.key === 'history')
-        if (historyEntry) {
-          historyEntry.value = list.length > 99 ? '99+' : String(list.length)
-        }
-
-        // 映射为展示数据
-        const fetchDetails = list.map(async item => {
-          if (!item || !item.videoId) return null
-          try {
-            const v = await getVideoById(item.videoId)
-            const mapDuration = (sec) => {
-              if (!sec && sec !== 0) return ''
-              const s = Math.max(0, parseInt(sec, 10) || 0)
-              const mm = String(Math.floor(s / 60)).padStart(2, '0')
-              const ss = String(s % 60).padStart(2, '0')
-              return `${mm}:${ss}`
-            }
-            return {
-              id: v.id,
-              title: v.title,
-              creator: v.authorName,
-              duration: mapDuration(v.duration),
-              views: v.views ? `${v.views}次观看` : '0次观看',
-              tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
-              thumbnail: this.resolveUrl(v.coverImageUrl),
-              thumbnailColor: '#f5f5f5',
-              videoSrc: v.videoUrl
-            }
-          } catch (e) {
-            return null
-          }
-        })
-        
-        const videos = await Promise.all(fetchDetails)
-        this.viewHistoryList = videos.filter(v => v !== null)
-      } catch (err) {
-        console.warn('加载观看历史失败', err)
-        this.viewHistoryList = []
-      }
-    },
     resolveUrl(url) {
       if (!url) return ''
+      // Check demo asset map first
+      const demoAsset = getDemoAsset(url, 'image')
+      if (demoAsset) return demoAsset
+      
       if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url
+      
+      // Handle assets path
+      if (url.includes('assets')) {
+          let assetPath = url.replace('@/', '/');
+          if (!assetPath.startsWith('/')) {
+              assetPath = '/' + assetPath;
+          }
+          return assetPath;
+      }
+
       const cleanUrl = url.startsWith('/') ? url.slice(1) : url
       return `http://127.0.0.1:8081/${cleanUrl}`
     },
-    async loadUserWorks(page = 0, size = 20) {
+    async loadUserWorksFromBackend(page = 0, size = 20) {
       const uid = getCurrentUserId()
-      if (!uid) return
-      try {
-        const pageData = await getUserPosts(uid, page, size)
-        // pageData 形如 { content: [...], totalElements, totalPages, ... }
-        const list = Array.isArray(pageData?.content) ? pageData.content : []
-        // 将后端 VideoDto 映射到页面需要的字段
-        const mapDuration = (sec) => {
-          if (!sec && sec !== 0) return ''
-          const s = Math.max(0, parseInt(sec, 10) || 0)
-          const mm = String(Math.floor(s / 60)).padStart(2, '0')
-          const ss = String(s % 60).padStart(2, '0')
-          return `${mm}:${ss}`
-        }
-        this.userWorks = list
-          .filter(v => v.id > 15) // 过滤掉系统预置的演示视频（ID 1-15）
-          .map(v => {
-            const tags = v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : []
-            const isPrivate = tags.includes('__PRIVATE__')
-            const displayTags = tags.filter(t => t !== '__PRIVATE__')
-            
-            return {
-              id: v.id,
-              title: v.title,
-              creator: v.authorName || this.user.name,
-              duration: mapDuration(v.duration),
-              tags: displayTags,
-              thumbnail: this.resolveUrl(v.coverImageUrl),
-              views: v.views || 0,
-              uploadTime: v.createdAt || null,
-              isPrivate: isPrivate
-            }
-          })
-        // 更新快速入口中的作品数量
-        const worksEntry = this.panel.quickEntries.find(entry => entry.key === 'works')
-        if (worksEntry) worksEntry.value = this.userWorks.length.toString()
-      } catch (err) {
-        console.warn('加载作品失败', err)
-        this.userWorks = []
+      if (!uid) throw new Error('未登录或缺少用户ID')
+      const pageData = await getUserPosts(uid, page, size)
+      // pageData 形如 { content: [...], totalElements, totalPages, ... }
+      const list = Array.isArray(pageData?.content) ? pageData.content : []
+      // 将后端 VideoDto 映射到页面需要的字段
+      const mapDuration = (sec) => {
+        if (!sec && sec !== 0) return ''
+        const s = Math.max(0, parseInt(sec, 10) || 0)
+        const mm = String(Math.floor(s / 60)).padStart(2, '0')
+        const ss = String(s % 60).padStart(2, '0')
+        return `${mm}:${ss}`
       }
-    },
-    async loadUserLikes() {
-      const uid = getCurrentUserId()
-      if (!uid) return
-      try {
-        const pageData = await getUserFavorites(uid, 'post', 0, 100)
-        const list = Array.isArray(pageData?.content) ? pageData.content : []
+      this.userWorks = list.map(v => {
+        const tags = v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : []
+        const isPrivate = tags.includes('__PRIVATE__')
+        const displayTags = tags.filter(t => t !== '__PRIVATE__')
         
-        const fetchDetails = list.map(async fav => {
-          if (!fav || !fav.contentId) return null
-          try {
-            const v = await getVideoById(fav.contentId)
-            const mapDuration = (sec) => {
-              if (!sec && sec !== 0) return ''
-              const s = Math.max(0, parseInt(sec, 10) || 0)
-              const mm = String(Math.floor(s / 60)).padStart(2, '0')
-              const ss = String(s % 60).padStart(2, '0')
-              return `${mm}:${ss}`
-            }
-            return {
-              id: v.id,
-              title: v.title,
-              creator: v.authorName,
-              duration: mapDuration(v.duration),
-              views: v.views ? `${v.views}次观看` : '0次观看',
-              tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
-              thumbnail: this.resolveUrl(v.coverImageUrl),
-              thumbnailColor: '#f5f5f5'
-            }
-          } catch (e) {
-            return null
-          }
-        })
-        
-        const videos = await Promise.all(fetchDetails)
-        this.userLikes = videos.filter(v => v !== null)
-        // 更新面板上的“我的喜欢”数量
-        this.panel.likes = String(this.userLikes.length)
-      } catch (err) {
-        console.warn('加载喜欢列表失败', err)
-        this.userLikes = []
-        this.panel.likes = '0'
-      }
-    },
-    goToVideo(video) {
-      if (!video) return
-      const routeData = this.$router.resolve({
-        path: '/video',
-        query: {
-          id: video.id,
-          src: video.videoSrc
+        return {
+          id: v.id,
+          title: v.title,
+          creator: v.authorName || this.user.name,
+          duration: mapDuration(v.duration),
+          tags: displayTags,
+          thumbnail: this.resolveUrl(v.coverImageUrl),
+          views: v.views || 0,
+          uploadTime: v.createdAt || null,
+          isPrivate: isPrivate
         }
       })
-      window.open(routeData.href, '_blank')
+      // 更新快速入口中的作品数量
+      const worksEntry = this.panel.quickEntries.find(entry => entry.key === 'works')
+      if (worksEntry) worksEntry.value = this.userWorks.length.toString()
     },
     handleWorkSearch(event) {
       // 按回车键时触发搜索，由于使用了 computed，过滤会自动执行
@@ -1334,12 +1496,13 @@ export default {
       this.editForm.password = ''
       this.editForm.confirmPassword = ''
     },
-    async saveProfile() {
+    saveProfile() {
       const trimmedName = this.editForm.name?.trim()
       const trimmedSignature = this.editForm.signature?.trim() ?? ''
       const password = this.editForm.password?.trim()
       const confirmPassword = this.editForm.confirmPassword?.trim()
 
+      // 验证密码
       if (password || confirmPassword) {
         if (!password) {
           alert('请输入新密码')
@@ -1353,68 +1516,78 @@ export default {
           alert('两次输入的密码不一致')
           return
         }
+        // 更新密码
+        const currentUsername = getCurrentUser()
+        if (!currentUsername) {
+          alert('无法获取当前用户信息，请重新登录')
+          return
+        }
+        const success = updateMockUserPassword(currentUsername, password)
+        if (success) {
+          alert('密码已更新')
+        } else {
+          alert('密码更新失败，请重试')
+          return
+        }
       }
 
-      const uid = getCurrentUserId()
-      if (!uid) return
+      if (trimmedName) {
+        this.user.name = trimmedName
+        this.panel.name = trimmedName
+      }
+      this.user.signature = trimmedSignature
 
-      try {
-        const updateData = {
-          name: trimmedName,
-          signature: trimmedSignature,
-          password: password,
-          confirmPassword: confirmPassword
-        }
-        
-        await updateUserProfile(uid, updateData)
-        
-        alert('个人信息已更新')
-        this.loadUserProfile() // Reload to update view
-        this.showEditModal = false
-      } catch (err) {
-        console.error('更新失败', err)
-        alert('更新失败: ' + (err.message || '未知错误'))
-      }
+      this.persistProfile()
+      this.showEditModal = false
     },
-    async loadUserProfile() {
-      const uid = getCurrentUserId()
-      if (!uid) return
+    loadStoredProfile() {
       try {
-        const profile = await getUserProfile(uid)
-        if (profile) {
-          this.user.name = profile.username
-          this.user.signature = profile.introduction || '这个人很懒，什么都没有写'
-          this.user.avatar = profile.avatarUrl || require('@/assets/avatar.jpg')
-          this.user.followers = profile.followersCount || 0
-          this.user.following = profile.followingCount || 0
-          this.user.circles = profile.circlesCount || 0
-          this.user.likes = profile.likesCount || 0 // 获赞数
-          this.user.sn = profile.id || uid // 用户ID
-          
-          this.panel.name = profile.username
-          this.panel.avatar = profile.avatarUrl || require('@/assets/avatar.jpg')
-          this.panel.followers = profile.followersCount || 0
-          this.panel.followings = profile.followingCount || 0
-          this.panel.circles = profile.circlesCount || 0
-          // panel.likes 是“我的喜欢”数量，不应使用 profile.likesCount (获赞数)
-          // 它将在 loadUserLikes 中更新
+        const cached = localStorage.getItem('profileUser')
+        if (!cached) return
+        const parsed = JSON.parse(cached)
+        if (parsed.name) {
+          this.user.name = parsed.name
+          this.panel.name = parsed.name
+        }
+        if (typeof parsed.signature === 'string') {
+          this.user.signature = parsed.signature
         }
       } catch (err) {
-        console.warn('加载个人资料失败', err)
-      }
-    },
-    async loadUserRoleCards() {
-      const uid = getCurrentUserId()
-      if (!uid) return
-      try {
-        const cards = await getUserRoleCards(uid)
-        this.roleCards = cards || []
-      } catch (err) {
-        console.warn('加载角色卡失败', err)
+        console.warn('加载本地资料失败', err)
       }
     },
     persistProfile() {
-      // No longer needed as we save to backend
+      try {
+        localStorage.setItem('profileUser', JSON.stringify({
+          name: this.user.name,
+          signature: this.user.signature
+        }))
+      } catch (err) {
+        console.warn('保存本地资料失败', err)
+      }
+    },
+    loadUserWorks() {
+      this.loadUserWorksFromBackend()
+    },
+    saveUserWorks() {
+      try {
+        localStorage.setItem('userWorks', JSON.stringify(this.userWorks))
+        // 更新快速入口中的作品数量
+        const worksEntry = this.panel.quickEntries.find(entry => entry.key === 'works')
+        if (worksEntry) {
+          worksEntry.value = this.userWorks.length.toString()
+        }
+        // 触发自定义事件，通知其他页面更新
+        window.dispatchEvent(new Event('userWorksUpdated'))
+      } catch (err) {
+        console.warn('保存作品失败', err)
+      }
+    },
+    handleStorageChange(event) {
+      // 当localStorage中的userWorks发生变化时，重新加载
+      if (event.key === 'userWorks') {
+        this.loadUserWorks()
+      }
     },
     handleNavClick(link) {
       this.activeNav = link.key
@@ -1489,6 +1662,9 @@ export default {
       // 从个人页“开直播”入口跳转到直播管理页（开播设置）
       this.$router.push({ path: '/live-manage' }).catch(() => {})
     },
+    goToCreateCircle() {
+      this.$router.push({ path: '/create-circle' }).catch(() => { })
+    },
     openFollowModal(tab) {
       this.followModalTab = tab || 'following'
       this.followSearchQuery = ''
@@ -1503,6 +1679,17 @@ export default {
     enterBatchMode() {
       this.isBatchMode = true
       this.selectedItems = []
+    },
+    handleSidebarStatClick(tab) {
+      if (this.isOwner) {
+        this.openFollowModal(tab)
+      } else {
+        // 如果不是本人，点击侧边栏（我的）数据时，跳转到我的个人主页
+        const currentUid = getCurrentUserId()
+        if (currentUid) {
+          this.$router.push({ path: '/profile', query: { id: currentUid } })
+        }
+      }
     },
     exitBatchMode() {
       this.isBatchMode = false
@@ -1530,28 +1717,33 @@ export default {
       }
       if (confirm(`确定要删除选中的 ${this.selectedItems.length} 个作品吗？`)) {
         const uid = getCurrentUserId()
-        if (this.activeTab === 'works') {
-          try {
-            // 并行删除
+        try {
+          if (this.activeTab === 'works') {
+            // 调用后端API删除视频
             await Promise.all(this.selectedItems.map(id => deleteVideo(id, uid)))
             // 重新加载列表
-            await this.loadUserWorks()
-            alert('删除成功')
-          } catch (err) {
-            console.error('删除失败', err)
-            alert('部分删除失败: ' + (err.message || '未知错误'))
-            // 重新加载以显示最新状态
-            this.loadUserWorks()
+            await this.loadUserWorksFromBackend()
+          } else if (this.activeTab === 'likes') {
+            // 调用后端API取消点赞
+            await Promise.all(this.selectedItems.map(id => toggleVideoLike(id, uid)))
+            // 重新加载喜欢列表
+            const likesRes = await getUserLikedVideos(uid)
+            // 这里需要更新 activeTabData 或者直接刷新页面，简单起见重新加载当前标签页数据
+            this.loadActiveTabData()
           }
-        } else if (this.activeTab === 'likes') {
-          // TODO: Implement unlike API
-          this.likedVideoIds = this.likedVideoIds.filter(id => !this.selectedItems.includes(id))
-        }
-        this.selectedItems = []
-        // 如果删除后没有作品了，自动退出批量管理模式
-        const currentVideos = this.activeTab === 'works' ? this.myWorks : this.likedVideos
-        if (currentVideos.length === 0) {
-          this.exitBatchMode()
+          
+          this.selectedItems = []
+          // 如果删除后没有作品了，自动退出批量管理模式
+          const currentVideos = this.activeTab === 'works' ? this.myWorks : this.likedVideos
+          if (currentVideos.length === 0) {
+            this.exitBatchMode()
+          }
+          
+          // 提示成功
+          // alert('操作成功') 
+        } catch (error) {
+          console.error('批量操作失败', error)
+          alert('操作失败，请重试')
         }
       }
     },
@@ -1560,8 +1752,6 @@ export default {
         return
       }
       if (this.activeTab === 'works') {
-        alert('设置私密功能暂未开放')
-        /*
         const count = this.selectedItems.length
         // 将选中的作品设为私密
         this.userWorks.forEach(work => {
@@ -1572,16 +1762,44 @@ export default {
         this.saveUserWorks()
         this.selectedItems = []
         alert(`已将 ${count} 个作品设为私密`)
-        */
       }
     },
-    toggleFollow(user) {
-      if (user.followStatus === 'followed') {
-        user.followStatus = 'not-followed'
-      } else if (user.followStatus === 'mutual') {
-        user.followStatus = 'not-followed'
-      } else {
-        user.followStatus = 'followed'
+    async toggleFollowUser() {
+      const myId = getCurrentUserId()
+      if (!myId) {
+        alert('请先登录')
+        return
+      }
+      
+      const targetId = this.user.id
+      if (!targetId) return
+
+      try {
+        await apiToggleFollow(targetId, myId)
+        this.isFollowingUser = !this.isFollowingUser
+        // Reload data to update counts
+        this.loadMySectionDataFromBackend()
+      } catch (error) {
+        console.error('关注操作失败', error)
+        alert('操作失败: ' + (error.message || '未知错误'))
+      }
+    },
+    async toggleFollow(user) {
+      const myId = getCurrentUserId()
+      if (!myId) {
+        alert('请先登录')
+        return
+      }
+
+      try {
+        await apiToggleFollow(user.id, myId)
+        
+        // 重新加载社交数据以确保一致性
+        await this.loadMySectionDataFromBackend()
+        
+      } catch (error) {
+        console.error('关注操作失败', error)
+        alert('操作失败: ' + (error.message || '未知错误'))
       }
     },
     getFollowButtonText(status, tab = 'following') {
@@ -1705,7 +1923,7 @@ export default {
         this.$refs.portraitInput.value = ''
       }
     },
-    async submitRoleCard() {
+    submitRoleCard() {
       // 表单验证
       if (!this.roleCardForm.name || !this.roleCardForm.name.trim()) {
         alert('请输入角色名称')
@@ -1740,28 +1958,57 @@ export default {
         return
       }
 
-      const uid = getCurrentUserId()
-      if (!uid) return
-
+      // 保存角色卡数据到localStorage
       try {
+        const roleCards = JSON.parse(localStorage.getItem('roleCards') || '[]')
+        
         if (this.currentRoleCard) {
-          // Update
-          await updateRoleCard(uid, this.currentRoleCard.id, this.roleCardForm)
-          alert('角色卡已更新成功！')
+          // 编辑模式：更新现有角色卡
+          const index = roleCards.findIndex(card => card.id === this.currentRoleCard.id)
+          if (index !== -1) {
+            roleCards[index] = {
+              ...this.currentRoleCard,
+              ...this.roleCardForm,
+              portrait: this.roleCardForm.portrait || this.currentRoleCard.portrait || '',
+              name: this.roleCardForm.name.trim(),
+              hobby: this.roleCardForm.hobby.trim(),
+              backgroundStory: this.roleCardForm.backgroundStory.trim(),
+              // 保留原有的id和submitTime
+              id: this.currentRoleCard.id,
+              submitTime: this.currentRoleCard.submitTime || new Date().toISOString(),
+              status: 'approved'
+            }
+            localStorage.setItem('roleCards', JSON.stringify(roleCards))
+            alert('角色卡已更新成功！')
+          } else {
+            alert('未找到要编辑的角色卡')
+            return
+          }
         } else {
-          // Create
-          await createRoleCard(uid, this.roleCardForm)
+          // 新建模式：创建新角色卡
+          const newRoleCard = {
+            id: Date.now(),
+            ...this.roleCardForm,
+            portrait: this.roleCardForm.portrait || '',
+            name: this.roleCardForm.name.trim(),
+            hobby: this.roleCardForm.hobby.trim(),
+            backgroundStory: this.roleCardForm.backgroundStory.trim(),
+            submitTime: new Date().toISOString(),
+            status: 'approved' // 直接通过，无需审核
+          }
+          roleCards.push(newRoleCard)
+          localStorage.setItem('roleCards', JSON.stringify(roleCards))
           alert('角色卡已创建成功！')
         }
         
         this.closeRoleCardModal()
-        this.loadUserRoleCards() // Reload
+        // 自动展开角色信息面板
         if (!this.showRoleInfo) {
           this.showRoleInfo = true
         }
       } catch (err) {
         console.error('保存角色卡失败', err)
-        alert('提交失败，请重试: ' + (err.message || '未知错误'))
+        alert('提交失败，请重试')
       }
     },
     toggleRoleInfo() {
@@ -2834,6 +3081,28 @@ export default {
   background: rgba(255, 105, 180, 0.1);
   border-color: rgba(255, 105, 180, 0.5);
   color: #ff69b4;
+}
+
+.follow-btn {
+  background: #ff69b4;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 12px;
+}
+
+.follow-btn:hover {
+  background: #ff1493;
+  transform: translateY(-1px);
+}
+
+.follow-btn.followed {
+  background: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .live-tag {
@@ -4019,6 +4288,26 @@ export default {
 
 .follow-modal-content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 105, 180, 0.5);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.history-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.group-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2d2d2d;
+  padding-left: 12px;
+  border-left: 4px solid #ff69b4;
 }
 </style>
 

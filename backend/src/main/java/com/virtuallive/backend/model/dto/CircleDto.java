@@ -21,5 +21,6 @@ public class CircleDto {
     private Integer postCount;
     private String category;
     private Boolean isOfficial;
+    private Integer creatorId;
     private LocalDateTime createdAt;
 }

@@ -33,6 +33,39 @@ public class CircleController {
             return R.error(e.getMessage());
         }
     }
+
+    @PostMapping
+    public R<CircleDto> createCircle(@RequestBody com.virtuallive.backend.model.dto.CircleCreateDto createDto) {
+        try {
+            CircleDto circle = circleService.createCircle(createDto);
+            return R.ok(circle);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+
+    @GetMapping("/my")
+    public R<Page<CircleDto>> getMyCircles(
+            @RequestParam Integer userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        try {
+            Page<CircleDto> circles = circleService.getMyCircles(userId, page, size);
+            return R.ok(circles);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public R<Void> dissolveCircle(@PathVariable Integer id, @RequestParam Integer userId) {
+        try {
+            circleService.dissolveCircle(id, userId);
+            return R.ok(null);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
     
     @GetMapping("/search")
     public R<Page<CircleDto>> searchCircles(
@@ -83,6 +116,22 @@ public class CircleController {
     }
     
       
+    /**
+     * 加入圈子
+     */
+    @PostMapping("/{circleId}/join")
+    public R<Map<String, Object>> joinCircle(
+            @PathVariable Integer circleId,
+            @RequestBody Map<String, Integer> body) {
+        try {
+            Integer userId = body.get("userId");
+            Map<String, Object> result = circleService.joinCircle(circleId, userId);
+            return R.ok("加入成功", result);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+
     /**
      * 退出圈子
      */

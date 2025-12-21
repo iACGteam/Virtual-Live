@@ -53,6 +53,7 @@
               >
                 <button class="dropdown-item" @click="goToUploadVideo">发布视频</button>
                 <button class="dropdown-item" @click="goToGoingLive">开直播</button>
+                <button class="dropdown-item" @click="goToCreateCircle">创建圈子</button>
               </div>
             </div>
             <div class="avatar-dropdown">
@@ -483,6 +484,9 @@
       },
       goToGoingLive() {
         this.$router.push({ path: '/live-manage' }).catch(() => {})
+      },
+      goToCreateCircle() {
+        this.$router.push({ path: '/create-circle' }).catch(() => { })
       },
       goToUserProfile(creator) {
         // 跳转到个人信息页面

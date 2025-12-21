@@ -45,11 +45,19 @@ public class VideoService {
         Video video = videoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("视频不存在"));
         
-        // 增加浏览量
-        video.setViews(video.getViews() + 1);
-        videoRepository.save(video);
+        // 移除在此处增加浏览量的逻辑，改为单独的接口调用
+        // video.setViews(video.getViews() + 1);
+        // videoRepository.save(video);
         
         return convertToDto(video);
+    }
+
+    @Transactional
+    public void increaseViewCount(Integer id) {
+        Video video = videoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("视频不存在"));
+        video.setViews(video.getViews() + 1);
+        videoRepository.save(video);
     }
     
     @Transactional(readOnly = true)

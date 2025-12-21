@@ -93,6 +93,13 @@ export async function getVideoById(id) {
   return request(`/videos/${id}`)
 }
 
+// 增加视频播放量
+export async function increaseViewCount(id) {
+  return request(`/videos/${id}/view`, {
+    method: 'POST'
+  })
+}
+
 // 获取分类视频
 export async function getVideosByCategory(category) {
   return request(`/videos/category/${category}`)
@@ -375,6 +382,42 @@ export async function getUserJoinedCircles(userId, page = 0, size = 20) {
   return request(`/circles/user/${userId}/joined?page=${page}&size=${size}`)
 }
 
+// 创建圈子
+export async function createCircle(data) {
+  return request('/circles', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
+}
+
+// 获取我创建的圈子
+export async function getMyCreatedCircles(userId, page = 0, size = 10) {
+  return request(`/circles/my?userId=${userId}&page=${page}&size=${size}`)
+}
+
+// 解散圈子
+export async function dissolveCircle(circleId, userId) {
+  return request(`/circles/${circleId}?userId=${userId}`, {
+    method: 'DELETE'
+  })
+}
+
+// 加入圈子
+export async function joinCircle(circleId, userId) {
+  return request(`/circles/${circleId}/join`, {
+    method: 'POST',
+    body: { userId }
+  })
+}
+
+// 退出圈子
+export async function leaveCircle(circleId, userId) {
+  return request(`/circles/${circleId}/leave`, {
+    method: 'POST',
+    body: { userId }
+  })
+}
+
 // ==================== 圈子成员相关 API ====================
 
 // 加入/退出圈子
@@ -556,6 +599,13 @@ export async function updateUserProfile(userId, data) {
 // 获取观看历史
 export async function getViewHistory(userId, page = 0, size = 20) {
   return request(`/history/user/${userId}?page=${page}&size=${size}`)
+}
+
+export const getUserHistory = getViewHistory
+
+// 获取用户点赞的视频
+export async function getUserLikedVideos(userId, page = 0, size = 20) {
+  return request(`/likes/user/${userId}?page=${page}&size=${size}`)
 }
 
 // 添加观看历史

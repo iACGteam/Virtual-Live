@@ -44,6 +44,12 @@ const routes = [
     component: UploadVideoView,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/create-circle',
+    name: 'create-circle',
+    component: () => import('../views/CreateCircleView.vue'),
+    meta: { requiresAuth: true }
+  },
 
   //直播间
   {

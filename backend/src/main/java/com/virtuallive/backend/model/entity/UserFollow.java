@@ -25,11 +25,11 @@ public class UserFollow {
     @Column(name = "follow_id")
     private Integer followId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "follower_id", nullable = false)
     private User follower;  // 粉丝（关注者）
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "following_id", nullable = false)
     private User following; // 被关注人
     

@@ -36,6 +36,7 @@
               @mouseenter="handlePostDropdownEnter" @mouseleave="handlePostDropdownLeave">
               <button class="dropdown-item" @click="goToUploadVideo">发布视频</button>
               <button class="dropdown-item" @click="goToGoingLive">开直播</button>
+              <button class="dropdown-item" @click="goToCreateCircle">创建圈子</button>
             </div>
           </div>
           <div class="avatar-dropdown">
@@ -135,28 +136,10 @@
 
 <script>
 import avatarImg from '@/assets/avatar.jpg'
-import cover1 from '@/assets/虚拟主播/视频封面/图像 - 1742412405144.封面.jpg'
-import cover2 from '@/assets/虚拟主播/视频封面/图像 - “在这里见到我，很惊讶吗？”.封面.jpg'
-import cover3 from '@/assets/虚拟主播/视频封面/图像 - 【live2d模型展示】又是白毛与小猫咪（远古库存版）.封面.jpg'
-import cover4 from '@/assets/虚拟主播/视频封面/图像 - 【Live2d模型展示】请问您今天要来点猫猫吗.封面.jpg'
-import cover5 from '@/assets/虚拟主播/视频封面/图像 - 【live2d量贩模型】jk社恐小黑猫，适合内向宝宝的可爱日常公皮，支持vb.封面.jpg'
-import cover6 from '@/assets/虚拟主播/视频封面/图像 - 所有知名虚拟主播的立牌.封面.jpg'
-import cover7 from '@/assets/虚拟主播/视频封面/图像 - 超级简单的虚拟形象直播教程！4分钟教会你添加虚拟人物！.封面.jpg'
-import video1 from '@/assets/虚拟主播/视频/video-1.mp4'
-import video2 from '@/assets/虚拟主播/视频/video-2.mp4'
-import video3 from '@/assets/虚拟主播/视频/video-3.mp4'
-import video4 from '@/assets/虚拟主播/视频/video-4.mp4'
-import video5 from '@/assets/虚拟主播/视频/video-5.mp4'
-import video6 from '@/assets/虚拟主播/视频/video-6.mp4'
-import video7 from '@/assets/虚拟主播/视频/video-7.mp4'
 import { clearAuthToken, getCurrentUserId } from '@/utils/auth'
 import { getUserProfile, getFollowing, getUserFavorites, getViewHistory, getUserPosts, getVideos } from '@/utils/api'
+import { getDemoAsset } from '@/utils/demoDataMap'
 
-const videoCovers = [cover1, cover2, cover3, cover4, cover5, cover6, cover7]
-const coverCycle = index => videoCovers[index % videoCovers.length]
-const videoSources = [video1, video2, video3, video4, video5, video6, video7]
-const shuffledVideoSources = [...videoSources].sort(() => Math.random() - 0.5)
-const videoSourceCycle = index => shuffledVideoSources[index % shuffledVideoSources.length]
 export default {
   name: 'HomeView',
   data() {
@@ -195,159 +178,7 @@ export default {
         ],
         rememberLogin: true
       },
-      backendVideos: [], // 从后端加载的视频
-      shortVideos: [
-        {
-          id: 1,
-          title: '星海航线直播幕后花絮',
-          creator: 'NebulaNova',
-          duration: '02:18',
-          views: '5.8万次观看',
-          tags: ['虚拟singer'],
-          thumbnail: coverCycle(0),
-          videoSrc: videoSourceCycle(0)
-        },
-        {
-          id: 2,
-          title: '虚拟偶像舞台 · 夜幕版本',
-          creator: 'LumiRay',
-          duration: '01:05',
-          views: '3.1万次观看',
-          tags: ['虚拟男V'],
-          thumbnail: coverCycle(1),
-          videoSrc: videoSourceCycle(1)
-        },
-        {
-          id: 3,
-          title: '粉丝互动问答高能合集',
-          creator: 'KiraEcho',
-          duration: '03:44',
-          views: '2.4万次观看',
-          tags: ['虚拟gamer'],
-          thumbnail: coverCycle(2),
-          videoSrc: videoSourceCycle(2)
-        },
-        {
-          id: 4,
-          title: '全息角色建模 timelapse',
-          creator: 'MoriTech',
-          duration: '02:57',
-          views: '1.9万次观看',
-          tags: ['虚拟声优'],
-          thumbnail: coverCycle(3),
-          videoSrc: videoSourceCycle(3)
-        },
-        {
-          id: 5,
-          title: '赛博朋克主题竖屏 MV',
-          creator: 'Vexa',
-          duration: '01:42',
-          views: '4.6万次观看',
-          tags: ['虚拟singer'],
-          thumbnail: coverCycle(4),
-          videoSrc: videoSourceCycle(4)
-        },
-        {
-          id: 6,
-          title: '直播事故剪辑：趣味合集',
-          creator: 'Patchy',
-          duration: '02:10',
-          views: '6.2万次观看',
-          tags: ['虚拟gamer'],
-          thumbnail: coverCycle(5),
-          videoSrc: videoSourceCycle(5)
-        },
-        {
-          id: 7,
-          title: 'AI 虚拟形象调教日常',
-          creator: 'SigmaBot',
-          duration: '01:33',
-          views: '3.7万次观看',
-          tags: ['虚拟声优'],
-          thumbnail: coverCycle(6),
-          videoSrc: videoSourceCycle(6)
-        },
-        {
-          id: 8,
-          title: '赛博城市观光 Vlog',
-          creator: 'MetroMuse',
-          duration: '02:05',
-          views: '2.9万次观看',
-          tags: ['虚拟男V'],
-          thumbnail: coverCycle(7),
-          videoSrc: videoSourceCycle(7)
-        },
-        {
-          id: 9,
-          title: '虚拟美食节目 · 宇宙餐桌',
-          creator: 'ChefNova',
-          duration: '03:12',
-          views: '4.2万次观看',
-          tags: ['虚拟男V'],
-          thumbnail: coverCycle(8),
-          videoSrc: videoSourceCycle(8)
-        },
-        {
-          id: 10,
-          title: '电竞解说高燃瞬间',
-          creator: 'CasterRay',
-          duration: '01:58',
-          views: '7.6万次观看',
-          tags: ['虚拟男V'],
-          thumbnail: coverCycle(9),
-          videoSrc: videoSourceCycle(9)
-        },
-        {
-          id: 11,
-          title: '深夜电台 · 陪伴系列',
-          creator: 'EchoWave',
-          duration: '04:05',
-          views: '3.3万次观看',
-          tags: ['虚拟声优'],
-          thumbnail: coverCycle(10),
-          videoSrc: videoSourceCycle(10)
-        },
-        {
-          id: 12,
-          title: '全息舞狮春节特辑',
-          creator: 'Dynasty Duo',
-          duration: '02:26',
-          views: '5.1万次观看',
-          tags: ['虚拟singer'],
-          thumbnail: coverCycle(11),
-          videoSrc: videoSourceCycle(11)
-        },
-        {
-          id: 13,
-          title: '音乐制作直播：即时 Remix',
-          creator: 'BeatForge',
-          duration: '02:48',
-          views: '4.9万次观看',
-          tags: ['虚拟singer'],
-          thumbnail: coverCycle(12),
-          videoSrc: videoSourceCycle(12)
-        },
-        {
-          id: 14,
-          title: '虚拟野外求生挑战',
-          creator: 'WildBytes',
-          duration: '03:20',
-          views: '2.2万次观看',
-          tags: ['虚拟gamer'],
-          thumbnail: coverCycle(13),
-          videoSrc: videoSourceCycle(13)
-        },
-        {
-          id: 15,
-          title: '粉丝共创剧情互动剧',
-          creator: 'StorySync',
-          duration: '03:08',
-          views: '6.8万次观看',
-          tags: ['虚拟声优'],
-          thumbnail: coverCycle(14),
-          videoSrc: videoSourceCycle(14)
-        }
-      ]
+      backendVideos: [] // 从后端加载的视频
     }
   },
   methods: {
@@ -365,13 +196,27 @@ export default {
           
           const resolveUrl = (url) => {
             if (!url) return null
+            // Check demo asset map first
+            const demoAsset = getDemoAsset(url, 'image')
+            if (demoAsset) return demoAsset
+
             if (url.startsWith('http') || url.startsWith('blob:')) return url
+            
+            // Handle assets path
+            if (url.includes('assets')) {
+                let assetPath = url.replace('@/', '/');
+                if (!assetPath.startsWith('/')) {
+                    assetPath = '/' + assetPath;
+                }
+                return assetPath;
+            }
+
             const cleanUrl = url.startsWith('/') ? url.slice(1) : url
             return `http://127.0.0.1:8081/${cleanUrl}`
           }
 
           this.backendVideos = res.content
-            .filter(v => v.id > 15) // 过滤掉 ID 1-15 的视频，因为它们已经在 shortVideos 中硬编码了
+            // .filter(v => v.id > 15) // 移除ID过滤，允许显示所有后端视频
             .filter(v => !v.tags || !v.tags.includes('__PRIVATE__')) // 过滤掉私密视频
             .map(v => ({
               id: v.id,
@@ -502,6 +347,9 @@ export default {
     goToGoingLive() {
       this.$router.push({ path: '/live-manage' }).catch(() => { })
     },
+    goToCreateCircle() {
+      this.$router.push({ path: '/create-circle' }).catch(() => { })
+    },
     goToUserProfile(creator) {
       // 跳转到个人信息页面
       // 如果需要显示特定用户的信息，可以通过 query 参数传递用户名
@@ -530,8 +378,8 @@ export default {
   },
   computed: {
     allVideos() {
-      // 合并本地硬编码视频和后端加载的视频
-      return [...this.shortVideos, ...this.backendVideos]
+      // 仅使用后端加载的视频
+      return this.backendVideos
     },
     filteredVideos() {
       let videos = []

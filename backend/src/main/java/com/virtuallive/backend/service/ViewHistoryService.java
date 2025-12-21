@@ -1,6 +1,7 @@
 package com.virtuallive.backend.service;
 
 import com.virtuallive.backend.model.dto.VideoDto;
+import com.virtuallive.backend.model.dto.ViewHistoryDto;
 import com.virtuallive.backend.model.entity.User;
 import com.virtuallive.backend.model.entity.Video;
 import com.virtuallive.backend.model.entity.ViewHistory;
@@ -25,18 +26,20 @@ public class ViewHistoryService {
     private final VideoRepository videoRepository;
     private final VideoService videoService; // To convert Video to VideoDto
     
-    public Page<VideoDto> getViewHistory(Integer userId, int page, int size) {
+    @Transactional(readOnly = true)
+    public Page<ViewHistoryDto> getViewHistory(Integer userId, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "viewedAt"));
-        // Only show history from last 30 days
-        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        // Only show history from last 3 days
+        LocalDateTime threeDaysAgo = LocalDateTime.now().minusDays(3);
         
-        Page<ViewHistory> historyPage = viewHistoryRepository.findByUserUserIdAndViewedAtAfter(userId, thirtyDaysAgo, pageRequest);
+        Page<ViewHistory> historyPage = viewHistoryRepository.findPublicHistoryByUserAndDate(userId, threeDaysAgo, pageRequest);
         
         return historyPage.map(history -> {
-            VideoDto dto = videoService.convertToDto(history.getVideo());
-            // We might want to add viewedAt to DTO if needed, but VideoDto doesn't have it.
-            // For now, just return the video info.
-            return dto;
+            VideoDto videoDto = videoService.convertToDto(history.getVideo());
+            return ViewHistoryDto.builder()
+                    .video(videoDto)
+                    .viewedAt(history.getViewedAt())
+                    .build();
         });
     }
     
@@ -46,6 +49,11 @@ public class ViewHistoryService {
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new RuntimeException("视频不存在"));
+        
+        // Check if video is private
+        if (video.getTags() != null && video.getTags().contains("__PRIVATE__")) {
+            return; // Do not add private videos to history
+        }
         
         // Check if recently viewed (e.g. today), if so update time?
         // For simplicity, just add new record.

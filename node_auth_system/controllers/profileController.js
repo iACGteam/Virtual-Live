@@ -96,14 +96,14 @@ exports.getViewHistory = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
     
-    // 计算30天前的日期
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // 计算3天前的日期
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
 
     const viewHistories = await ViewHistory.findAll({
       where: {
         userId: req.user.userId,
-        viewedAt: { [Op.gte]: thirtyDaysAgo }
+        viewedAt: { [Op.gte]: threeDaysAgo }
       },
       include: [
         {
@@ -133,7 +133,7 @@ exports.getViewHistory = async (req, res) => {
     const total = await ViewHistory.count({
       where: {
         userId: req.user.userId,
-        viewedAt: { [Op.gte]: thirtyDaysAgo }
+        viewedAt: { [Op.gte]: threeDaysAgo }
       }
     });
 

@@ -41,6 +41,16 @@ public class VideoController {
             return R.error(e.getMessage());
         }
     }
+
+    @PostMapping("/{id}/view")
+    public R<Void> increaseViewCount(@PathVariable Integer id) {
+        try {
+            videoService.increaseViewCount(id);
+            return R.ok(null);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
     
     @GetMapping("/category/{category}")
     public R<List<VideoDto>> getVideosByCategory(@PathVariable String category) {
