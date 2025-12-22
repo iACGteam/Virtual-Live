@@ -11,6 +11,11 @@ import java.util.List;
 @Repository
 public interface CommentRepository extends JpaRepository<Comment, Integer> {
 
+    // 查询所有评论（包括回复）
+    Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByCreatedAtDesc(Integer postId, Pageable pageable);
+
+    Page<Comment> findByPost_PostIdAndIsDeletedFalseOrderByLikesDesc(Integer postId, Pageable pageable);
+
     // 只查询顶级评论（parentComment 为 null）
     Page<Comment> findByPost_PostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(Integer postId, Pageable pageable);
 

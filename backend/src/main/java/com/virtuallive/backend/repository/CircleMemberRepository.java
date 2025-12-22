@@ -15,6 +15,9 @@ public interface CircleMemberRepository extends JpaRepository<CircleMember, Inte
     
     // 查询成员关系
     Optional<CircleMember> findByCircleAndUserAndIsActiveTrue(Circle circle, User user);
+
+    // 查询成员关系（包含非活跃）
+    Optional<CircleMember> findByCircleAndUser(Circle circle, User user);
     
     // 检查是否是成员
     boolean existsByCircleAndUserAndIsActiveTrue(Circle circle, User user);
@@ -24,6 +27,9 @@ public interface CircleMemberRepository extends JpaRepository<CircleMember, Inte
     
     // 获取用户加入的圈子列表
     Page<CircleMember> findByUserAndIsActiveTrueOrderByJoinedAtDesc(User user, Pageable pageable);
+
+    // 获取用户加入的活跃圈子列表
+    Page<CircleMember> findByUserAndIsActiveTrueAndCircle_IsActiveTrueOrderByJoinedAtDesc(User user, Pageable pageable);
     
     // 统计圈子成员数
     long countByCircleAndIsActiveTrue(Circle circle);

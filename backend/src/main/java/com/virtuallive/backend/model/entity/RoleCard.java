@@ -1,10 +1,12 @@
 package com.virtuallive.backend.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -24,6 +26,8 @@ public class RoleCard {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
+    @ToString.Exclude
     private User user;
     
     @Column(nullable = false)
@@ -37,17 +41,17 @@ public class RoleCard {
     
     private String hobby;
     
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "role_card_personality_tags", joinColumns = @JoinColumn(name = "role_card_id"))
     @Column(name = "tag")
     private List<String> personalityTags;
     
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "role_card_race_tags", joinColumns = @JoinColumn(name = "role_card_id"))
     @Column(name = "tag")
     private List<String> raceTags;
     
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "role_card_appearance_tags", joinColumns = @JoinColumn(name = "role_card_id"))
     @Column(name = "tag")
     private List<String> appearanceTags;
@@ -55,7 +59,7 @@ public class RoleCard {
     @Column(columnDefinition = "TEXT")
     private String backgroundStory;
     
-    @Column(columnDefinition = "TEXT") // Base64 or URL
+    @Column(columnDefinition = "LONGTEXT") // Base64 or URL
     private String portrait;
     
     @Enumerated(EnumType.STRING)

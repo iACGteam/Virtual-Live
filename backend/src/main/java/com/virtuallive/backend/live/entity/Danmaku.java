@@ -13,6 +13,11 @@ public class Danmaku {
     private Integer danmakuId;
 
     private Integer sessionId;
+    
+    private Integer videoId; // 关联 community_posts 表 (视频)
+
+    private Float videoTime; // 视频播放时间点 (秒)
+
     private Integer userId; // 关联 users 表
 
     @Column(columnDefinition = "TEXT")

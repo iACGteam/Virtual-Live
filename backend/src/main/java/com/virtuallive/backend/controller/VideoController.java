@@ -3,6 +3,7 @@ package com.virtuallive.backend.controller;
 import com.virtuallive.backend.model.dto.R;
 import com.virtuallive.backend.model.dto.VideoDto;
 import com.virtuallive.backend.model.dto.VideoUploadDto;
+import com.virtuallive.backend.model.dto.DanmakuDto;
 import com.virtuallive.backend.service.VideoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -123,6 +124,31 @@ public class VideoController {
             return R.ok("更新成功", video);
         } catch (Exception e) {
             return R.error(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}/danmaku")
+    public R<List<DanmakuDto>> getDanmaku(@PathVariable Integer id) {
+        try {
+            List<DanmakuDto> danmakuList = videoService.getDanmaku(id);
+            return R.ok(danmakuList);
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{id}/danmaku")
+    public R<DanmakuDto> sendDanmaku(@PathVariable Integer id, @RequestBody DanmakuDto dto) {
+        try {
+            DanmakuDto result = videoService.sendDanmaku(id, dto);
+            return R.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace(); // 打印堆栈信息到控制台
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = e.toString(); // 如果消息为空，返回异常类型
+            }
+            return R.error(msg);
         }
     }
 }

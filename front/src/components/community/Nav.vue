@@ -42,7 +42,7 @@ export default {
         { key: "discover", label: "发现内容", icon: "✨" },
         { key: "live", label: "直播", icon: "📡" },
         { key: "community", label: "社区", icon: "💬" },
-        { key: "my", label: "我的", icon: "" }
+        { key: "my", label: "我的", icon: "👤" }
       ]
     };
   },

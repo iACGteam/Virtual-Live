@@ -54,7 +54,6 @@
                     关注 {{ userProfile.followings }} · 粉丝 {{ userProfile.followers }}
                   </p>
                 </div>
-                <span class="profile-badge">VIP</span>
               </div>
 
               <section class="favorite-section">
@@ -162,7 +161,7 @@ export default {
         { key: 'discover', label: '发现内容', icon: '✨' },
         { key: 'live', label: '直播', icon: '📡' },
         { key: 'community', label: '社区', icon: '💬' },
-        { key: 'my', label: '我的', icon: '' }
+        { key: 'my', label: '我的', icon: '👤' }
       ],
       userProfile: {
         initials: 'VL',
@@ -369,7 +368,8 @@ export default {
         path: "/video",
         query: {
           id: video.id,
-          src: video.videoSrc
+          src: video.videoSrc,
+          from: 'discover'
         }
       }).href
 

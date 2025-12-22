@@ -15,12 +15,15 @@ public interface VideoRepository extends JpaRepository<Video, Integer> {
 
     @EntityGraph(attributePaths = "author")
     Page<Video> findByIsDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
+
+    @EntityGraph(attributePaths = "author")
+    Page<Video> findByCircleIsNullAndIsDeletedFalseOrderByCreatedAtDesc(Pageable pageable);
     
     @EntityGraph(attributePaths = "author")
     Page<Video> findByCategoryAndIsDeletedFalse(String category, Pageable pageable);
     
     @EntityGraph(attributePaths = "author")
-    @Query("SELECT v FROM Video v WHERE v.isDeleted = false ORDER BY v.views DESC")
+    @Query("SELECT v FROM Video v WHERE v.isDeleted = false AND v.circle IS NULL ORDER BY v.views DESC")
     Page<Video> findPopularVideos(Pageable pageable);
     
     @EntityGraph(attributePaths = "author")
@@ -28,6 +31,9 @@ public interface VideoRepository extends JpaRepository<Video, Integer> {
     
     @EntityGraph(attributePaths = "author")
     Page<Video> findByAuthor_UserIdAndIsDeletedFalse(Integer authorId, Pageable pageable);
+
+    @EntityGraph(attributePaths = "author")
+    Page<Video> findByAuthor_UserIdAndCircleIsNullAndIsDeletedFalse(Integer authorId, Pageable pageable);
     
     @EntityGraph(attributePaths = {"author", "circle"})
     Page<Video> findByCircle_CircleIdAndIsDeletedFalse(Integer circleId, Pageable pageable);

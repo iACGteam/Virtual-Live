@@ -21,7 +21,6 @@ public class CommunityPostCreateDto {
     @NotBlank(message = "标题不能为空")
     private String title;
     
-    @NotBlank(message = "内容不能为空")
     private String content;
     
     @NotNull(message = "作者ID不能为空")

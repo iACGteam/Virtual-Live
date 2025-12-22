@@ -17,6 +17,7 @@ public class RoleCardService {
     private final RoleCardRepository roleCardRepository;
     private final UserRepository userRepository;
     
+    @Transactional(readOnly = true)
     public List<RoleCard> getUserRoleCards(Integer userId) {
         return roleCardRepository.findByUserUserIdOrderBySubmitTimeDesc(userId);
     }

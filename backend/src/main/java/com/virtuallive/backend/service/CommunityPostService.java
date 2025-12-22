@@ -30,6 +30,7 @@ public class CommunityPostService {
     
     private final VideoRepository videoRepository;
     private final UserRepository userRepository;
+    private final com.virtuallive.backend.repository.CircleRepository circleRepository;
     private final VideoProcessingService videoProcessingService;
     
     /**
@@ -46,8 +47,7 @@ public class CommunityPostService {
         
         Page<Video> posts;
         if (circleId != null) {
-            // TODO: 实现圈子过滤（需要在Video实体中添加circleId字段）
-            posts = videoRepository.findByIsDeletedFalseOrderByCreatedAtDesc(pageable);
+            posts = videoRepository.findByCircle_CircleIdAndIsDeletedFalse(circleId, pageable);
         } else {
             posts = videoRepository.findByIsDeletedFalseOrderByCreatedAtDesc(pageable);
         }
@@ -94,13 +94,27 @@ public class CommunityPostService {
         Video post = Video.builder()
                 .author(author)
                 .title(createDto.getTitle())
-                .content(createDto.getContent())
+                .content(createDto.getContent() != null ? createDto.getContent() : "")
                 .category(createDto.getCategory())
                 .tags(createDto.getTags())
                 .build();
+
+        if (createDto.getCircleId() != null) {
+            com.virtuallive.backend.model.entity.Circle circle = circleRepository.findById(createDto.getCircleId())
+                    .orElseThrow(() -> new RuntimeException("圈子不存在"));
+            post.setCircle(circle);
+            
+            // 更新圈子帖子数量
+            circle.setPostCount(circle.getPostCount() + 1);
+            circleRepository.save(circle);
+        }
         
-        // 处理封面
-        if (createDto.getCoverImageUrl() != null && !createDto.getCoverImageUrl().isEmpty()) {
+        // 处理封面和多图
+        if (createDto.getImageUrls() != null && !createDto.getImageUrls().isEmpty()) {
+            // 如果有多张图片，将它们用逗号连接存储在coverImageUrl中
+            String joinedUrls = String.join(",", createDto.getImageUrls());
+            post.setCoverImageUrl(joinedUrls);
+        } else if (createDto.getCoverImageUrl() != null && !createDto.getCoverImageUrl().isEmpty()) {
             post.setCoverImageUrl(createDto.getCoverImageUrl());
         }
         
@@ -181,6 +195,16 @@ public class CommunityPostService {
         
         post.setIsDeleted(true);
         videoRepository.save(post);
+        
+        // 更新圈子帖子数量
+        if (post.getCircle() != null) {
+            com.virtuallive.backend.model.entity.Circle circle = post.getCircle();
+            if (circle.getPostCount() > 0) {
+                circle.setPostCount(circle.getPostCount() - 1);
+                circleRepository.save(circle);
+            }
+        }
+        
         log.info("删除社区帖子成功: id={}, title={}", post.getPostId(), post.getTitle());
     }
     
@@ -248,8 +272,19 @@ public class CommunityPostService {
                 .build();
         
         // 处理多图片（如果存储在coverImageUrl中，用分隔符分隔）
-        if (post.getCoverImageUrl() != null && post.getCoverImageUrl().contains(",")) {
-            dto.setImageUrls(Arrays.asList(post.getCoverImageUrl().split(",")));
+        if (post.getCoverImageUrl() != null) {
+            if (post.getCoverImageUrl().contains(",")) {
+                dto.setImageUrls(Arrays.asList(post.getCoverImageUrl().split(",")));
+                // 设置第一张图为封面
+                dto.setCoverImageUrl(dto.getImageUrls().get(0));
+            } else {
+                dto.setImageUrls(Arrays.asList(post.getCoverImageUrl()));
+            }
+        }
+        
+        if (post.getCircle() != null) {
+            dto.setCircleId(post.getCircle().getCircleId());
+            dto.setCircleName(post.getCircle().getName());
         }
         
         return dto;

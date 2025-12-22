@@ -20,6 +20,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CircleService {
     
     private final CircleRepository circleRepository;
@@ -52,16 +53,26 @@ public class CircleService {
                 .name(createDto.getName())
                 .description(createDto.getDescription())
                 .coverImageUrl(createDto.getCoverImageUrl())
-                .avatarUrl(createDto.getAvatarUrl())
+                .avatarUrl(userRepository.findById(createDto.getCreatorId()).map(User::getAvatarUrl).orElse(createDto.getAvatarUrl()))
                 .category(createDto.getCategory())
                 .creatorId(createDto.getCreatorId())
-                .memberCount(1) // Creator is the first member
+                .memberCount(0) // Creator is not counted as a fan
                 .build();
         
         circle = circleRepository.save(circle);
         
-        // Auto join the creator
-        joinCircle(circle.getCircleId(), createDto.getCreatorId());
+        // Manually add creator as member without incrementing count
+        User user = userRepository.findById(createDto.getCreatorId())
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                
+        CircleMember member = CircleMember.builder()
+                .circle(circle)
+                .user(user)
+                .postCount(0)
+                .isActive(true)
+                .build();
+        
+        circleMemberRepository.save(member);
         
         return convertToDto(circle);
     }
@@ -120,21 +131,17 @@ public class CircleService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         
-        // 检查是否已经是成员
-        Optional<CircleMember> existingMember = circleMemberRepository
-                .findByCircleAndUserAndIsActiveTrue(circle, user);
-        
-        if (existingMember.isPresent()) {
-            throw new RuntimeException("已经是圈子成员");
-        }
-        
-        // 检查是否有被禁用的记录，如果有则重新激活
-        Optional<CircleMember> inactiveMember = circleMemberRepository
-                .findByCircleAndUserAndIsActiveTrue(circle, user);
+        // 查找任何状态的成员记录
+        Optional<CircleMember> existingMemberOpt = circleMemberRepository
+                .findByCircleAndUser(circle, user);
         
         CircleMember member;
-        if (inactiveMember.isPresent()) {
-            member = inactiveMember.get();
+        if (existingMemberOpt.isPresent()) {
+            member = existingMemberOpt.get();
+            if (Boolean.TRUE.equals(member.getIsActive())) {
+                throw new RuntimeException("已经是圈子成员");
+            }
+            // 重新激活
             member.setIsActive(true);
         } else {
             member = CircleMember.builder()
@@ -223,7 +230,7 @@ public class CircleService {
         
         Pageable pageable = PageRequest.of(page, size);
         return circleMemberRepository
-                .findByUserAndIsActiveTrueOrderByJoinedAtDesc(user, pageable)
+                .findByUserAndIsActiveTrueAndCircle_IsActiveTrueOrderByJoinedAtDesc(user, pageable)
                 .map(member -> convertToDto(member.getCircle()));
     }
     
@@ -243,11 +250,19 @@ public class CircleService {
     }
     
     private CircleDto convertToDto(Circle circle) {
+        // 动态获取创建者的最新头像
+        String creatorAvatar = circle.getAvatarUrl();
+        if (circle.getCreatorId() != null) {
+            creatorAvatar = userRepository.findById(circle.getCreatorId())
+                    .map(User::getAvatarUrl)
+                    .orElse(circle.getAvatarUrl());
+        }
+
         return CircleDto.builder()
                 .id(circle.getCircleId())
                 .name(circle.getName())
                 .description(circle.getDescription())
-                .avatarUrl(circle.getAvatarUrl())
+                .avatarUrl(creatorAvatar)
                 .coverImageUrl(circle.getCoverImageUrl())
                 .memberCount(circle.getMemberCount())
                 .postCount(circle.getPostCount())

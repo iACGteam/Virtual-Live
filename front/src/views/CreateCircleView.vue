@@ -61,6 +61,7 @@
           </div>
 
           <div class="actions">
+            <button class="cancel-btn" @click="goBack">取消创建</button>
             <button class="submit-btn" @click="handleSubmit" :disabled="!isValid">立即创建</button>
           </div>
         </div>
@@ -162,7 +163,7 @@ export default {
         const payload = {
           name: this.form.name,
           description: this.form.description,
-          coverUrl: finalCoverUrl,
+          coverImageUrl: finalCoverUrl,
           creatorId: userId
         }
 
@@ -382,6 +383,24 @@ export default {
   margin-top: 40px;
   display: flex;
   justify-content: center;
+  gap: 20px;
+}
+
+.cancel-btn {
+  padding: 14px 48px;
+  background: #f0f0f0;
+  color: #666;
+  border: none;
+  border-radius: 24px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+  color: #333;
 }
 
 .submit-btn {

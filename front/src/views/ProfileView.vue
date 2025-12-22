@@ -134,7 +134,12 @@
       <section class="hero">
         <div class="cover"></div>
         <div class="profile-card">
-          <img class="avatar" :src="user.avatar" alt="avatar">
+          <div class="avatar-wrapper" @click.stop="openAvatarModal">
+            <img class="avatar" :src="user.avatar" alt="avatar">
+            <div class="avatar-overlay">
+              <span>查看大图</span>
+            </div>
+          </div>
           <div class="info">
             <div class="name-row">
               <h1>{{ user.name }}</h1>
@@ -542,6 +547,68 @@
           </div>
         </div>
 
+        <div
+          v-else-if="activeTab === 'circles'"
+          class="circles-container"
+        >
+          <!-- 我的圈子 -->
+          <div class="circles-section">
+            <h3 class="section-title">我的圈子</h3>
+            <div v-if="userCircle" class="circle-card-wrapper">
+              <div class="circle-card" @click="goToCircle(userCircle.id)">
+                <div class="circle-cover">
+                  <img :src="userCircle.cover || userCircle.coverImageUrl || require('@/assets/logo.png')" alt="cover">
+                </div>
+                <div class="circle-info">
+                  <h3>{{ userCircle.name }}</h3>
+                  <p>{{ userCircle.description }}</p>
+                  <div class="circle-stats">
+                    <span>{{ userCircle.memberCount || 0 }} 粉丝</span>
+                    <span>{{ userCircle.postCount || 0 }} 帖子</span>
+                  </div>
+                </div>
+              </div>
+              <div class="circle-actions">
+                <button class="action-btn enter" @click.stop="goToCircle(userCircle.id)">进入圈子</button>
+                <button class="action-btn delete" @click.stop="handleDeleteCircle(userCircle.id)">删除圈子</button>
+              </div>
+            </div>
+            <div v-else class="no-circle-state">
+              <p>还未创建圈子</p>
+              <button class="create-circle-btn" @click="goToCreateCircle">创建圈子</button>
+            </div>
+          </div>
+
+          <!-- 加入的圈子 -->
+          <div class="circles-section">
+            <h3 class="section-title">加入的圈子</h3>
+            <div v-if="circlesList && circlesList.filter(c => !c.isMyCircle).length > 0" class="circles-list">
+              <div v-for="circle in circlesList.filter(c => !c.isMyCircle)" :key="circle.id" class="circle-card-wrapper">
+                <div class="circle-card" @click="goToCircle(circle.id)">
+                  <div class="circle-cover">
+                    <img :src="circle.avatar || circle.coverImageUrl || require('@/assets/logo.png')" alt="cover">
+                  </div>
+                  <div class="circle-info">
+                    <h3>{{ circle.name }}</h3>
+                    <p>{{ circle.description }}</p>
+                    <div class="circle-stats">
+                      <span>{{ circle.memberCount || 0 }} 粉丝</span>
+                      <span>{{ circle.postCount || 0 }} 帖子</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="circle-actions">
+                  <button class="action-btn enter" @click.stop="goToCircle(circle.id)">进入圈子</button>
+                  <button class="action-btn quit" @click.stop="handleQuitCircle(circle.id)">退出圈子</button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="no-circle-state">
+              <p>还未加入其他圈子</p>
+            </div>
+          </div>
+        </div>
+
         <div v-else class="empty-state">
         </div>
       </section>
@@ -647,6 +714,7 @@
               <div class="user-name-row">
                 <span class="user-name">{{ user.name }}</span>
                 <span v-if="user.verified" class="verified-badge">✓</span>
+                <span v-if="followModalTab === 'circles' && user.isMyCircle" class="my-circle-badge">我的圈子</span>
               </div>
               <div v-if="user.title" class="user-title">{{ user.title }}</div>
               <div v-if="user.subtitle" class="user-subtitle">{{ user.subtitle }}</div>
@@ -826,6 +894,26 @@
         </div>
       </div>
     </div>
+
+    <!-- 头像放大弹窗 -->
+    <div v-if="showAvatarModal" class="avatar-modal-overlay" @click.self="closeAvatarModal">
+      <div class="avatar-modal">
+        <button class="close-btn" @click="closeAvatarModal">✕</button>
+        <div class="avatar-large-container">
+          <img :src="user.avatar" alt="大头像" class="avatar-large">
+        </div>
+        <div class="avatar-actions">
+          <button v-if="isOwner" class="change-avatar-btn" @click="triggerFileInput">更换头像</button>
+          <input
+            type="file"
+            ref="avatarInput"
+            accept="image/*"
+            style="display: none"
+            @change="handleFileChange"
+          >
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -843,10 +931,18 @@ import {
   getUserLikedVideos,
   getUserHistory,
   getUserCircles,
+  getMyCreatedCircles,
   deleteVideo,
   toggleVideoLike,
   toggleFollow as apiToggleFollow,
-  checkFollow
+  checkFollow,
+  dissolveCircle,
+  leaveCircle,
+  uploadImage,
+  updateUserProfile,
+  getUserRoleCards,
+  createRoleCard,
+  updateRoleCard
 } from '@/utils/api'
 import { updateMockUserPassword } from '@/data/mockUsers'
 import { getDemoAsset } from '@/utils/demoDataMap'
@@ -860,7 +956,7 @@ export default {
         { key: 'discover', label: '发现内容', icon: '✨' },
         { key: 'live', label: '直播', icon: '📡' },
         { key: 'community', label: '社区', icon: '💬' },
-        { key: 'my', label: '我的', icon: '' }
+        { key: 'my', label: '我的', icon: '👤' }
       ],
       activeNav: 'my',
       user: {
@@ -893,8 +989,10 @@ export default {
         { key: 'works', label: '作品', badge: null },
         { key: 'likes', label: '喜欢' },
         { key: 'history', label: '观看历史' },
+        { key: 'circles', label: '圈子' },
       ],
       activeTab: 'works',
+      userCircle: null, // 用户创建的圈子
       workType: 'all', // 'all' 或 'private'
       workSearchQuery: '', // 作品搜索关键词
       showDateFilter: false, // 是否显示日期筛选面板
@@ -916,6 +1014,7 @@ export default {
       sortDropdownTimer: null,
       isBatchMode: false,
       selectedItems: [],
+      roleCards: [],
       showRoleCardModal: false,
       roleCardForm: {
         portrait: '',
@@ -947,7 +1046,8 @@ export default {
       likedVideoIds: [1, 5, 7, 10, 13, 15],
       userWorks: [],
       isOwner: true,
-      isFollowingUser: false
+      isFollowingUser: false,
+      showAvatarModal: false
     }
   },
   created() {
@@ -958,6 +1058,7 @@ export default {
     })
     // 加载“我的”页面依赖的用户独有数据（关注/粉丝/圈子/收藏）
     this.loadMySectionDataFromBackend()
+    this.loadUserCircle()
   },
   computed: {
     groupedHistory() {
@@ -1079,7 +1180,13 @@ export default {
       }
       
       // 排序（仅对关注列表进行排序，粉丝/圈子列表不排序）
-      if (this.followModalTab === 'following' && this.selectedSort !== '综合排序') {
+      if (this.followModalTab === 'circles') {
+        list.sort((a, b) => {
+             if (a.isMyCircle && !b.isMyCircle) return -1;
+             if (!a.isMyCircle && b.isMyCircle) return 1;
+             return 0;
+         })
+      } else if (this.followModalTab === 'following' && this.selectedSort !== '综合排序') {
         const sortedList = [...list]
         if (this.selectedSort === '最近关注') {
           sortedList.sort((a, b) => {
@@ -1100,20 +1207,14 @@ export default {
       return list
     },
     currentRoleCard() {
-      // 从localStorage获取角色卡，直接显示最新的
-      try {
-        const roleCards = JSON.parse(localStorage.getItem('roleCards') || '[]')
-        if (roleCards.length > 0) {
-          // 按提交时间排序，取最新的
-          const sortedCards = [...roleCards].sort((a, b) => {
-            const timeA = new Date(a.submitTime || 0).getTime()
-            const timeB = new Date(b.submitTime || 0).getTime()
-            return timeB - timeA
-          })
-          return sortedCards[0]
-        }
-      } catch (err) {
-        console.warn('加载角色卡失败', err)
+      if (this.roleCards && this.roleCards.length > 0) {
+        // 按提交时间排序，取最新的
+        const sortedCards = [...this.roleCards].sort((a, b) => {
+          const timeA = new Date(a.submitTime || 0).getTime()
+          const timeB = new Date(b.submitTime || 0).getTime()
+          return timeB - timeA
+        })
+        return sortedCards[0]
       }
       return null
     }
@@ -1157,6 +1258,120 @@ export default {
     }
   },
   methods: {
+    openAvatarModal() {
+      console.log('Open avatar modal clicked')
+      this.showAvatarModal = true
+    },
+    closeAvatarModal() {
+      this.showAvatarModal = false
+    },
+    triggerFileInput() {
+      this.$refs.avatarInput.click()
+    },
+    async handleFileChange(event) {
+      const file = event.target.files[0]
+      if (!file) return
+
+      try {
+        // Upload image
+        const uploadResult = await uploadImage(file)
+        let imageUrl = ''
+        if (uploadResult && typeof uploadResult === 'object') {
+            imageUrl = uploadResult.url
+        } else {
+            imageUrl = uploadResult
+        }
+        
+        // Update user profile
+        const userId = getCurrentUserId()
+        const updatedProfile = await updateUserProfile(userId, {
+          avatar: imageUrl
+        })
+
+        // Update local state
+        if (updatedProfile && updatedProfile.avatarUrl) {
+          this.user.avatar = updatedProfile.avatarUrl
+          this.panel.avatar = updatedProfile.avatarUrl
+        } else {
+          this.user.avatar = imageUrl
+          this.panel.avatar = imageUrl
+        }
+        
+        // Close modal
+        this.closeAvatarModal()
+        
+        alert('头像更新成功')
+      } catch (error) {
+        console.error('Failed to update avatar:', error)
+        alert('头像更新失败: ' + (error.message || '未知错误'))
+      }
+    },
+    async loadUserCircle() {
+      try {
+        const userId = getCurrentUserId()
+        if (!userId) return
+        const circlesPage = await getMyCreatedCircles(userId)
+        if (circlesPage && circlesPage.content && circlesPage.content.length > 0) {
+          this.userCircle = circlesPage.content[0] // 假设一个用户只能创建一个圈子
+        } else {
+          this.userCircle = null
+        }
+      } catch (error) {
+        console.error('Failed to load user circle:', error)
+      }
+    },
+    goToCreateCircle() {
+      this.$router.push('/community/create')
+    },
+    goToCircle(circleId) {
+      // 获取圈子信息以便传递给详情页
+      const circle = this.circlesList.find(c => c.id === circleId) || 
+                     (this.userCircle && this.userCircle.id === circleId ? this.userCircle : null)
+      
+      if (circle) {
+        this.$router.push({
+          path: "/com-detail",
+          query: {
+            id: circle.id,
+            name: circle.name,
+            avatar: circle.avatar || circle.cover || circle.coverImageUrl
+          }
+        })
+      } else {
+        // Fallback if circle not found in list (shouldn't happen often)
+        this.$router.push({
+          path: "/com-detail",
+          query: { id: circleId }
+        })
+      }
+    },
+    async handleDeleteCircle(circleId) {
+      if (!confirm('确定要删除这个圈子吗？此操作不可撤销。')) return
+      
+      const userId = getCurrentUserId()
+      try {
+        await dissolveCircle(circleId, userId)
+        alert('圈子已删除')
+        this.userCircle = null
+        this.loadMySectionDataFromBackend() // Refresh lists
+      } catch (error) {
+        console.error('删除圈子失败', error)
+        alert('删除失败: ' + (error.message || '未知错误'))
+      }
+    },
+    async handleQuitCircle(circleId) {
+      if (!confirm('确定要退出这个圈子吗？')) return
+      
+      const userId = getCurrentUserId()
+      try {
+        await leaveCircle(circleId, userId)
+        alert('已退出圈子')
+        this.loadMySectionDataFromBackend() // Refresh lists
+      } catch (error) {
+        console.error('退出圈子失败', error)
+        alert('退出失败: ' + (error.message || '未知错误'))
+      }
+    },
     async loadMySectionDataFromBackend() {
       const currentUid = getCurrentUserId()
       const queryId = this.$route.query.id
@@ -1184,7 +1399,7 @@ export default {
                 ...this.user,
                 id: profile.id,
                 name: profile.username,
-                avatar: profile.avatarUrl || this.user.avatar,
+                avatar: profile.avatarUrl || require('@/assets/avatar.jpg'),
                 following: profile.followingCount || 0,
                 followers: profile.followersCount || 0,
                 circles: profile.circlesCount || 0,
@@ -1196,7 +1411,7 @@ export default {
                 this.panel = {
                     ...this.panel,
                     name: profile.username,
-                    avatar: profile.avatarUrl || this.panel.avatar,
+                    avatar: profile.avatarUrl || require('@/assets/avatar.jpg'),
                     followings: profile.followingCount || 0,
                     followers: profile.followersCount || 0,
                     circles: profile.circlesCount || 0,
@@ -1277,7 +1492,9 @@ export default {
             name: circle.name,
             avatar: circle.avatarUrl || circle.coverImageUrl || require('@/assets/community/avatar1.jpg'),
             title: '圈子',
-            description: circle.description || '暂无描述'
+            description: circle.description || '暂无描述',
+            creatorId: circle.creatorId,
+            isMyCircle: circle.creatorId === uid
           }))
         } else {
           this.circlesList = []
@@ -1295,6 +1512,9 @@ export default {
 
         // 6. 加载当前标签页数据
         this.loadActiveTabData()
+
+        // 7. 加载角色卡
+        await this.loadRoleCards(uid)
         
       } catch (e) {
         console.error('Failed to load profile data', e)
@@ -1319,6 +1539,8 @@ export default {
                     views: `${v.views}次观看`,
                     tags: v.tags ? v.tags.split(',') : [],
                     thumbnailColor: v.coverImageUrl ? `url(${v.coverImageUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)',
+                    circleId: v.circleId,
+                    circleName: v.circleName
                 }))
                 this.likedVideoIds = this.shortVideos.map(v => v.id)
             } else if (this.activeTab === 'history') {
@@ -1396,8 +1618,24 @@ export default {
         this.panel.favorites = preview
         // 喜欢总数（以收藏数近似呈现）
         this.panel.likes = String(favList.length)
+
+        // 6. 加载角色卡
+        await this.loadRoleCards(uid)
       } catch (err) {
         console.warn('加载我的数据失败', err)
+      }
+    },
+    async loadRoleCards(userId) {
+      try {
+        const res = await getUserRoleCards(userId)
+        if (res && Array.isArray(res)) {
+          this.roleCards = res
+        } else {
+          this.roleCards = []
+        }
+      } catch (error) {
+        console.warn('加载角色卡失败', error)
+        this.roleCards = []
       }
     },
     resolveUrl(url) {
@@ -1785,6 +2023,11 @@ export default {
       }
     },
     async toggleFollow(user) {
+      if (this.followModalTab === 'circles') {
+          this.goToCircle(user.id)
+          return
+      }
+
       const myId = getCurrentUserId()
       if (!myId) {
         alert('请先登录')
@@ -1804,12 +2047,7 @@ export default {
     },
     getFollowButtonText(status, tab = 'following') {
       if (tab === 'circles') {
-        const circleMap = {
-          'joined': '已加入',
-          'followed': '加入圈子',
-          'not-followed': '加入圈子'
-        }
-        return circleMap[status] || '加入圈子'
+        return '进入圈子'
       }
 
       const statusMap = {
@@ -1865,6 +2103,20 @@ export default {
       if (this.isBatchMode) {
         return
       }
+      
+      // 如果是圈子帖子，跳转到圈子详情页
+      if (video.circleId) {
+        this.$router.push({
+          path: '/com-detail',
+          query: { 
+            id: video.circleId,
+            name: video.circleName,
+            highlightPostId: video.id // 传递帖子ID以便高亮或定位（需ComDetail支持）
+          }
+        }).catch(() => {})
+        return
+      }
+
       // 跳转到视频页面，传递视频ID
       this.$router.push({ 
         path: '/video', 
@@ -1923,7 +2175,7 @@ export default {
         this.$refs.portraitInput.value = ''
       }
     },
-    submitRoleCard() {
+    async submitRoleCard() {
       // 表单验证
       if (!this.roleCardForm.name || !this.roleCardForm.name.trim()) {
         alert('请输入角色名称')
@@ -1958,48 +2210,34 @@ export default {
         return
       }
 
-      // 保存角色卡数据到localStorage
+      // 保存角色卡数据
       try {
-        const roleCards = JSON.parse(localStorage.getItem('roleCards') || '[]')
-        
-        if (this.currentRoleCard) {
-          // 编辑模式：更新现有角色卡
-          const index = roleCards.findIndex(card => card.id === this.currentRoleCard.id)
-          if (index !== -1) {
-            roleCards[index] = {
-              ...this.currentRoleCard,
-              ...this.roleCardForm,
-              portrait: this.roleCardForm.portrait || this.currentRoleCard.portrait || '',
-              name: this.roleCardForm.name.trim(),
-              hobby: this.roleCardForm.hobby.trim(),
-              backgroundStory: this.roleCardForm.backgroundStory.trim(),
-              // 保留原有的id和submitTime
-              id: this.currentRoleCard.id,
-              submitTime: this.currentRoleCard.submitTime || new Date().toISOString(),
-              status: 'approved'
-            }
-            localStorage.setItem('roleCards', JSON.stringify(roleCards))
-            alert('角色卡已更新成功！')
-          } else {
-            alert('未找到要编辑的角色卡')
+        const userId = getCurrentUserId()
+        if (!userId) {
+            alert('请先登录')
             return
-          }
-        } else {
-          // 新建模式：创建新角色卡
-          const newRoleCard = {
-            id: Date.now(),
+        }
+
+        const cardData = {
             ...this.roleCardForm,
             portrait: this.roleCardForm.portrait || '',
             name: this.roleCardForm.name.trim(),
             hobby: this.roleCardForm.hobby.trim(),
             backgroundStory: this.roleCardForm.backgroundStory.trim(),
-            submitTime: new Date().toISOString(),
-            status: 'approved' // 直接通过，无需审核
-          }
-          roleCards.push(newRoleCard)
-          localStorage.setItem('roleCards', JSON.stringify(roleCards))
+        }
+
+        if (this.currentRoleCard) {
+          // 编辑模式：更新现有角色卡
+          await updateRoleCard(userId, this.currentRoleCard.id, cardData)
+          alert('角色卡已更新成功！')
+        } else {
+          // 新建模式：创建新角色卡
+          await createRoleCard(userId, cardData)
           alert('角色卡已创建成功！')
         }
+        
+        // 重新加载角色卡
+        await this.loadRoleCards(userId)
         
         this.closeRoleCardModal()
         // 自动展开角色信息面板
@@ -2008,7 +2246,7 @@ export default {
         }
       } catch (err) {
         console.error('保存角色卡失败', err)
-        alert('提交失败，请重试')
+        alert('提交失败: ' + (err.message || '未知错误'))
       }
     },
     toggleRoleInfo() {
@@ -3029,13 +3267,112 @@ export default {
   position: relative;
 }
 
-.profile-card .avatar {
+/* Avatar Modal Styles */
+.avatar-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.avatar-modal {
+  background: transparent;
+  padding: 20px;
+  border-radius: 12px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.avatar-large-container {
+  width: 400px;
+  height: 400px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.avatar-large {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.avatar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.change-avatar-btn {
+  background: #ff69b4;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);
+}
+
+.change-avatar-btn:hover {
+  background: #ff1493;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 105, 180, 0.4);
+}
+
+.avatar-wrapper {
+  position: relative;
+  cursor: pointer;
   width: 120px;
   height: 120px;
   border-radius: 28px;
+  overflow: hidden;
   border: 4px solid rgba(255, 255, 255, 0.9);
-  object-fit: cover;
   box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+}
+
+.avatar-wrapper .avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-overlay span {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .info {
@@ -4308,6 +4645,246 @@ export default {
   color: #2d2d2d;
   padding-left: 12px;
   border-left: 4px solid #ff69b4;
+}
+
+/* 圈子相关样式 */
+.circles-container {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.circles-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2d2d2d;
+  padding-left: 12px;
+  border-left: 4px solid #ff69b4;
+}
+
+.circles-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.circle-card-wrapper {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.circle-card-wrapper:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.circle-card {
+  display: flex;
+  padding: 16px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.circle-cover {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-right: 16px;
+}
+
+.circle-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.circle-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.circle-info h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  color: #2d2d2d;
+}
+
+.circle-info p {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #666;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.circle-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.circle-actions {
+  padding: 12px 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.action-btn.enter {
+  background: #ff69b4;
+  color: #fff;
+}
+
+.action-btn.enter:hover {
+  background: #ff4da6;
+}
+
+.action-btn.delete, .action-btn.quit {
+  background: #fff;
+  border-color: #ff4d4f;
+  color: #ff4d4f;
+}
+
+.action-btn.delete:hover, .action-btn.quit:hover {
+  background: #fff1f0;
+}
+
+.no-circle-state {
+  text-align: center;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  color: #666;
+}
+
+.create-circle-btn {
+  margin-top: 16px;
+  padding: 8px 24px;
+  background: #ff69b4;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.create-circle-btn:hover {
+  background: #ff4da6;
+  transform: translateY(-1px);
+}
+
+.my-circle-badge {
+  font-size: 0.75rem;
+  background: #ff69b4;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.circle-cover {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.circle-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.circle-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.circle-info h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.circle-info p {
+  margin: 0 0 12px;
+  color: #666;
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.circle-stats {
+  display: flex;
+  gap: 16px;
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.no-circle-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #666;
+}
+
+.no-circle-state p {
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+}
+
+.create-circle-btn {
+  padding: 10px 24px;
+  background: #ff69b4;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.create-circle-btn:hover {
+  background: #ff4da6;
 }
 </style>
 

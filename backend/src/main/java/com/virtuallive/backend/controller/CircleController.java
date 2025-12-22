@@ -200,9 +200,10 @@ public class CircleController {
             @PathVariable Integer circleId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "new") String sort) {
+            @RequestParam(defaultValue = "new") String sort,
+            @RequestParam(required = false) Integer userId) {
         try {
-            Page<VideoDto> posts = postService.getCirclePosts(circleId, page, size, sort);
+            Page<VideoDto> posts = postService.getCirclePosts(circleId, page, size, sort, userId);
             return R.ok(posts);
         } catch (Exception e) {
             return R.error(e.getMessage());

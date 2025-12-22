@@ -19,6 +19,7 @@ public class RoleCardController {
     @GetMapping("/user/{userId}")
     public R<List<RoleCard>> getUserRoleCards(@PathVariable Integer userId) {
         try {
+            // 确保只返回该用户的角色卡
             List<RoleCard> cards = roleCardService.getUserRoleCards(userId);
             return R.ok(cards);
         } catch (Exception e) {

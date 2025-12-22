@@ -43,7 +43,7 @@ public class Video {
     @Column(name = "tags", length = 200)
     private String tags;
     
-    @Column(name = "cover_image_url", length = 500)
+    @Column(name = "cover_image_url", columnDefinition = "TEXT")
     private String coverImageUrl;
     
     @Column(name = "video_url", length = 500)

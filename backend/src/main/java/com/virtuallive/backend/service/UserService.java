@@ -27,7 +27,8 @@ public class UserService {
         long followersCount = followService.getFollowerCount(userId);
         long followingCount = followService.getFollowingCount(userId);
         long circlesCount = circleService.getUserJoinedCircles(userId, 0, 1).getTotalElements();
-        long likesCount = likeRepository.countVideoLikesByAuthorId(userId);
+        // 修改为统计用户点赞的数量（我喜欢的），而不是用户收到的点赞数
+        long likesCount = likeRepository.countByUserAndContentType(user, com.virtuallive.backend.model.entity.Like.ContentType.post);
         
         return UserProfileDto.builder()
                 .id(user.getUserId())
@@ -61,6 +62,10 @@ public class UserService {
         
         if (request.getSignature() != null) {
             user.setIntroduction(request.getSignature());
+        }
+        
+        if (request.getAvatar() != null && !request.getAvatar().trim().isEmpty()) {
+            user.setAvatarUrl(request.getAvatar());
         }
         
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {

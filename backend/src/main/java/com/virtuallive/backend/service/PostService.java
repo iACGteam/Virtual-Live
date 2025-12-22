@@ -2,8 +2,10 @@ package com.virtuallive.backend.service;
 
 import com.virtuallive.backend.model.dto.VideoDto;
 import com.virtuallive.backend.model.dto.VideoUploadDto;
+import com.virtuallive.backend.model.entity.Like;
 import com.virtuallive.backend.model.entity.User;
 import com.virtuallive.backend.model.entity.Video;
+import com.virtuallive.backend.repository.LikeRepository;
 import com.virtuallive.backend.repository.UserRepository;
 import com.virtuallive.backend.repository.VideoRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class PostService {
     
     private final VideoRepository videoRepository;
     private final UserRepository userRepository;
+    private final LikeRepository likeRepository;
     private final VideoProcessingService videoProcessingService;
     
     private static final String UPLOAD_DIR = "uploads/";
@@ -57,7 +60,7 @@ public class PostService {
                 pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         }
         
-        Page<Video> videos = videoRepository.findByIsDeletedFalseOrderByCreatedAtDesc(pageable);
+        Page<Video> videos = videoRepository.findByCircleIsNullAndIsDeletedFalseOrderByCreatedAtDesc(pageable);
         return videos.map(this::convertToDto);
     }
     
@@ -94,14 +97,14 @@ public class PostService {
      */
     public Page<VideoDto> getUserPosts(Integer userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<Video> videos = videoRepository.findByAuthor_UserIdAndIsDeletedFalse(userId, pageable);
+        Page<Video> videos = videoRepository.findByAuthor_UserIdAndCircleIsNullAndIsDeletedFalse(userId, pageable);
         return videos.map(this::convertToDto);
     }
     
     /**
      * 获取圈子的帖子列表
      */
-    public Page<VideoDto> getCirclePosts(Integer circleId, int page, int size, String sort) {
+    public Page<VideoDto> getCirclePosts(Integer circleId, int page, int size, String sort, Integer userId) {
         Pageable pageable;
         
         switch (sort) {
@@ -116,7 +119,7 @@ public class PostService {
         }
         
         Page<Video> videos = videoRepository.findByCircle_CircleIdAndIsDeletedFalse(circleId, pageable);
-        return videos.map(this::convertToDto);
+        return videos.map(video -> convertToDto(video, userId));
     }
     
     /**
@@ -315,6 +318,13 @@ public class PostService {
      * 转换为DTO
      */
     private VideoDto convertToDto(Video video) {
+        return convertToDto(video, null);
+    }
+
+    /**
+     * 转换为DTO (带用户状态)
+     */
+    private VideoDto convertToDto(Video video, Integer userId) {
         VideoDto.VideoDtoBuilder builder = VideoDto.builder()
                 .id(video.getPostId())
                 .title(video.getTitle())
@@ -332,6 +342,33 @@ public class PostService {
                 .authorName(video.getAuthor().getUsername())
                 .authorAvatar(video.getAuthor().getAvatarUrl());
         
+        // 检查点赞状态
+        if (userId != null) {
+            try {
+                User user = userRepository.getReferenceById(userId);
+                boolean isLiked = likeRepository.existsByUserAndContentTypeAndContentId(
+                    user, Like.ContentType.post, video.getPostId());
+                builder.isLiked(isLiked);
+            } catch (Exception e) {
+                // 忽略错误，默认为未点赞
+                builder.isLiked(false);
+            }
+        } else {
+            builder.isLiked(false);
+        }
+        
+        // 处理多图片
+        if (video.getCoverImageUrl() != null) {
+            if (video.getCoverImageUrl().contains(",")) {
+                java.util.List<String> urls = java.util.Arrays.asList(video.getCoverImageUrl().split(","));
+                builder.imageUrls(urls);
+                // 设置第一张图为封面
+                builder.coverImageUrl(urls.get(0));
+            } else {
+                builder.imageUrls(java.util.Arrays.asList(video.getCoverImageUrl()));
+            }
+        }
+
         if (video.getCircle() != null) {
             builder.circleId(video.getCircle().getCircleId())
                    .circleName(video.getCircle().getName());

@@ -2,6 +2,9 @@ package com.virtuallive.backend.service;
 
 import com.virtuallive.backend.model.dto.VideoDto;
 import com.virtuallive.backend.model.dto.VideoUploadDto;
+import com.virtuallive.backend.model.dto.DanmakuDto;
+import com.virtuallive.backend.live.entity.Danmaku;
+import com.virtuallive.backend.live.repository.DanmakuRepository;
 import com.virtuallive.backend.model.entity.User;
 import com.virtuallive.backend.model.entity.Video;
 import com.virtuallive.backend.repository.UserRepository;
@@ -25,6 +28,7 @@ public class VideoService {
     private final VideoRepository videoRepository;
     private final VideoProcessingService videoProcessingService;
     private final UserRepository userRepository;
+    private final DanmakuRepository danmakuRepository;
 
     @Transactional(readOnly = true)
     public Page<VideoDto> getVideos(int page, int size, String sort) {
@@ -34,7 +38,7 @@ public class VideoService {
         if ("popular".equals(sort)) {
             videos = videoRepository.findPopularVideos(pageable);
         } else {
-            videos = videoRepository.findByIsDeletedFalseOrderByCreatedAtDesc(pageable);
+            videos = videoRepository.findByCircleIsNullAndIsDeletedFalseOrderByCreatedAtDesc(pageable);
         }
         
         return videos.map(this::convertToDto);
@@ -70,7 +74,7 @@ public class VideoService {
     }
     
     public VideoDto convertToDto(Video video) {
-        return VideoDto.builder()
+        VideoDto.VideoDtoBuilder builder = VideoDto.builder()
                 .id(video.getPostId())
                 .title(video.getTitle())
                 .content(video.getContent())
@@ -85,8 +89,14 @@ public class VideoService {
                 .createdAt(video.getCreatedAt())
                 .authorId(video.getAuthor().getUserId())
                 .authorName(video.getAuthor().getUsername())
-                .authorAvatar(video.getAuthor().getAvatarUrl())
-                .build();
+                .authorAvatar(video.getAuthor().getAvatarUrl());
+                
+        if (video.getCircle() != null) {
+            builder.circleId(video.getCircle().getCircleId())
+                   .circleName(video.getCircle().getName());
+        }
+        
+        return builder.build();
     }
 
     /**
@@ -234,5 +244,44 @@ public class VideoService {
         if (updateDto.getCoverImageUrl() != null) video.setCoverImageUrl(updateDto.getCoverImageUrl());
         
         return convertToDto(videoRepository.save(video));
+    }
+
+    public List<DanmakuDto> getDanmaku(Integer videoId) {
+        return danmakuRepository.findByVideoIdOrderByCreatedAtAsc(videoId).stream()
+                .map(this::convertToDanmakuDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public DanmakuDto sendDanmaku(Integer videoId, DanmakuDto dto) {
+        User user = userRepository.findById(dto.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Danmaku danmaku = new Danmaku();
+        danmaku.setVideoId(videoId);
+        danmaku.setUserId(user.getUserId());
+        danmaku.setContent(dto.getText());
+        danmaku.setColor(dto.getColor());
+        danmaku.setVideoTime(dto.getTime());
+        
+        danmaku = danmakuRepository.save(danmaku);
+        
+        return convertToDanmakuDto(danmaku);
+    }
+
+    private DanmakuDto convertToDanmakuDto(Danmaku danmaku) {
+        DanmakuDto dto = new DanmakuDto();
+        dto.setId(danmaku.getDanmakuId());
+        dto.setText(danmaku.getContent());
+        dto.setColor(danmaku.getColor());
+        dto.setTime(danmaku.getVideoTime());
+        dto.setUserId(danmaku.getUserId());
+        
+        userRepository.findById(danmaku.getUserId()).ifPresent(user -> {
+            dto.setUsername(user.getUsername());
+            dto.setAvatarUrl(user.getAvatarUrl());
+        });
+        
+        return dto;
     }
 }

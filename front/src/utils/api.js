@@ -229,8 +229,12 @@ export async function getCircleById(id) {
 }
 
 // 获取圈子内的帖子列表
-export async function getCirclePosts(circleId, page = 0, size = 20, sort = 'new') {
-  return request(`/circles/${circleId}/posts?page=${page}&size=${size}&sort=${sort}`)
+export async function getCirclePosts(circleId, page = 0, size = 20, sort = 'new', userId = null) {
+  let url = `/circles/${circleId}/posts?page=${page}&size=${size}&sort=${sort}`;
+  if (userId) {
+    url += `&userId=${userId}`;
+  }
+  return request(url);
 }
 
 // ==================== 社区帖子相关 API ====================
@@ -642,6 +646,19 @@ export async function updateRoleCard(userId, cardId, data) {
   return request(`/role-cards/user/${userId}/${cardId}`, {
     method: 'PUT',
     body: JSON.stringify(data)
+  })
+}
+
+// ==================== 视频弹幕相关 API ====================
+
+export async function getDanmaku(videoId) {
+  return request(`/videos/${videoId}/danmaku`)
+}
+
+export async function sendDanmaku(videoId, data) {
+  return request(`/videos/${videoId}/danmaku`, {
+    method: 'POST',
+    body: data
   })
 }
 

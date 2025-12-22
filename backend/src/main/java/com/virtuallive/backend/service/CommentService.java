@@ -28,9 +28,11 @@ public class CommentService {
         
         Page<Comment> comments;
         if ("hot".equals(sort)) {
-            comments = commentRepository.findByPost_PostIdAndParentCommentIsNullAndIsDeletedFalseOrderByLikesDesc(videoId, pageable);
+            // 获取所有评论，按点赞数排序
+            comments = commentRepository.findByPost_PostIdAndIsDeletedFalseOrderByLikesDesc(videoId, pageable);
         } else {
-            comments = commentRepository.findByPost_PostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtDesc(videoId, pageable);
+            // 获取所有评论，按时间排序
+            comments = commentRepository.findByPost_PostIdAndIsDeletedFalseOrderByCreatedAtDesc(videoId, pageable);
         }
         
         return comments.map(this::convertToDto);

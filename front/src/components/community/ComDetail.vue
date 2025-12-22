@@ -17,9 +17,8 @@
         </h2>
 
         <div class="number">
-          <p class="count">{{ com.count }} 粉丝</p>
-          <p class="count">{{ com.count }} 作品量</p>
-          <p class="count">已经连续签到{{ com.days }}天</p>
+          <p class="count">{{ com.memberCount || 0 }} 粉丝</p>
+          <p class="count">{{ com.postCount || 0 }} 作品量</p>
         </div>
 
         <p class="intro">介绍</p>
@@ -27,13 +26,7 @@
       </div>
 
       <div class="actions">
-        <el-button class="sign-btn" :class="{ signed: signed }
-          " :disabled="signed" @click="handleSign">
-          <template v-if="!joined">签到</template>
-          <template v-else-if="!signed">点击签到</template>
-          <template v-else>今日已签到 ✔</template>
-        </el-button>
-
+        <!-- 签到功能已移除 -->
       </div>
     </header>
 
@@ -65,6 +58,9 @@
               <div class="card-user">{{ card.user || '匿名用户' }}</div>
               <div class="card-time">{{ card.time || '刚刚' }}</div>
             </div>
+            <div class="card-actions" v-if="card.userId == currentUserId">
+               <span class="delete-btn" @click.stop="deletePost(card)">删除</span>
+            </div>
           </div>
           <div class="card-body">
             <p class="title">{{ card.title }}</p>
@@ -72,7 +68,7 @@
             
             <!-- 图片展示 -->
             <div class="card-images" v-if="card.images && card.images.length">
-              <img v-for="(img, index) in card.images" :key="index" :src="img" class="post-image" />
+              <img v-for="(img, index) in card.images" :key="index" :src="img" class="post-image" @click.stop="openPreview(img)" />
             </div>
 
             <!-- 视频展示 -->
@@ -90,7 +86,7 @@
         <!-- 底部按钮 -->
         <footer class="card-footer">
           <div class="comments" @click="toggleComments(card.id)">
-            💬 查看 {{ card.comments.length }} 条评论
+            💬 查看 {{ card.commentsCount }} 条评论
           </div>
           <div class="reply" @click="startReply(card.id, null)">↩ 回复</div>
           <div class="like" @click="toggleLike(card)">
@@ -118,14 +114,14 @@
 
                 <div class="comment-main">
                     <div class="comment-user">
-                      <span class="comment-fan-level">Lv{{ c.fanLevel || 1 }}</span>
                       <span>{{ c.user }}</span>
+                      <span v-if="c.parentUser" class="reply-target"> 回复 {{ c.parentUser }}</span>
                     </div>
                   <div class="comment-content">{{ c.text }}</div>
 
                   <div class="comment-actions">
                     <span class="comment-time">{{ c.time }}</span>
-                    <span class="reply-btn" @click="startReply(card.id, c.user)">回复</span>
+                    <span class="reply-btn" @click="startReply(card.id, c.user, c.id)">回复</span>
                   </div>
                 </div>
 
@@ -136,6 +132,16 @@
 
       </div>
     </div>
+    <!-- 图片预览模态框 -->
+    <transition name="fade">
+      <div v-if="previewImage" class="image-preview-modal" @click="closePreview">
+        <div class="preview-content">
+          <img :src="previewImage" class="preview-full-img" />
+          <button class="close-preview" @click.stop="closePreview">×</button>
+        </div>
+      </div>
+    </transition>
+
   </div>
 
   <!-- 固定发布按钮 -->
@@ -185,16 +191,29 @@
 </template>
 
 <script>
-import { getCirclePosts, createCommunityPost, uploadImage, uploadVideo } from '@/utils/api'
+import { 
+  getCirclePosts, 
+  createCommunityPost, 
+  uploadImage, 
+  uploadVideo,
+  getComments,
+  addComment,
+  replyComment,
+  toggleVideoLike,
+  getCircleById,
+  deleteCommunityPost
+} from '@/utils/api'
 import { getCurrentUserId } from '@/utils/auth'
 
 export default {
   data() {
     return {
+      currentUserId: getCurrentUserId(),
       defaultAvatar: require("@/assets/avatar.jpg"),
       followed: false,
       showPostBox: false,
       loading: false,
+      previewImage: null, // 图片预览地址
       newPost: {
         title: "",
         content: "",
@@ -212,7 +231,6 @@ export default {
       },
       cards: [],
       joined: false,
-      signed: false,
       toast: {
         show: false,
         msg: ''
@@ -222,11 +240,23 @@ export default {
     }
   },
   methods: {
+    openPreview(img) {
+      this.previewImage = img;
+    },
+    closePreview() {
+      this.previewImage = null;
+    },
+    showToast(msg = '', ms = 1200) {
+      this.toast.msg = msg;
+      this.toast.show = true;
+      setTimeout(() => (this.toast.show = false), ms);
+    },
     async fetchPosts() {
       if (!this.com.id) return
       this.loading = true
       try {
-        const res = await getCirclePosts(this.com.id, 0, 20, this.activeTab === '最新' ? 'new' : 'hot')
+        const userId = getCurrentUserId();
+        const res = await getCirclePosts(this.com.id, 0, 20, this.activeTab === '最新' ? 'new' : 'hot', userId)
         if (res && res.content) {
           this.cards = res.content.map(post => ({
             id: post.id,
@@ -237,12 +267,13 @@ export default {
             excerpt: post.content,
             avatar: post.authorAvatar || this.defaultAvatar,
             likes: post.likes || 0,
-            liked: false,
+            liked: post.isLiked || false,
             showComments: false,
             newComment: "",
             replyTo: null,
             highlight: false,
             comments: [], // Comments would need a separate fetch or be included in DTO
+            commentsCount: post.commentsCount || 0,
             images: post.imageUrls || [],
             videoUrl: post.videoUrl,
             showVideo: false
@@ -265,69 +296,123 @@ export default {
     },
     toggleJoin() {
       this.joined = !this.joined;
-      if (this.joined && !this.signed) {
-        // Optionally keep signed false until user explicitly signs
+    },
+    async toggleComments(id) {
+      const card = this.cards.find(c => c.id === id);
+      if (!card) return;
+      
+      card.showComments = !card.showComments;
+      
+      // 如果展开且没有评论数据（或者想要刷新），则获取评论
+      if (card.showComments) {
+        try {
+          const res = await getComments(id);
+          if (res && res.content) {
+            card.comments = res.content.map(c => ({
+              id: c.id,
+              user: c.username || '匿名用户',
+              userId: c.userId,
+              text: c.content,
+              avatar: c.userAvatar || this.defaultAvatar,
+              time: this.formatTime(c.createdAt),
+              parentId: c.parentId,
+              parentUser: c.parentUsername
+            }));
+          }
+        } catch (err) {
+          console.error('获取评论失败', err);
+        }
       }
     },
-    handleSign() {
-      if (!this.joined) {
-        // 自动加入并签到
-        this.joined = true;
-      }
-
-      if (this.signed) {
-        this.showToast('你今天已经签到过了');
-        return;
-      }
-
-      // 执行签到逻辑
-      this.signed = true;
-      this.com.days += 1;
-      this.showToast('签到成功！连续签到+' + 1);
-    },
-    showToast(msg = '', ms = 1200) {
-      this.toast.msg = msg;
-      this.toast.show = true;
-      setTimeout(() => (this.toast.show = false), ms);
-    },
-    toggleComments(id) {
-      this.cards = this.cards.map(card =>
-        card.id === id ? { ...card, showComments: !card.showComments } : card
-      );
-    },
-    toggleLike(card) {
-      // 小动画：先切换 liked，再调整数字
+    async toggleLike(card) {
+      // 乐观更新
+      const originalLiked = card.liked;
+      const originalLikes = card.likes;
+      
       card.liked = !card.liked;
       card.likes += card.liked ? 1 : -1;
-      // 触发 highlight 动画
       card.highlight = true;
       setTimeout(() => (card.highlight = false), 400);
+      
+      try {
+        const userId = getCurrentUserId();
+        if (!userId) {
+          this.showToast('请先登录');
+          // 回滚
+          card.liked = originalLiked;
+          card.likes = originalLikes;
+          return;
+        }
+        await toggleVideoLike(card.id, userId);
+      } catch (err) {
+        console.error('点赞失败', err);
+        // 回滚
+        card.liked = originalLiked;
+        card.likes = originalLikes;
+      }
     },
-    startReply(cardId, user) {
+    startReply(cardId, user, commentId = null) {
       const card = this.cards.find(c => c.id === cardId);
       card.replyTo = user; // null 表示不是回复
+      card.replyToCommentId = commentId; // 记录回复的评论ID
       card.showComments = true; // 自动展开评论区
       // 将焦点放到输入框（下一次可以用 $nextTick 获取元素并 focus）
     },
-    submitComment(cardId) {
+    async submitComment(cardId) {
       const card = this.cards.find(c => c.id === cardId);
       if (!card.newComment || !card.newComment.trim()) return;
 
-      const text = card.replyTo ? `回复 ${card.replyTo}：${card.newComment}` : card.newComment;
+      const userId = getCurrentUserId();
+      if (!userId) {
+        this.showToast('请先登录');
+        return;
+      }
 
-      card.comments.push({
-        user: "我",
-        text,
-        avatar: require('@/assets/avatar.jpg'),
-        time: '刚刚',
-        fanLevel: 1
-      });
-
-      // 清空输入
-      card.newComment = "";
-      card.replyTo = null;
-
-      this.showToast('评论已发布', 900);
+      try {
+        let res;
+        if (card.replyTo && card.replyToCommentId) {
+           // 回复评论
+           res = await replyComment(card.replyToCommentId, cardId, userId, card.newComment);
+        } else {
+           // 普通评论
+           res = await addComment(cardId, userId, card.newComment);
+        }
+        
+        if (res) {
+            // 添加到列表
+            card.comments.unshift({
+                id: res.id,
+                user: res.username || "我",
+                userId: res.userId,
+                text: res.content,
+                avatar: res.userAvatar || this.defaultAvatar, // 使用返回的头像
+                time: '刚刚',
+                parentId: res.parentId,
+                parentUser: res.parentUsername
+            });
+            
+            // 清空输入
+            card.newComment = "";
+            card.replyTo = null;
+            card.replyToCommentId = null;
+            card.commentsCount += 1;
+            this.showToast('评论成功');
+        }
+      } catch (err) {
+        console.error('评论失败', err);
+        this.showToast('评论失败: ' + err.message);
+      }
+    },
+    formatTime(timeStr) {
+        if (!timeStr) return '刚刚';
+        const date = new Date(timeStr);
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 60000) return '刚刚';
+        if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+        if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+        return date.toLocaleDateString();
     },
     goBack() {
       if (window.history.length > 1) {
@@ -385,6 +470,11 @@ export default {
         this.showToast("发布成功");
         this.showPostBox = false;
         
+        // Update local count
+        if (this.com.postCount !== undefined) {
+             this.com.postCount++;
+        }
+        
         // Reset form
         this.newPost = { title: "", content: "", images: [], imageFiles: [], videoUrl: "", videoFile: null }
         
@@ -433,6 +523,26 @@ export default {
     },
     playVideo(card) {
       card.showVideo = true
+    },
+    async deletePost(card) {
+      if (!confirm('确定要删除这条帖子吗？')) return;
+      
+      try {
+        const userId = getCurrentUserId();
+        await deleteCommunityPost(card.id, userId);
+        this.showToast('删除成功');
+        
+        // Remove from list
+        this.cards = this.cards.filter(c => c.id !== card.id);
+        
+        // Update count
+        if (this.com.postCount > 0) {
+          this.com.postCount--;
+        }
+      } catch (err) {
+        console.error('删除失败', err);
+        this.showToast('删除失败: ' + (err.message || '未知错误'));
+      }
     }
   },
   computed: {
@@ -440,13 +550,28 @@ export default {
       return this.cards; // Sorting handled by API
     },
   },
-  mounted() {
+  async mounted() {
     const q = this.$route.query;
     if (q.name) this.com.name = q.name;
     if (q.avatar) this.com.avatar = q.avatar;
     if (q.id) {
       this.com.id = q.id;
       this.fetchPosts();
+      
+      // 获取圈子详情以更新统计数据
+      try {
+        const circleData = await getCircleById(q.id);
+        if (circleData) {
+          this.com = {
+            ...this.com,
+            ...circleData,
+            memberCount: circleData.memberCount || 0,
+            postCount: circleData.postCount || 0
+          };
+        }
+      } catch (err) {
+        console.error('Failed to fetch circle details', err);
+      }
     }
   },
   watch: {
@@ -817,12 +942,14 @@ header {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 22px;
+  top: 100px;
+  bottom: auto;
   padding: 10px 18px;
   background: linear-gradient(90deg, #ffd6e7, #ffbcd1);
   color: #3b1020;
   border-radius: 20px;
   box-shadow: 0 8px 24px rgba(183, 92, 145, 0.12);
+  z-index: 1000;
 }
 
 /* transitions */
@@ -1096,5 +1223,65 @@ header {
 .play-text {
   font-size: 14px;
   opacity: 0.8;
+}
+
+.image-preview-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.preview-content {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.preview-full-img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.close-preview {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.reply-target {
+  color: #999;
+  font-size: 0.9em;
+  margin-left: 5px;
+}
+
+.card-actions {
+  margin-left: auto;
+}
+
+.delete-btn {
+  font-size: 12px;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 </style>

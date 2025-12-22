@@ -1,5 +1,8 @@
 <template>
-  <div class="video-page-container" ref="pageRef">
+  <div class="video-page-container" :class="{ 'with-padding': showBackButton }" ref="pageRef">
+    <button v-if="showBackButton" class="back-btn" @click="goBack">
+      <span class="back-icon">←</span> 返回
+    </button>
     <!-- 左侧内容区 -->
     <div class="left-content">
       <!-- 标题置于视频上方 -->
@@ -113,7 +116,7 @@
     <aside class="right-sidebar" :style="{ minHeight: sidebarMinHeight }">
       <div class="creator-panel">
         <div class="creator-info" @click="goToChannel">
-          <div class="avatar"></div>
+          <img class="avatar" :src="videoInfo?.authorAvatar || defaultAvatar" />
           <div class="channel-info">
             <p class="creator-name">
               {{ videoInfo?.creator || '作者' }}
@@ -126,41 +129,6 @@
           <button class="follow-btn" @click="toggleFollow">
             {{ isFollowing ? '已关注 ✓' : '关注' }}
           </button>
-
-          <button class="join-btn" @click="handleJoinClick">
-            {{ isJoined && isFollowing ? '参与讨论' : '加入圈子' }}
-          </button>
-          <div class="join-note">需粉丝等级≥3 才可加入圈子</div>
-        </div>
-      </div>
-
-      <div class="danmu-list">
-        <div class="list-header" @click="toggleDanmuList">
-          弹幕列表
-          <span>{{ showDanmuList ? '▼' : '▲' }}</span>
-        </div>
-        <div v-show="showDanmuList" class="list-body">
-          <table class="danmu-table">
-            <thead>
-              <tr>
-                <th>时间</th>
-                <th>弹幕内容</th>
-                <th>发送时间</th>
-                <!-- <th>操作</th> -->
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="dm in danmuList" :key="dm.id">
-                <td>{{ dm.videoTime }}</td>
-                <td>{{ dm.text }}</td>
-                <td>{{ dm.sendTime }}</td>
-                <!-- <td>
-                  <button @click="reportDanmu(dm)" class="button">举报</button>
-                  <button @click="blockUser(dm.user)" class="button">屏蔽用户</button>
-                </td> -->
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -183,9 +151,10 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import Comment from './Comment.vue'
-import { addViewHistory, toggleFollow as apiToggleFollow, checkFollow, getVideoById, increaseViewCount, getVideosByCategory, getVideos, toggleVideoLike, checkLike, getUserProfile } from '@/utils/api'
+import { addViewHistory, toggleFollow as apiToggleFollow, checkFollow, getVideoById, increaseViewCount, getVideosByCategory, getVideos, toggleVideoLike, checkLike, getUserProfile, getDanmaku, sendDanmaku as apiSendDanmaku } from '@/utils/api'
 import { getCurrentUserId } from '@/utils/auth'
 import { getDemoAsset } from '@/utils/demoDataMap'
+import defaultAvatar from '@/assets/avatar.jpg'
 
 import cover1 from '@/assets/虚拟主播/视频封面/图像 - 1742412405144.封面.jpg'
 import cover2 from '@/assets/虚拟主播/视频封面/图像 - “在这里见到我，很惊讶吗？”.封面.jpg'
@@ -204,6 +173,7 @@ import video7 from '@/assets/虚拟主播/视频/video-7.mp4'
 
 const router = useRouter()
 const route = useRoute()
+const showBackButton = computed(() => route.query.from !== 'discover')
 const totalComments = ref(0)
 
 const videoCovers = [cover1, cover2, cover3, cover4, cover5, cover6, cover7]
@@ -220,8 +190,6 @@ watch(
   (newId, oldId) => {
     if (newId && newId !== oldId) {
       loadVideo()
-      // 记录观看历史
-      recordHistory(newId)
     }
   }
 )
@@ -340,27 +308,37 @@ function showDanmu(dm) {
 //   alert("已屏蔽用户：" + user);
 // }
 
-// 示例：你从后端加载到的弹幕
-danmuList.value = [
-  {
-    id: 1,
-    text: "热乎的",
-    user: "用户A",
-    videoTime: "00:06",
-    videoTimeSec: 6,
-    sendTime: "12-11 11:37"
-  },
-  {
-    id: 2,
-    text: "我是第一",
-    user: "用户B",
-    videoTime: "00:00",
-    videoTimeSec: 0,
-    sendTime: "12-11 11:38"
+// 加载弹幕
+const loadDanmaku = async () => {
+  const vid = route.query.id
+  if (!vid) return
+  try {
+    const res = await getDanmaku(vid)
+    // api.js 已经解包了 data.data，所以 res 直接就是弹幕列表
+    if (Array.isArray(res)) {
+      danmuList.value = res.map(d => ({
+        id: d.id,
+        text: d.text,
+        color: d.color,
+        videoTimeSec: Math.floor(d.time),
+        videoTime: formatTime(Math.floor(d.time)),
+        user: d.username,
+        avatar: d.avatarUrl
+      }))
+    }
+  } catch (e) {
+    console.error('加载弹幕失败', e)
   }
-];
+}
 
+// 监听视频ID变化重新加载弹幕
+watch(() => route.query.id, (newId) => {
+  if (newId) loadDanmaku()
+})
 
+onMounted(() => {
+  loadDanmaku()
+})
 
 // 开关状态
 const danmuEnabled = ref(true);
@@ -377,7 +355,7 @@ function toggleDanmu() {
 }
 
 // 发送弹幕
-function sendDanmu() {
+async function sendDanmu() {
   if (!danmuEnabled.value) return
   if (!danmuInput.value.trim()) return
 
@@ -386,22 +364,43 @@ function sendDanmu() {
     console.warn('videoRef is null, video not ready yet.')
     return
   }
-
-  const text = danmuInput.value.trim()
-  const currentTimeSec = Math.floor(video.currentTime)
-
-  const newDanmu = {
-    id: Date.now(),
-    text,
-    videoTimeSec: currentTimeSec,
-    videoTime: formatTime(currentTimeSec),
-    user: '你自己',
-    sendTime: new Date().toLocaleString(),
+  
+  const uid = getCurrentUserId()
+  if (!uid) {
+    alert('请先登录')
+    return
   }
 
-  danmuList.value.push(newDanmu)
-  showDanmu(newDanmu)
-  danmuInput.value = ''
+  const text = danmuInput.value.trim()
+  const currentTimeSec = video.currentTime
+
+  const danmuData = {
+    text,
+    color: '#ffffff', 
+    time: currentTimeSec,
+    userId: uid
+  }
+
+  try {
+    const vid = route.query.id
+    const res = await apiSendDanmaku(vid, danmuData)
+    
+    // api.js 已经处理了 code !== 0 的情况并抛出错误，且返回的是 data.data
+    const newDanmu = {
+      id: res.id,
+      text: res.text,
+      videoTimeSec: Math.floor(res.time),
+      videoTime: formatTime(Math.floor(res.time)),
+      user: res.username,
+      color: res.color
+    }
+    danmuList.value.push(newDanmu)
+    showDanmu(newDanmu)
+    danmuInput.value = ''
+  } catch (e) {
+    console.error('发送弹幕失败', e)
+    alert('发送失败: ' + (e.message || '网络错误'))
+  }
 }
 
 
@@ -497,34 +496,23 @@ const checkFollowStatus = async () => {
   }
 }
 
-// ======== 加入圈子状态 ========
-const isJoined = ref(false)
-
-const toggleJoin = () => {
-  isJoined.value = !isJoined.value
-}
-
-const handleJoinClick = () => {
-  if (!isFollowing.value) {
-    alert('请先关注主播，再加入圈子');
-    return;
-  }
-
-  if (isJoined.value) {
-    const id = videoInfo.value?.id || 'creator-circle'
-    const name = videoInfo.value?.creator || '作者圈子'
-    router.push({ path: '/com-detail', query: { id, name } })
-    return
-  }
-  toggleJoin()
-}
-
 const goToChannel = () => {
   if (videoInfo.value && videoInfo.value.creatorId) {
-    router.push({ path: '/profile', query: { id: videoInfo.value.creatorId } })
+    const currentUserId = getCurrentUserId()
+    // Check if the creator is the current user
+    if (currentUserId && String(currentUserId) === String(videoInfo.value.creatorId)) {
+      router.push({ path: '/profile' })
+    } else {
+      // If not the owner, go to the visitor profile page
+      router.push({ path: '/user-profile', query: { id: videoInfo.value.creatorId } })
+    }
   } else {
     router.push({ path: '/profile' })
   }
+}
+
+const goBack = () => {
+  router.back()
 }
 
 // ========= 推荐视频 =========
@@ -606,6 +594,7 @@ const loadVideo = async () => {
         title: data.title,
         creator: data.authorName,
         creatorId: data.authorId,
+        authorAvatar: data.authorAvatar, // 添加作者头像
         subs: authorIntro, // 显示作者简介
         likes: data.likes || 0,
         views: data.views || 0,
@@ -725,19 +714,7 @@ const updateSidebarHeight = () => {
 //   window.addEventListener('resize', updateSidebarHeight)
 // })
 
-onMounted(async () => {
-  loadVideo()
-  updateSidebarHeight()
-  window.addEventListener('resize', updateSidebarHeight)
-  
-  // 初始加载时记录历史
-  if (route.query.id) {
-    await recordHistory(route.query.id)
-  }
-  
-  // 检查关注状态
-  await checkFollowStatus()
-})
+
 
 onBeforeUnmount(() => {
   if (blobUrl) {
@@ -765,6 +742,41 @@ onBeforeUnmount(() => {
   min-height: 100vh;
   background: #fefbff;
   overflow-x: hidden;
+  position: relative;
+}
+
+.video-page-container.with-padding {
+  padding-top: 70px;
+}
+
+.back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 105, 180, 0.3);
+  border-radius: 20px;
+  color: #ff69b4;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 105, 180, 0.15);
+}
+
+.back-btn:hover {
+  background: #fff;
+  transform: translateX(-2px);
+  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.25);
+}
+
+.back-icon {
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 /* 左侧内容布局 */
@@ -938,6 +950,9 @@ video {
 .creator-panel .avatar {
   width: 48px;
   height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #f0f0f0;
 }
 
 .creator-panel .channel-info {

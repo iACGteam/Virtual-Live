@@ -28,7 +28,10 @@
           <div class="circle-main-info">
             <div class="info-header">
               <div class="info-text">
-                <p class="name">{{ circle.name }}</p>
+                <p class="name">
+                  {{ circle.name }}
+                  <span v-if="circle.isMyCircle" class="my-circle-badge">我的圈子</span>
+                </p>
                 <p class="count">{{ circle.memberCount }} 粉丝已加入</p>
               </div>
               
@@ -36,21 +39,18 @@
                 <div class="join-btn-wrap">
                   <!-- My Circles: Enter / Dissolve -->
                   <div class="join-actions" v-if="activeTab === '我的圈子'">
-                    <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
-                      进入
-                    </el-button>
                     <el-button class="action-btn exit-btn" type="danger" size="medium" @click="handleDissolve(circle)">
                       解散
                     </el-button>
-                  </div>
-                  
-                  <!-- Other Tabs: Enter / Exit (if joined) or Join -->
-                  <div class="join-actions" v-else-if="circle.followed">
                     <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
                       进入
                     </el-button>
-                    <el-button class="action-btn exit-btn" size="medium" @click="handleExit(circle)">
-                      退出
+                  </div>
+                  
+                  <!-- Other Tabs: Enter (if joined) or Join -->
+                  <div class="join-actions" v-else-if="circle.followed">
+                    <el-button class="action-btn enter-btn" size="medium" @click="enterCircle(circle)">
+                      进入
                     </el-button>
                   </div>
                   
@@ -73,7 +73,7 @@
 
 <script>
 import SearchBar from '../SearchBar.vue'
-import { getCircles, getMyCreatedCircles, getUserJoinedCircles, joinCircle, leaveCircle, dissolveCircle } from '@/utils/api'
+import { getCircles, getMyCreatedCircles, getUserJoinedCircles, joinCircle, leaveCircle, dissolveCircle, checkFollow, toggleFollow } from '@/utils/api'
 import { getCurrentUserId } from '@/utils/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -84,11 +84,11 @@ export default {
     return {
       searchQuery: '',
       activeTab: '关注', // Default tab
-      navList: ['关注', '最新', '最热', '所有圈子', '我的圈子'],
+      navList: ['关注', '最新', '最热', '所有圈子'],
       circles: [],
       loading: false,
       joinedCircleIds: [], // To track joined status
-      defaultAvatar: 'https://picsum.photos/100',
+      defaultAvatar: require('@/assets/logo.png'),
       page: 0,
       size: 20
     }
@@ -154,8 +154,9 @@ export default {
           this.circles = res.content.map(c => ({
             ...c,
             avatar: c.avatarUrl,
-            coverUrl: c.coverImageUrl,
-            followed: this.joinedCircleIds.includes(c.id) || (this.activeTab === '关注') || (this.activeTab === '我的圈子')
+            coverUrl: c.cover || c.coverUrl || c.coverImageUrl,
+            followed: this.joinedCircleIds.includes(c.id) || (this.activeTab === '关注'),
+            isMyCircle: c.creatorId === userId
           }))
         }
       } catch (e) {
@@ -177,13 +178,48 @@ export default {
         this.$router.push('/login')
         return
       }
+      
       try {
+        // 1. Check if following the creator
+        if (circle.creatorId && circle.creatorId !== userId) {
+          const isFollowing = await checkFollow(userId, circle.creatorId)
+          if (!isFollowing) {
+            try {
+              await ElMessageBox.confirm(
+                '加入圈子需要先关注圈主，是否关注并加入？',
+                '提示',
+                {
+                  confirmButtonText: '关注并加入',
+                  cancelButtonText: '取消',
+                  type: 'info'
+                }
+              )
+              // User confirmed, follow the creator
+              await toggleFollow(circle.creatorId, userId)
+              ElMessage.success('已关注圈主')
+            } catch (cancel) {
+              // User cancelled
+              return
+            }
+          }
+        }
+
+        // 2. Join the circle
         await joinCircle(circle.id, userId)
         ElMessage.success('加入成功')
         circle.followed = true
         this.joinedCircleIds.push(circle.id)
         circle.memberCount++
       } catch (e) {
+        // If already joined (duplicate entry), treat as success
+        if (e.message && e.message.includes('Duplicate entry')) {
+             ElMessage.success('你已经是该圈子成员')
+             circle.followed = true
+             if (!this.joinedCircleIds.includes(circle.id)) {
+                 this.joinedCircleIds.push(circle.id)
+             }
+             return
+        }
         ElMessage.error('加入失败: ' + (e.message || '未知错误'))
       }
     },
@@ -364,7 +400,7 @@ export default {
 .info-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .name {
@@ -385,6 +421,11 @@ export default {
   align-items: center;
 }
 
+.join-btn-wrap, .join-actions, .join-single {
+  display: flex;
+  align-items: center;
+}
+
 .action-btn {
   border-radius: 20px;
   padding: 8px 24px;
@@ -399,9 +440,15 @@ export default {
 
 .exit-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.8);
-  margin-left: 10px;
+  border: 1px solid #ccc;
+  color: #666;
+  margin-right: 10px;
+}
+
+.exit-btn:hover {
+  border-color: #999;
+  color: #333;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .join-btn {
@@ -429,5 +476,18 @@ export default {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.my-circle-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #fff;
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-weight: normal;
+  box-shadow: 0 2px 6px rgba(255, 105, 180, 0.3);
 }
 </style>
