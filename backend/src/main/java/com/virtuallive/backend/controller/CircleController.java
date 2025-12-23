@@ -114,6 +114,33 @@ public class CircleController {
             return R.error(e.getMessage());
         }
     }
+
+    /**
+     * 根据创建者ID获取圈子
+     */
+    @GetMapping("/creator/{creatorId}")
+    public R<CircleDto> getCircleByCreator(@PathVariable Integer creatorId) {
+        try {
+            // 假设每个用户只能创建一个圈子，或者返回最新的一个
+            // 这里需要 CircleService 支持 findByCreatorId
+            // 暂时用 search 模拟或者需要在 Service 加方法
+            // 为了稳妥，我们先在 Service 加方法，或者这里先用 search 变通
+            // 既然是后端修改，最好是在 Service 加方法。
+            // 但为了不修改 Service 接口定义导致编译错误（如果我不能一次性改完），
+            // 我先检查 CircleService 是否有类似方法。
+            // 如果没有，我可以直接在这里调用 repository (如果注入了的话)，但这里只注入了 Service。
+            // 让我们先假设 Service 有这个方法，或者我稍后去加。
+            // 实际上，我可以利用 getMyCircles 来获取。
+            Page<CircleDto> circles = circleService.getMyCircles(creatorId, 0, 1);
+            if (circles.hasContent()) {
+                return R.ok(circles.getContent().get(0));
+            } else {
+                return R.ok(null); // 没有圈子
+            }
+        } catch (Exception e) {
+            return R.error(e.getMessage());
+        }
+    }
     
       
     /**

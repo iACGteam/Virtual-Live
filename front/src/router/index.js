@@ -93,6 +93,12 @@ const routes = [
     component: () => import('../components/community/ComDetailNav.vue')
   },
   {
+    path: '/wallet',
+    name: 'Wallet',
+    component: () => import('../views/WalletView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: "/new-live",
     name: "NewLiveRoom",
     component: () => import('../views/LiveRoomView.vue')

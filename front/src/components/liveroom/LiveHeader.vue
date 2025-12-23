@@ -7,17 +7,15 @@
       </div>
 
       <div class="meta">
-        <div class="room-name">{{ host.name }}</div>
-
-        <div class="sub">
-          <span class="status" :class="{ live: host.isLive }">
-            <span class="dot"></span>
-            {{ host.isLive ? "直播中" : "未开播" }}
-          </span>
-
-          <span class="fans">{{ hostFansFormatted }} 粉丝</span>
+        <div class="room-title" :title="host.title">{{ host.title || '直播间' }}</div>
+        <div class="host-info">
+            <span class="host-name">{{ host.name }}</span>
+            <span class="status" :class="{ live: host.isLive }">
+                {{ host.isLive ? "直播中" : "未开播" }}
+            </span>
+            <span class="fans">{{ hostFansFormatted }} 粉丝</span>
         </div>
-
+        
         <div class="tags" v-if="host.tags?.length">
           <span class="tag" v-for="tag in host.tags" :key="tag">{{ tag }}</span>
         </div>
@@ -26,13 +24,12 @@
 
     <!-- 右侧按钮 -->
     <div class="right-actions">
-      <button class="follow-btn" @click="$emit('toggle-follow')">
+      <button class="follow-btn" :class="{ active: isFollowing }" @click="$emit('toggle-follow')">
         {{ isFollowing ? "已关注" : "关注" }}
       </button>
-      <button class="follow-btn" @click="onJoinClick">
-        {{ isJoined && isFollowing ? "参与讨论" : "加入圈子" }}
+      <button v-if="host.circleId" class="circle-btn" @click="onJoinClick">
+        {{ isJoined ? "进入圈子" : "加入圈子" }}
       </button>
-      <div class="join-note">需粉丝等级≥3 才可加入圈子</div>
     </div>
   </div>
 </template>
@@ -84,111 +81,126 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
-  background: #fcf5ff;
-  backdrop-filter: blur(8px);
-  border-radius: 12px;
-  box-sizing: border-box;
-  border: 1px, solid, black;
+  padding: 0 20px;
+  background: #222;
+  color: #fff;
 }
 
 /* 左侧区域 */
 .left-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-
+  gap: 16px;
 }
 
-/* 头像 */
 .avatar {
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #444;
   background-size: cover;
   background-position: center;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #444;
+  position: relative;
+  border: 2px solid #333;
+  flex-shrink: 0;
 }
 
 .initial {
-  font-size: 20px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #aaa;
   font-weight: bold;
-  color: #fff;
 }
 
-/* 文本信息 */
 .meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
 }
 
-.room-name {
-  font-size: 16px;
-  font-weight: 700;
+.room-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
 }
 
-.sub {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
+.host-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #aaa;
+}
+
+.host-name {
+    color: #ddd;
+    font-weight: 500;
 }
 
 .status {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #444;
+    font-size: 12px;
+}
+.status.live {
+    background: #ff4081;
+    color: #fff;
+}
+
+.tags {
+    display: flex;
+    gap: 6px;
+}
+.tag {
+    font-size: 12px;
+    background: #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #888;
+}
+
+/* 右侧按钮 */
+.right-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  opacity: 0.9;
+  gap: 12px;
 }
 
-.status .dot {
-  width: 8px;
-  height: 8px;
-  background: gray;
-  border-radius: 50%;
-}
-
-/* 开播状态 */
-.status.live .dot {
-  background: #ff4d4f;
-}
-
-/* 标签 */
-.tags {
-  display: flex;
-  gap: 6px;
-  margin-top: 2px;
-}
-
-.tag {
-  padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  font-size: 12px;
-  color: black;
-}
-
-
-
-/* 右侧关注按钮 */
-.right-actions .follow-btn {
-  padding: 6px 14px;
-  border-radius: 8px;
+.follow-btn, .circle-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
   border: none;
   cursor: pointer;
-  font-weight: 700;
-  color: #fff;
-  background: linear-gradient(90deg, #8b5cf6, #06b6d4);
-  margin: 2px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
-.join-note {
-  font-size: 12px;
-  color: #333;
-  margin-left: 4px;
+.follow-btn {
+    background: #ff4081;
+    color: #fff;
+}
+.follow-btn.active {
+    background: #444;
+    color: #aaa;
+}
+
+.circle-btn {
+    background: #333;
+    color: #ddd;
+    border: 1px solid #555;
+}
+.circle-btn:hover {
+    background: #444;
 }
 </style>

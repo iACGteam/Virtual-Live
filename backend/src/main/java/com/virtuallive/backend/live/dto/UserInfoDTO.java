@@ -11,4 +11,5 @@ public class UserInfoDTO {
     private Long userId;
     private String username;
     private String avatarUrl;
+    private Integer followers;
 }

@@ -20,4 +20,12 @@ public interface FanBadgeService {
      * @param fanId    粉丝用户ID
      */
     void updateFanBadgeLevel(Integer vtuberId, Integer fanId);
+
+    /**
+     * 获取粉丝牌等级
+     * @param vtuberId 主播用户ID
+     * @param fanId    粉丝用户ID
+     * @return 等级 (0表示无牌子)
+     */
+    Integer getFanBadgeLevel(Integer vtuberId, Integer fanId);
 }

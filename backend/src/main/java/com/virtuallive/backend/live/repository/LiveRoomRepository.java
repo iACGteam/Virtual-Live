@@ -4,6 +4,7 @@ package com.virtuallive.backend.live.repository;
 import com.virtuallive.backend.live.entity.LiveRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -14,4 +15,6 @@ public interface LiveRoomRepository extends JpaRepository<LiveRoom, Integer> {
     // ★ 新增：根据主播 userId 查房间（一个主播一个房间，用 Optional 即可）
     Optional<LiveRoom> findFirstByVtuberId(Integer vtuberId);
 
+    // ★ 新增：查询所有正在直播的房间
+    List<LiveRoom> findByIsLiveTrue();
 }

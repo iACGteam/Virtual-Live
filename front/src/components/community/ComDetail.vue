@@ -565,6 +565,7 @@ export default {
           this.com = {
             ...this.com,
             ...circleData,
+            avatar: circleData.avatarUrl || this.com.avatar,
             memberCount: circleData.memberCount || 0,
             postCount: circleData.postCount || 0
           };

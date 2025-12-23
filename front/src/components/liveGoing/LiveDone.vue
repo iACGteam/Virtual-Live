@@ -1,192 +1,281 @@
 <template>
   <div class="live-container">
-    <!-- 主内容区 -->
-    <div class="main-content">
-      <!-- 左侧区域：顶部栏 + 推流设置 -->
-      <div class="left-wrapper">
-        <!-- 顶部栏（仅作用于左侧区域） -->
-        <div class="top-bar">
-          <div class="top-left">
-            <div class="top-cover" @click="openSettings">
-              <img
-                v-if="form.coverUrl"
-                :src="form.coverUrl"
-                alt="封面"
-                class="top-cover-img"
-              />
-              <div v-else class="top-cover-placeholder">
-                <el-icon><PictureFilled /></el-icon>
-              </div>
-            </div>
-            <div class="top-info">
-              <div class="title-row" @click="openSettings">
-                <span class="live-title">
-                  {{ form.title || '游戏时间' }}
-                </span>
-                <el-icon class="edit-icon"><Edit /></el-icon>
-              </div>
-              <div class="meta-row">
-                <span class="live-category">{{ form.category || '精灵宝可梦' }}</span>
-                <span class="dot-sep">·</span>
-                <el-icon class="lock-icon"><Lock /></el-icon>
-                <span class="live-permission">{{ form.permission === 'public' ? '公开直播' : '私密直播' }}</span>
-              </div>
-            </div>
-          </div>
-          <!-- 顶部栏右侧：退出按钮 -->
-          <div class="top-right">
-            <button class="exit-btn" @click="handleExit">退出</button>
-          </div>
-        </div>
-
-        <!-- 左侧面板：推流设置 + 右侧教程 -->
-        <aside class="left-panel">
-          <div class="streaming-setup">
-            <!-- 左侧推流配置 -->
-            <div class="setup-content">
-              <h3 class="setup-title">推流码推流</h3>
-              <p class="setup-hint">按右侧步骤打开 OBS 设置，将下方内容粘贴至 OBS 中</p>
-              
-              <div class="form-item">
-                <label>服务</label>
-                <el-input v-model="obs.service" readonly />
-              </div>
-
-              <div class="form-item">
-                <label>服务器</label>
-                <div class="input-with-copy">
-                  <el-input v-model="obs.url" readonly />
-                  <el-button class="copy-btn" @click="copyToClipboard(obs.url)">复制</el-button>
-                </div>
-              </div>
-
-              <div class="protocol-select">
-                <el-radio v-model="obs.protocol" label="rtmp">rtmp</el-radio>
-              </div>
-              
-              <div class="form-item">
-                <label>推流码</label>
-                <div class="input-with-copy">
-                  <el-input v-model="obs.code" readonly />
-                  <el-button class="copy-btn" @click="copyToClipboard(obs.code)">复制</el-button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 右侧 OBS 教程 -->
-            <div class="obs-tutorial">
-              <h3 class="tutorial-title">OBS 设置</h3>
-              <ol class="tutorial-steps">
-                <li>
-                  <span class="step-index">1、</span>
-                  打开 OBS 设置 → 直播，将左侧服务器与推流码粘贴到对应位置
-                </li>
-                <li>
-                  <span class="step-index">2、</span>
-                  完成设置后，点击 <span class="highlight-text">开始直播</span> 按钮
-                </li>
-              </ol>
-
-              <div class="tutorial-card">
-                <img :src="obsImages.step1" alt="OBS 设置步骤一" class="tutorial-img" />
-              </div>
-
-              <div class="tutorial-card">
-                <img :src="obsImages.step2" alt="OBS 设置步骤二" class="tutorial-img" />
-              </div>
-            </div>
-          </div>
+    <!-- 顶部栏 -->
+    <div class="top-bar">
+      <div class="top-left">
+        <div v-if="!isLiveMode" class="page-title">直播设置</div>
+        <div v-else class="page-title-live">直播中</div>
         
-        <!-- 底部控制栏 -->
-        <div class="bottom-controls">
-          <!-- 输出（音量）控制 -->
-          <div class="audio-item">
-            <el-icon class="audio-icon"><VideoPlay /></el-icon>
-            <el-icon class="caret-icon"><ArrowUp /></el-icon>
-            <el-slider v-model="audioOutput" :max="100" :show-tooltip="false" class="audio-slider" />
-            <span class="audio-value">{{ audioOutput }}%</span>
-          </div>
-          
-          <!-- 输入（麦克风）控制 -->
-          <div class="audio-item">
-            <el-icon class="audio-icon"><Microphone /></el-icon>
-            <el-icon class="caret-icon"><ArrowUp /></el-icon>
-            <el-slider v-model="audioInput" :max="100" :show-tooltip="false" class="audio-slider" />
-            <span class="audio-value">{{ audioInput }}%</span>
-          </div>
-          
-          <!-- 设置按钮 -->
-          <div class="action-buttons">
-            <el-button class="action-btn" @click="openSettings">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </div>
+        <!-- 粉丝数显示 -->
+        <div class="fan-count-display" v-if="userProfile.followers !== null">
+            <span class="fan-label">粉丝数:</span>
+            <span class="fan-value">{{ userProfile.followers }}</span>
         </div>
-        </aside>
-
       </div>
-
-      <!-- 右侧面板：观众和互动（不包含顶部栏） -->
-      <aside class="right-panel">
-        <!-- 房间观众 -->
-        <div class="panel-section">
-          <h3 class="section-title">房间观众</h3>
-          <div class="audience-tabs">
-            <div
-              v-for="tab in audienceTabs"
-              :key="tab.key"
-              :class="['tab-item', { active: activeAudienceTab === tab.key }]"
-              @click="activeAudienceTab = tab.key"
-            >
-              {{ tab.label }}
-            </div>
-          </div>
-          <p class="section-desc">展示本场直播的在线观众和不同时间段的榜单</p>
-        </div>
-        
-        <!-- 直播互动 -->
-        <div class="panel-section interaction-section">
-          <h3 class="section-title">直播互动</h3>
-          <p class="section-desc">展示本场直播收到的打赏记录包括礼物、大航海、醒目留言</p>
-          <div class="gift-records">
-            <div v-for="gift in giftRecords" :key="gift.id" class="gift-item">
-              <span class="gift-user">{{ gift.user }}</span>
-              <span class="gift-name">{{ gift.name }}</span>
-              <span class="gift-amount">¥{{ gift.amount }}</span>
-            </div>
-          </div>
-          <p class="section-desc">展示本场直播的弹幕互动消息</p>
-          <div class="danmu-messages">
-            <div v-for="msg in danmuMessages" :key="msg.id" class="danmu-msg">
-              <span class="msg-user">{{ msg.user }}:</span>
-              <span class="msg-content">{{ msg.content }}</span>
-            </div>
-          </div>
-          <div class="chat-input-box">
-            <el-input
-              v-model="chatInput"
-              placeholder="请输入文字"
-              maxlength="20"
-              show-word-limit
-            />
-            <el-button class="send-btn" @click="sendChat">发送</el-button>
-          </div>
-        </div>
-      </aside>
+      <div class="top-right">
+        <el-button v-if="!isLiveMode" type="danger" text @click="handleDeregister" style="margin-right: 10px">注销直播间</el-button>
+        <el-button v-if="isLiveMode" type="primary" plain @click="openSettings" style="margin-right: 10px">修改设置</el-button>
+        <el-button type="danger" plain @click="handleExit">退出直播间</el-button>
+      </div>
     </div>
 
-    <!-- 开播信息弹窗 -->
+    <!-- 主内容区 -->
+    <div class="main-content">
+      
+      <!-- 模式 A: 准备中 (未开播) -->
+      <div v-if="!isLiveMode" class="prepare-mode-container">
+        <div class="prepare-content">
+            <!-- 1. 显眼的直播信息设置 -->
+            <div class="info-card">
+              <div class="cover-section" @click="openSettings">
+                <img v-if="form.coverUrl" :src="form.coverUrl" class="cover-img" />
+                <div v-else class="cover-placeholder">
+                  <el-icon><PictureFilled /></el-icon>
+                  <span>上传封面</span>
+                </div>
+                <div class="cover-overlay">
+                  <el-icon><Edit /></el-icon> 修改信息
+                </div>
+              </div>
+              <div class="info-details">
+                <h2 class="live-title-large" @click="openSettings">
+                  {{ form.title || '点击设置直播标题' }} <el-icon class="edit-icon"><Edit /></el-icon>
+                </h2>
+                <div class="live-meta-large">
+                  <span class="meta-tag">{{ form.category || '选择分区' }}</span>
+                  <span class="meta-tag">{{ form.permission === 'public' ? '公开' : '私密' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. 推流配置 -->
+            <div class="stream-config-card">
+              <h3 class="card-title">推流配置</h3>
+              <div class="config-row">
+                <div class="config-item">
+                  <label>服务器</label>
+                  <div class="input-with-copy">
+                    <el-input v-model="obs.url" readonly />
+                    <el-button @click="copyToClipboard(obs.url)">复制</el-button>
+                  </div>
+                </div>
+                <div class="config-item">
+                  <label>推流码</label>
+                  <div class="input-with-copy">
+                    <el-input v-model="obs.code" type="password" show-password readonly />
+                    <el-button @click="copyToClipboard(obs.code)">复制</el-button>
+                  </div>
+                </div>
+              </div>
+              <p class="config-hint">请将以上信息填入 OBS (设置 -> 直播)</p>
+            </div>
+
+            <!-- 3. 巨大的开始按钮 -->
+            <div class="action-area">
+              <button class="start-live-btn" @click="startLive">
+                <span class="btn-icon">🚀</span> 开启直播 / 进入直播间
+              </button>
+              <p class="action-hint">在 OBS 点击“开始推流”后，点击上方按钮进入直播互动界面</p>
+            </div>
+        </div>
+      </div>
+
+      <!-- 模式 B: 直播中 (新界面) -->
+      <div v-else class="live-mode-layout">
+        
+        <!-- 左侧：直播画面与弹幕层 -->
+        <div class="video-area">
+            <div class="video-wrapper">
+                <video id="videoElement" controls autoplay muted class="video-player"></video>
+                
+                <!-- 弹幕列表覆盖层 (可拖拽) -->
+                <div 
+                    class="danmaku-overlay-list"
+                    :style="{ top: overlayPos.top + 'px', left: overlayPos.left + 'px' }"
+                    @mousedown="startDrag"
+                >
+                    <div class="overlay-header">
+                        <span>实时弹幕</span>
+                        <el-icon><Rank /></el-icon>
+                    </div>
+                    <div class="overlay-content" ref="overlayList">
+                        <div v-for="dm in visibleDanmakuList" :key="dm.id" class="overlay-item">
+                            <span class="overlay-user">{{ dm.user }}</span>
+                            <span v-if="dm.fanLevel > 0" class="fan-badge">Lv{{ dm.fanLevel }}</span>
+                            <span class="overlay-text">: {{ dm.text }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="!isPlaying" class="video-placeholder">
+                    <div class="loading-spinner"></div>
+                    <p>等待推流信号...</p>
+                    <el-button type="primary" size="small" @click="reloadPlayer">刷新播放器</el-button>
+                </div>
+            </div>
+
+            <!-- 底部控制栏 -->
+            <div class="video-controls-bar">
+                <div class="left-controls">
+                </div>
+                <div class="center-status">
+                    <span class="live-dot"></span> 直播中 | {{ onlineCount }} 人气
+                </div>
+                <div class="right-controls">
+                    <el-button type="danger" size="small" @click="stopLive">结束直播</el-button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：仪表盘 -->
+        <div class="dashboard-sidebar">
+            <el-tabs v-model="activeTab" class="dashboard-tabs" stretch>
+                
+                <!-- Tab 1: 互动消息流 -->
+                <el-tab-pane label="互动" name="interaction">
+                    <div class="message-stream-container">
+                        <div class="message-list" ref="msgList">
+                            <div v-for="msg in messageList" :key="msg.id" :class="['msg-card', 'msg-type-' + msg.type]">
+                                
+                                <!-- 普通弹幕 -->
+                                <template v-if="msg.type === 'CHAT'">
+                                    <div class="msg-header">
+                                        <span class="user-name">{{ msg.user }}</span>
+                                        <span v-if="msg.fanLevel > 0" class="fan-badge">Lv{{ msg.fanLevel }}</span>
+                                        <span class="time">{{ formatTime(msg.timestamp) }}</span>
+                                        <div class="msg-actions">
+                                            <el-tooltip content="禁言该用户" placement="top">
+                                                <el-icon class="action-icon" @click="quickMute(msg.userId, msg.user)"><Lock /></el-icon>
+                                            </el-tooltip>
+                                            <el-tooltip content="删除此条" placement="top">
+                                                <el-icon class="action-icon delete" @click="deleteDanmaku(msg.id)"><Delete /></el-icon>
+                                            </el-tooltip>
+                                        </div>
+                                    </div>
+                                    <div class="msg-content">{{ msg.content }}</div>
+                                </template>
+
+                                <!-- 礼物消息 -->
+                                <template v-else-if="msg.type === 'GIFT'">
+                                    <div class="gift-content">
+                                        <span class="user-name">{{ msg.user }}</span> 
+                                        送出了
+                                        <span class="gift-name">{{ msg.giftName }}</span> 
+                                        x{{ msg.count }}
+                                    </div>
+                                </template>
+
+                                <!-- SC (醒目留言) -->
+                                <template v-else-if="msg.type === 'SC'">
+                                    <div class="sc-header">
+                                        <span class="user-name">{{ msg.user }}</span>
+                                        <span class="sc-price">￥{{ msg.price }}</span>
+                                    </div>
+                                    <div class="sc-body">
+                                        {{ msg.content }}
+                                    </div>
+                                </template>
+
+                                <!-- 系统消息 -->
+                                <template v-else-if="msg.type === 'SYSTEM'">
+                                    <div class="system-content">
+                                        <el-icon><Bell /></el-icon> {{ msg.content }}
+                                    </div>
+                                </template>
+
+                            </div>
+                        </div>
+                        
+                        <!-- 发送框 -->
+                        <div class="chat-input-area">
+                            <el-input 
+                                v-model="chatInput" 
+                                placeholder="和观众聊聊..." 
+                                @keyup.enter="sendChat"
+                            >
+                                <template #append>
+                                    <el-button @click="sendChat">发送</el-button>
+                                </template>
+                            </el-input>
+                        </div>
+                    </div>
+                </el-tab-pane>
+
+                <!-- Tab 2: 房管权限 -->
+                <el-tab-pane label="管理" name="admin">
+                    <div class="admin-panel">
+                        <div class="panel-section">
+                            <h4><el-icon><Lock /></el-icon> 禁言管理</h4>
+                            <el-form label-position="top" size="small">
+                                <el-form-item label="用户ID">
+                                    <el-input v-model="adminForm.muteUserId" placeholder="输入用户ID" />
+                                </el-form-item>
+                                <el-form-item label="时长(秒)">
+                                    <el-input-number v-model="adminForm.muteDuration" :min="60" :step="60" style="width: 100%" />
+                                </el-form-item>
+                                <div class="form-actions">
+                                    <el-button type="danger" @click="handleMute">🚫 禁言</el-button>
+                                    <el-button type="success" @click="handleUnmute">🟢 解禁</el-button>
+                                </div>
+                            </el-form>
+                        </div>
+
+                        <div class="panel-section">
+                            <h4><el-icon><Delete /></el-icon> 弹幕管理</h4>
+                            <el-form label-position="top" size="small">
+                                <el-form-item label="弹幕ID">
+                                    <el-input v-model="adminForm.deleteMsgId" placeholder="输入弹幕ID" />
+                                </el-form-item>
+                                <div class="form-actions">
+                                    <el-button type="danger" @click="handleDeleteMsg">🗑 删除弹幕</el-button>
+                                </div>
+                            </el-form>
+                        </div>
+                    </div>
+                </el-tab-pane>
+
+                <!-- Tab 3: 数据榜单 -->
+                <el-tab-pane label="数据" name="data">
+                    <div class="data-panel">
+                        <div class="panel-header">
+                            <span>观众查询</span>
+                        </div>
+                        <div class="search-box">
+                            <el-input v-model="searchQuery" placeholder="输入用户名/ID查询" size="small">
+                                <template #append>
+                                    <el-button :icon="Search" />
+                                </template>
+                            </el-input>
+                        </div>
+
+                        <div class="panel-header" style="margin-top: 20px;">
+                            <span>本场贡献榜</span>
+                            <el-button type="text" size="small" @click="fetchLeaderboard">刷新</el-button>
+                        </div>
+                        <div class="leaderboard-list">
+                            <div v-for="(item, index) in leaderboard" :key="index" class="rank-item">
+                                <div class="rank-num" :class="'rank-' + (index + 1)">{{ index + 1 }}</div>
+                                <div class="rank-user">{{ item.username }}</div>
+                                <div class="rank-score">￥{{ item.totalAmount }}</div>
+                            </div>
+                            <div v-if="leaderboard.length === 0" class="empty-tip">暂无数据</div>
+                        </div>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 开播信息弹窗 (保持不变) -->
     <el-dialog
       v-model="settingsVisible"
-      title="开播信息"
+      title="编辑直播间信息"
       width="520px"
       :close-on-click-modal="false"
-      :close-on-press-escape="true"
-      top="5vh"
     >
       <div class="dialog-content">
-        <p class="dialog-hint">用心填写以下信息有助于获得更多忠实观众哦~</p>
-        
         <div class="form-group">
           <label class="required">封面</label>
           <el-upload
@@ -206,389 +295,718 @@
         
         <div class="form-group">
           <label class="required">标题</label>
-          <div class="input-with-edit">
-            <el-input v-model="form.title" placeholder="游戏时间" />
-            <el-icon class="edit-icon-small"><Edit /></el-icon>
-          </div>
+          <el-input v-model="form.title" placeholder="请输入直播标题" />
         </div>
         
         <div class="form-group">
           <label class="required">分区</label>
           <el-select v-model="form.category" placeholder="请选择" style="width: 100%">
-            <el-option label="精灵宝可梦" value="精灵宝可梦" />
-            <el-option label="游戏" value="游戏" />
-            <el-option label="娱乐" value="娱乐" />
-            <el-option label="学习" value="学习" />
-            <el-option label="科技" value="科技" />
+            <el-option label="游戏" value="Game" />
+            <el-option label="娱乐" value="Entertainment" />
+            <el-option label="聊天" value="Chat" />
           </el-select>
         </div>
-        
+
         <div class="form-group">
-          <label>直播标签</label>
-          <div class="tags-section">
-            <el-tag
-              v-for="tag in form.tags"
-              :key="tag"
-              closable
-              @close="removeTag(tag)"
-              class="live-tag"
-            >
-              {{ tag }}
-            </el-tag>
-            <el-button class="add-tag-btn" @click="showAddTag = true">+ 新增标签</el-button>
-          </div>
-          <p class="tag-hint">添加标签,可带来更多观众</p>
-        </div>
-        
-        <div class="form-group">
-          <label>显示位置</label>
-          <el-switch v-model="form.showLocation" active-text="开" inactive-text="关" />
-        </div>
-        
-        <div class="form-group">
-          <label>公告①</label>
-          <el-input
-            type="textarea"
-            v-model="form.announcement"
-            :rows="2"
-            placeholder="请输入公告内容"
-            maxlength="60"
-            show-word-limit
-          />
+            <label>简介</label>
+            <el-input type="textarea" v-model="form.announcement" />
         </div>
         
         <div class="form-group">
           <label>观看权限</label>
           <el-select v-model="form.permission" placeholder="请选择" style="width: 100%">
-            <el-option label="公开直播" value="public" />
-            <el-option label="仅粉丝" value="fans" />
+            <el-option label="公开" value="public" />
             <el-option label="私密" value="private" />
-          </el-select>
-        </div>
-        
-        <div class="form-group">
-          <label>话题</label>
-          <el-select v-model="form.topic" placeholder="请选择" style="width: 100%">
-            <el-option label="游戏" value="游戏" />
-            <el-option label="娱乐" value="娱乐" />
-            <el-option label="学习" value="学习" />
           </el-select>
         </div>
       </div>
       
       <template #footer>
         <el-button @click="closeSettings">取消</el-button>
-        <el-button @click="saveSettings">保存</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 添加标签对话框 -->
-    <el-dialog v-model="showAddTag" title="新增标签" width="400px">
-      <el-input v-model="newTag" placeholder="请输入标签名称" />
-      <template #footer>
-        <el-button @click="showAddTag = false">取消</el-button>
-        <el-button type="primary" @click="addTag">确定</el-button>
+        <el-button type="primary" @click="saveSettings">保存并更新</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref, nextTick } from "vue";
 import {
-  Plus,
-  Edit,
-  Lock,
-  ArrowDown,
-  ArrowUp,
-  Microphone,
-  VideoPlay,
-  Monitor,
-  VideoCamera,
-  Setting,
-  PictureFilled,
+  Plus, Edit, Lock, PictureFilled, Setting, Microphone, VideoCamera, Bell, Delete, Search, Rank
 } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
-import obsStep1 from "@/assets/1.png";
-import obsStep2 from "@/assets/2.png";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { getAuthToken } from "@/utils/auth";
+
+// 动态加载脚本辅助函数
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
 
 export default {
   components: {
-    Plus,
-    Edit,
-    Lock,
-    ArrowDown,
-    ArrowUp,
-    Microphone,
-    VideoPlay,
-    Monitor,
-    VideoCamera,
-    Setting,
-    PictureFilled,
+    Plus, Edit, Lock, PictureFilled, Setting, Microphone, VideoCamera, Bell, Delete, Search, Rank
   },
   data() {
     return {
-      settingsVisible: false, // 默认不显示开播信息弹窗
-      showAddTag: false,
-      newTag: "",
-      activeAudienceTab: "online",
-      audioInput: 100,
-      audioOutput: 100,
-      chatInput: "",
+      isLiveMode: false, // 是否进入直播模式
+      settingsVisible: false,
+      activeTab: 'interaction',
+      
+      // 播放器状态
+      isPlaying: false,
+      flvPlayer: null,
+      stompClient: null,
+
+      onlineCount: 0,
+      
       form: {
-        title: "游戏时间",
-        category: "精灵宝可梦",
+        title: "",
+        category: "",
         coverUrl: "",
-        tags: [],
-        showLocation: false,
         announcement: "",
         permission: "public",
-        topic: "",
       },
-      // 改动：初始置空，启动时从后端拉取真实数据
       obs: {
-        service: "自定义",
         url: "",
-        protocol: "rtmp",
         code: "",
       },
-      obsImages: {
-        step1: obsStep1,
-        step2: obsStep2,
+      
+      // 消息流
+      messageList: [], // { id, type: 'CHAT'|'GIFT'|'SC'|'SYSTEM', user, userId, content, ... }
+      visibleDanmakuList: [], // { id, user, text }
+      chatInput: "",
+      roomId: null,
+
+      // 弹幕列表拖拽
+      overlayPos: { top: 20, left: 20 },
+      dragging: false,
+      dragOffset: { x: 0, y: 0 },
+
+      // 管理表单
+      adminForm: {
+          muteUserId: '',
+          muteDuration: 60,
+          deleteMsgId: ''
       },
-      audienceTabs: [
-        { key: "online", label: "在线榜" },
-        { key: "daily", label: "日榜" },
-        { key: "weekly", label: "周榜" },
-        { key: "monthly", label: "月榜" },
-      ],
-      giftRecords: [
-        { id: 1, user: "用户A", name: "礼物1", amount: 50 },
-        { id: 2, user: "用户B", name: "礼物2", amount: 30 },
-      ],
-      danmuMessages: [
-        { id: 1, user: "用户1", content: "主播加油！" },
-        { id: 2, user: "用户2", content: "好喜欢这个直播！" },
-      ],
+
+      // 数据
+      leaderboard: [],
+      searchQuery: '',
+      Search,
+      
+      // 用户信息
+      userProfile: {
+          followers: null
+      }
     };
   },
-  computed: {
+  mounted() {
+    this.fetchUserProfile();
+    this.fetchStreamInfo();
   },
   methods: {
+    async fetchUserProfile() {
+        const token = getAuthToken();
+        if (!token) return;
+        
+        try {
+            const res = await fetch("/api/v1/live/user/me", {
+                headers: {
+                    "Authorization": "Bearer " + token
+                }
+            });
+            const json = await res.json();
+            if (json.code === 0 || json.code === 200) {
+                this.userProfile = json.data;
+            }
+        } catch (e) {
+            console.error("获取用户信息失败", e);
+        }
+    },
     openSettings() {
       this.settingsVisible = true;
-    },
-    handleExit() {
-      // 顶部栏右侧浅色“退出”按钮：返回个人主页
-      this.$router.push({ path: '/profile' }).catch(() => {});
-    },
-    handleCoverChange(file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        this.form.coverUrl = e.target.result;
-      };
-      reader.readAsDataURL(file.raw);
-    },
-    copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        ElMessage.success("已复制到剪贴板");
-      });
-    },
-    removeTag(tag) {
-      this.form.tags = this.form.tags.filter((t) => t !== tag);
-    },
-    addTag() {
-      if (this.newTag.trim()) {
-        this.form.tags.push(this.newTag.trim());
-        this.newTag = "";
-        this.showAddTag = false;
-      }
-    },
-    sendChat() {
-      if (this.chatInput.trim()) {
-        this.danmuMessages.push({
-          id: Date.now(),
-          user: "我",
-          content: this.chatInput,
-        });
-        this.chatInput = "";
-      }
     },
     closeSettings() {
       this.settingsVisible = false;
     },
-    saveSettings() {
-      // 验证必填项
-      if (!this.form.title || !this.form.title.trim()) {
-        ElMessage.warning("请输入直播标题");
-        return;
-      }
-      if (!this.form.category) {
-        ElMessage.warning("请选择直播分区");
-        return;
-      }
-      
-      // 保存数据（这里可以调用API保存到后端）
-      console.log("保存直播间设置：", this.form);
-      
-      // 可以在这里调用API保存
-      // await this.$api.saveLiveSettings(this.form);
-      
-      ElMessage.success("保存成功");
-      // 保存后不关闭弹窗，让用户可以继续编辑或开始直播
+    handleExit() {
+      this.$router.push({ path: '/profile' });
     },
-    async fetchStreamInfo() {
-      const getTokenFromStorage = () => {
-        // 优先使用你项目中截图显示的 key
-        const priorityKeys = ["vlive-auth-token", "vlive-current-user", "vlive-current-user-id", "vlive-auth-token"];
-        for (const k of priorityKeys) {
-          const v1 = localStorage.getItem(k);
-          const v2 = sessionStorage.getItem(k);
-          if (v1) return v1;
-          if (v2) return v2;
-        }
-
-        // 兼容常见位置
-        try {
-          if (this.$store && this.$store.state) {
-            const s = this.$store.state;
-            if (s.user && s.user.token) return s.user.token;
-            if (s.auth && s.auth.token) return s.auth.token;
-            if (s.token) return s.token;
+    async handleDeregister() {
+      try {
+        await ElMessageBox.confirm(
+          '确定要注销当前直播间吗？注销后下次开播将创建新的直播间。',
+          '警告',
+          {
+            confirmButtonText: '确定注销',
+            cancelButtonText: '取消',
+            type: 'warning',
           }
-        } catch (e) {}
-
-        try {
-          const axiosGlobal = window.axios || (this.$axios && this.$axios);
-          if (axiosGlobal && axiosGlobal.defaults && axiosGlobal.defaults.headers) {
-            const h = axiosGlobal.defaults.headers;
-            return (h.common && h.common.Authorization) || h.Authorization || "";
-          }
-        } catch (e) {}
-
-        // 其它常见 key
-        const keys = [
-          "token",
-          "Authorization",
-          "access_token",
-          "accessToken",
-          "authToken",
-          "jwt",
-          "id_token",
-          "userToken",
-          "auth.token",
-        ];
-        for (const k of keys) {
-          const v1 = localStorage.getItem(k);
-          const v2 = sessionStorage.getItem(k);
-          if (v1) return v1;
-          if (v2) return v2;
+        )
+        
+        const token = getAuthToken();
+        const headers = { "Authorization": "Bearer " + token };
+        
+        const res = await fetch("/api/v1/live/rooms/my", {
+            method: "DELETE",
+            headers
+        });
+        
+        const json = await res.json();
+        if (json.code === 0 || json.code === 200) {
+            ElMessage.success("直播间已注销");
+            this.$router.push('/live');
+        } else {
+            ElMessage.error(json.message || "注销失败");
         }
-
-        // cookie 查找
-        const cookies = document.cookie ? document.cookie.split("; ") : [];
-        for (const c of cookies) {
-          const [name, ...rest] = c.split("=");
-          const val = rest.join("=");
-          if (keys.includes(name)) return decodeURIComponent(val);
+      } catch (e) {
+        if (e !== 'cancel') {
+            console.error(e);
+            ElMessage.error("操作失败");
         }
+      }
+    },
+    async handleCoverChange(file) {
+      // 1. 预览
+      this.form.coverUrl = URL.createObjectURL(file.raw);
+      
+      // 2. 上传
+      const formData = new FormData();
+      formData.append("file", file.raw);
+      
+      const token = getAuthToken();
+      const headers = {};
+      if (token) {
+         headers["Authorization"] = token.startsWith("Bearer ") ? token : "Bearer " + token;
+      }
+      
+      try {
+        const res = await fetch("/api/v1/upload/image", {
+            method: "POST",
+            headers,
+            body: formData
+        });
+        const json = await res.json();
+        if (json.code === 0 || json.code === 200) { 
+             this.form.coverUrl = json.data.url;
+             ElMessage.success("封面上传成功");
+        } else {
+             ElMessage.error("封面上传失败: " + (json.message || json.msg));
+        }
+      } catch (e) {
+        console.error(e);
+        ElMessage.error("上传出错");
+      }
+    },
+    
+    // 复制功能
+    copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          ElMessage.success("已复制");
+        }).catch(() => this.fallbackCopy(text));
+      } else {
+        this.fallbackCopy(text);
+      }
+    },
+    fallbackCopy(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        ElMessage.success("已复制");
+      } catch (err) {
+        ElMessage.error("复制失败");
+      }
+      document.body.removeChild(textArea);
+    },
 
-        return "";
+    // 保存设置
+    async saveSettings() {
+      if (!this.roomId) {
+          ElMessage.error("未获取到房间ID");
+          return;
+      }
+      const token = getAuthToken();
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": token.startsWith("Bearer ") ? token : "Bearer " + token
+      };
+      
+      const body = {
+          title: this.form.title,
+          description: this.form.announcement,
+          coverUrl: this.form.coverUrl,
+          category: this.form.category
       };
 
       try {
-        const rawToken = getTokenFromStorage();
-
-        if (!rawToken) {
-          console.warn("fetchStreamInfo: no token found in storage/cookies/vuex/axios");
-        } else {
-          console.info("fetchStreamInfo: token found (length):", rawToken.length || 0);
-        }
-
-        // 后端期望 Bearer JWT（截图显示是 JWT），确保带上 Bearer 前缀
-        let authHeader = "";
-        if (rawToken) {
-          authHeader = /^Bearer\s+/i.test(rawToken) ? rawToken : "Bearer " + rawToken;
-        }
-
-        const doFetch = async (url, options = {}) => {
-          const res = await fetch(url, options);
-          const text = await res.text().catch(() => "");
-          let json = null;
-          try { json = text ? JSON.parse(text) : null; } catch (e) { /* not json */ }
-          return { ok: res.ok, status: res.status, json, text };
-        };
-
-        const headers = { "Content-Type": "application/json" };
-        if (authHeader) headers["Authorization"] = authHeader;
-
-        let r1 = await doFetch("/api/live/rooms/my", { method: "GET", headers });
-
-        // 若 401，尝试用原始 token（部分实现不需要 Bearer）或不带 Authorization 重试
-        if (r1.status === 401 && rawToken) {
-          // raw token
-          r1 = await doFetch("/api/live/rooms/my", { method: "GET", headers: { "Content-Type": "application/json", "Authorization": rawToken } });
-          if (r1.status === 401) {
-            r1 = await doFetch("/api/live/rooms/my", { method: "GET", headers: { "Content-Type": "application/json" } });
+          const res = await fetch(`/api/v1/live/rooms/${this.roomId}/manager/update`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify(body)
+          });
+          if (res.ok) {
+              ElMessage.success("更新成功");
+              this.settingsVisible = false;
+          } else {
+              ElMessage.error("更新失败");
           }
-        }
-
-        if (!r1.ok) {
-          console.warn("fetchStreamInfo: /api/live/rooms/my failed", r1.status, r1.text || r1.json);
-          ElMessage.error("获取房间信息失败，请确认已登录（DevTools → Application 查看 vlive-auth-token）");
-          return;
-        }
-
-        const myJson = r1.json || {};
-        const roomId = myJson.roomId || myJson.id || myJson.room_id;
-        if (!roomId && roomId !== 0) {
-          console.warn("fetchStreamInfo: roomId not returned", myJson);
-          ElMessage.warning("未能从后端拿到 roomId，请在后端确认 /api/live/rooms/my 接口返回字段");
-          return;
-        }
-
-        const infoHeaders = { "Content-Type": "application/json" };
-        if (authHeader) infoHeaders["Authorization"] = authHeader;
-
-        let r2 = await doFetch(`/api/live/rooms/${roomId}/manager/info`, { method: "GET", headers: infoHeaders });
-
-        if (r2.status === 401 && rawToken) {
-          r2 = await doFetch(`/api/live/rooms/${roomId}/manager/info`, { method: "GET", headers: { "Content-Type": "application/json", "Authorization": rawToken } });
-          if (r2.status === 401) {
-            r2 = await doFetch(`/api/live/rooms/${roomId}/manager/info`, { method: "GET", headers: { "Content-Type": "application/json" } });
-          }
-        }
-
-        if (!r2.ok) {
-          console.warn("fetchStreamInfo: manager/info failed", r2.status, r2.text || r2.json);
-          ElMessage.error("获取推流信息失败（manager/info），请检查后端接口或登录状态");
-          return;
-        }
-
-        const info = r2.json || {};
-        if (info.serverAddress) this.obs.url = info.serverAddress;
-        else if (info.rtmpServer) this.obs.url = info.rtmpServer;
-        if (info.streamKey) this.obs.code = info.streamKey;
-        else if (info.stream_key) this.obs.code = info.stream_key;
-
-        if (!this.obs.url && !this.obs.code) {
-          console.warn("fetchStreamInfo: manager/info returned no server/streamKey", info);
-          ElMessage.warning("后端返回了空的推流信息，请在后端确认 rtmpServer / streamKey 字段");
-          return;
-        }
-
-        if (info.protocol) this.obs.protocol = info.protocol;
-        ElMessage.success("已获取推流地址与推流码（来自后端）");
-      } catch (err) {
-        console.error("fetchStreamInfo error:", err);
-        ElMessage.error("获取推流信息时出现异常，请查看控制台错误信息");
+      } catch (e) {
+          ElMessage.error("网络错误");
       }
     },
+
+    // 获取推流信息
+    async fetchStreamInfo() {
+      const token = getAuthToken();
+      if (!token) return;
+      
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": token.startsWith("Bearer ") ? token : "Bearer " + token
+      };
+
+      try {
+        // 1. Get My Room
+        let r1 = await fetch("/api/v1/live/rooms/my", { headers });
+        if (!r1.ok) return;
+        let myJson = await r1.json();
+        
+        // 兼容数据结构
+        if (myJson.data) myJson = myJson.data;
+        
+        this.roomId = myJson.roomId || myJson.id;
+        
+        // 填充表单
+        if (myJson.title) this.form.title = myJson.title;
+        if (myJson.coverUrl) this.form.coverUrl = myJson.coverUrl;
+        if (myJson.category) this.form.category = myJson.category;
+        if (myJson.description) this.form.announcement = myJson.description;
+
+        if (!this.roomId) return;
+
+        // 2. Get Manager Info
+        let r2 = await fetch(`/api/v1/live/rooms/${this.roomId}/manager/info`, { headers });
+        if (!r2.ok) return;
+        let resJson = await r2.json();
+        
+        if (resJson.code === 0 || resJson.code === 200) {
+            const info = resJson.data;
+            this.obs.url = info.serverAddress || info.rtmpServer;
+            this.obs.code = info.streamKey;
+            ElMessage.success("推流信息已获取");
+        } else {
+            ElMessage.error(resJson.message || "获取推流信息失败");
+        }
+        
+      } catch (e) {
+        console.error(e);
+        ElMessage.error("网络请求失败");
+      }
+    },
+
+    // === 核心逻辑：开始直播 ===
+    async startLive() {
+      if (!this.obs.url || !this.obs.code) {
+          ElMessage.warning("正在获取推流信息，请稍候...");
+          await this.fetchStreamInfo();
+          if (!this.obs.url) return;
+      }
+      
+      // 通知后端更新直播状态
+      try {
+          const token = getAuthToken();
+          const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+          const statusRes = await fetch(`/api/v1/live/rooms/${this.roomId}/manager/status`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ isLive: true })
+          });
+          if (!statusRes.ok) {
+             console.error("Failed to update status, response:", statusRes.status);
+             ElMessage.warning("直播状态同步失败，可能导致列表不显示");
+          } else {
+             console.log("Live status updated to TRUE for room", this.roomId);
+          }
+      } catch (e) {
+          console.error("Failed to update live status", e);
+          ElMessage.warning("网络异常，直播状态同步失败");
+      }
+
+      this.isLiveMode = true;
+      ElMessage.success("进入直播间，正在连接服务...");
+
+      // 加载依赖脚本
+      try {
+        await Promise.all([
+            loadScript("https://unpkg.com/flv.js/dist/flv.min.js"),
+            loadScript("https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"),
+            loadScript("https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js")
+        ]);
+        
+        this.initWebSocket();
+        this.initPlayer();
+        this.fetchLeaderboard();
+        
+      } catch (e) {
+          ElMessage.error("加载直播组件失败，请检查网络");
+          console.error(e);
+      }
+    },
+
+    async stopLive() {
+      // 通知后端更新直播状态
+      try {
+          const token = getAuthToken();
+          const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+          await fetch(`/api/v1/live/rooms/${this.roomId}/manager/status`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ isLive: false })
+          });
+      } catch (e) {
+          console.error("Failed to update live status", e);
+      }
+
+      this.isLiveMode = false;
+      if (this.flvPlayer) {
+          this.flvPlayer.destroy();
+          this.flvPlayer = null;
+      }
+      if (this.stompClient) {
+          this.stompClient.disconnect();
+          this.stompClient = null;
+      }
+      this.isPlaying = false;
+    },
+
+    // 初始化播放器
+    initPlayer() {
+        if (!window.flvjs || !window.flvjs.isSupported()) return;
+        
+        const playHost = "http://localhost:8088"; 
+        const app = "live";
+        const streamKey = this.obs.code;
+        const flvUrl = `${playHost}/${app}/${streamKey}.flv`;
+        
+        console.log("尝试播放:", flvUrl);
+
+        const videoElement = document.getElementById("videoElement");
+        if (!videoElement) return;
+
+        this.flvPlayer = window.flvjs.createPlayer({
+            type: 'flv',
+            url: flvUrl,
+            isLive: true,
+            hasAudio: true,
+        });
+        
+        this.flvPlayer.attachMediaElement(videoElement);
+        this.flvPlayer.load();
+        
+        this.flvPlayer.play().then(() => {
+            this.isPlaying = true;
+        }).catch(e => {
+            console.warn("自动播放失败或流未就绪", e);
+            this.isPlaying = false;
+        });
+        
+        this.flvPlayer.on(window.flvjs.Events.ERROR, (e) => {
+            console.log("播放器错误", e);
+            this.isPlaying = false;
+        });
+    },
+    
+    reloadPlayer() {
+        if (this.flvPlayer) {
+            this.flvPlayer.destroy();
+        }
+        this.initPlayer();
+    },
+
+    // 初始化 WebSocket
+    initWebSocket() {
+        if (!this.roomId) return;
+        
+        const socket = new window.SockJS("http://localhost:8081/ws-live");
+        this.stompClient = window.Stomp.over(socket);
+        this.stompClient.debug = null; 
+        
+        const token = getAuthToken();
+        const headers = token ? { "Authorization": "Bearer " + token } : {};
+
+        this.stompClient.connect(headers, (frame) => {
+            console.log("WS Connected");
+            
+            // 订阅弹幕
+            this.stompClient.subscribe(`/topic/danmaku/${this.roomId}`, (message) => {
+                const body = JSON.parse(message.body);
+                this.handleIncomingMessage(body);
+            });
+
+            // 订阅错误消息
+            if (this.userProfile && this.userProfile.id) {
+                this.stompClient.subscribe(`/topic/errors/${this.userProfile.id}`, (message) => {
+                    ElMessage.error(message.body);
+                });
+            } else {
+                 // Fallback or try to get ID from token if userProfile not ready
+                 // For host, userProfile should be ready
+            }
+            
+            // 获取历史弹幕
+            this.fetchHistory();
+            
+        }, (err) => {
+            console.error("WS Error", err);
+            ElMessage.error("聊天室连接断开");
+        });
+    },
+
+    async fetchHistory() {
+        try {
+            const res = await fetch(`/api/v1/live/rooms/${this.roomId}/danmaku/history`);
+            const json = await res.json();
+            if (json.code === 0 || json.code === 200) {
+                const list = json.data || [];
+                list.forEach(msg => {
+                    const localMsg = {
+                        id: msg.danmakuId || Date.now() + Math.random(),
+                        type: msg.type || 'CHAT',
+                        user: msg.senderName || "匿名",
+                        userId: msg.senderId,
+                        content: msg.content,
+                        timestamp: new Date(), // 历史消息时间暂用当前时间或解析 msg.createdAt
+                        fanLevel: msg.fanLevel || 0
+                    };
+                    this.messageList.push(localMsg);
+                    // 历史消息也加入覆盖层？通常不需要，或者只加最近几条
+                });
+                // 滚动到底部
+                nextTick(() => {
+                    const list = this.$refs.msgList;
+                    if (list) list.scrollTop = list.scrollHeight;
+                });
+            }
+        } catch (e) {
+            console.error("Fetch history failed", e);
+        }
+    },
+
+    handleIncomingMessage(msg) {
+        // 1. 添加到消息流
+        const newMsg = {
+            id: msg.id || Date.now(),
+            type: msg.type || 'CHAT',
+            user: msg.senderName || "匿名",
+            userId: msg.senderId,
+            content: msg.content,
+            timestamp: new Date(),
+            // Gift specific
+            giftName: msg.giftName,
+            count: msg.giftCount,
+            // SC specific
+            price: msg.giftPrice,
+            fanLevel: msg.fanLevel || 0
+        };
+        
+        this.messageList.push(newMsg);
+        
+        // 滚动到底部
+        nextTick(() => {
+            const list = this.$refs.msgList;
+            if (list) list.scrollTop = list.scrollHeight;
+        });
+
+        // 2. 如果是普通弹幕，添加到覆盖层列表
+        if (msg.type === 'CHAT') {
+            this.addOverlayDanmaku(newMsg.user, msg.content, newMsg.fanLevel);
+        }
+    },
+
+    addOverlayDanmaku(user, text, fanLevel) {
+        const item = {
+            id: Date.now() + Math.random(),
+            user: user,
+            text: text,
+            fanLevel: fanLevel || 0
+        };
+        this.visibleDanmakuList.push(item);
+        
+        // Keep only last 20
+        if (this.visibleDanmakuList.length > 20) {
+            this.visibleDanmakuList.shift();
+        }
+        
+        // Scroll to bottom of overlay list
+        nextTick(() => {
+            const list = this.$refs.overlayList;
+            if (list) list.scrollTop = list.scrollHeight;
+        });
+    },
+
+    // === 拖拽逻辑 ===
+    startDrag(e) {
+        this.dragging = true;
+        this.dragOffset.x = e.clientX - this.overlayPos.left;
+        this.dragOffset.y = e.clientY - this.overlayPos.top;
+        document.addEventListener('mousemove', this.onDrag);
+        document.addEventListener('mouseup', this.stopDrag);
+    },
+    onDrag(e) {
+        if (!this.dragging) return;
+        
+        let newLeft = e.clientX - this.dragOffset.x;
+        let newTop = e.clientY - this.dragOffset.y;
+        
+        // 简单边界限制
+        const wrapper = document.querySelector('.video-wrapper');
+        if (wrapper) {
+            const w = wrapper.clientWidth;
+            const h = wrapper.clientHeight;
+            // 假设弹幕框宽200，高300
+            if (newLeft < 0) newLeft = 0;
+            if (newTop < 0) newTop = 0;
+            if (newLeft > w - 50) newLeft = w - 50;
+            if (newTop > h - 50) newTop = h - 50;
+        }
+        
+        this.overlayPos.left = newLeft;
+        this.overlayPos.top = newTop;
+    },
+    stopDrag() {
+        this.dragging = false;
+        document.removeEventListener('mousemove', this.onDrag);
+        document.removeEventListener('mouseup', this.stopDrag);
+    },
+
+    sendChat() {
+        if (!this.chatInput.trim() || !this.stompClient) return;
+        
+        const payload = {
+            type: "CHAT",
+            roomId: this.roomId,
+            content: this.chatInput
+        };
+        
+        const token = getAuthToken();
+        const headers = token ? { "Authorization": "Bearer " + token } : {};
+        
+        this.stompClient.send("/app/send-danmaku", headers, JSON.stringify(payload));
+        this.chatInput = "";
+    },
+
+    formatTime(date) {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    },
+
+    // === 管理功能 ===
+    quickMute(userId, userName) {
+        this.adminForm.muteUserId = userId;
+        this.activeTab = 'admin';
+        ElMessage.info(`已选中用户 ${userName}，请确认禁言时长`);
+    },
+    
+    async handleMute() {
+        if (!this.adminForm.muteUserId) return;
+        try {
+            const token = getAuthToken();
+            const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+            const res = await fetch(`/api/v1/live/rooms/${this.roomId}/manager/mute`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    userId: parseInt(this.adminForm.muteUserId),
+                    durationSeconds: this.adminForm.muteDuration
+                })
+            });
+            if (res.ok) ElMessage.success("禁言成功");
+            else ElMessage.error("操作失败");
+        } catch (e) {
+            ElMessage.error("网络错误");
+        }
+    },
+
+    async handleUnmute() {
+        if (!this.adminForm.muteUserId) return;
+        try {
+            const token = getAuthToken();
+            const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+            const res = await fetch(`/api/v1/live/rooms/${this.roomId}/manager/unmute`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    userId: parseInt(this.adminForm.muteUserId)
+                })
+            });
+            if (res.ok) ElMessage.success("解禁成功");
+            else ElMessage.error("操作失败");
+        } catch (e) {
+            ElMessage.error("网络错误");
+        }
+    },
+
+    async deleteDanmaku(msgId) {
+        if (!msgId) return;
+        try {
+            const token = getAuthToken();
+            const headers = { "Authorization": "Bearer " + token };
+            const res = await fetch(`/api/v1/live/rooms/${this.roomId}/manager/danmaku/${msgId}`, {
+                method: 'DELETE',
+                headers
+            });
+            if (res.ok) {
+                ElMessage.success("删除成功");
+                // 本地移除
+                this.messageList = this.messageList.filter(m => m.id !== msgId);
+            }
+            else ElMessage.error("操作失败");
+        } catch (e) {
+            ElMessage.error("网络错误");
+        }
+    },
+    
+    async handleDeleteMsg() {
+        await this.deleteDanmaku(this.adminForm.deleteMsgId);
+    },
+
+    // === 数据功能 ===
+    async fetchLeaderboard() {
+        try {
+            const token = getAuthToken();
+            const headers = { "Authorization": "Bearer " + token };
+            const res = await fetch(`/api/v1/live/rooms/${this.roomId}/stats/leaderboard?type=SESSION`, { headers });
+            if (res.ok) {
+                const json = await res.json();
+                if (json.code === 0 || json.code === 200) {
+                    this.leaderboard = json.data;
+                } else {
+                    this.leaderboard = []; // 失败时清空，避免显示错误数据
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
   },
-  mounted() {
-    // 组件挂载时尝试读取后端真实推流信息
-    this.fetchStreamInfo();
-  },
+  beforeUnmount() {
+      this.stopLive();
+  }
 };
 </script>
 
@@ -597,792 +1015,659 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: linear-gradient(135deg, #fef7ff 0%, #f5f0ff 50%, #fff0f8 100%);
-  color: #2d2d2d;
-  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft Yahei', sans-serif;
+  background: #f4f6f9;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-/* 顶部栏 */
 .top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(255, 105, 180, 0.2);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 240, 248, 0.95) 100%);
-}
-
-.top-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.top-cover {
-  width: 60px;
   height: 60px;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
-}
-
-.top-cover-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.top-cover-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.top-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: rgba(45, 45, 45, 0.7);
-}
-
-.dot-sep {
-  color: rgba(45, 45, 45, 0.4);
-}
-
-.live-title {
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.edit-icon {
-  font-size: 14px;
-  opacity: 0.7;
-}
-
-.live-category {
-  font-size: 14px;
-  color: rgba(45, 45, 45, 0.7);
-}
-
-.lock-icon {
-  font-size: 14px;
-  opacity: 0.7;
-}
-
-.live-permission {
-  font-size: 14px;
-  color: rgba(45, 45, 45, 0.7);
-}
-
-.top-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  color: rgba(45, 45, 45, 0.75);
-  transition: color 0.2s;
-}
-
-.top-right:hover {
-  color: #ff69b4;
-}
-
-.exit-btn {
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 105, 180, 0.4);
-  background: rgba(255, 255, 255, 0.8);
-  color: rgba(45, 45, 45, 0.85);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.exit-btn:hover {
-  background: rgba(255, 105, 180, 0.08);
-  border-color: rgba(255, 105, 180, 0.8);
-  color: #ff69b4;
-}
-
-.setup-hint {
-  font-size: 14px;
-}
-
-.arrow-down {
-  font-size: 16px;
-  color: #ff4081;
-}
-
-/* 主内容区 */
-.main-content {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  margin: 16px 24px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(255, 105, 180, 0.15);
-}
-
-/* 左侧整体区域：顶部栏 + 推流设置 */
-.left-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid rgba(255, 105, 180, 0.2);
-}
-
-/* 左侧面板 */
-.left-panel {
-  flex: 1;
-  min-width: 400px;
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-}
-
-.streaming-setup {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  gap: 40px; /* 加大左侧推流配置与右侧教程之间的横向间距 */
-  align-items: flex-start;
-  justify-content: space-between; /* 让左侧推流配置靠左，右侧教程贴近主内容区右边界 */
-}
-
-.cover-preview-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 105, 180, 0.15);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-.cover-preview-img {
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-}
-
-.cover-preview-empty {
-  height: 160px;
-  border-radius: 10px;
-  border: 1px dashed rgba(255, 105, 180, 0.3);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: rgba(45, 45, 45, 0.7);
-  gap: 6px;
-}
-
-.cover-preview-icon {
-  font-size: 28px;
-  opacity: 0.8;
-}
-
-.cover-preview-footer {
-  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  color: rgba(45, 45, 45, 0.8);
+  padding: 0 24px;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+  z-index: 10;
 }
 
-.mode-tabs {
-  display: flex;
-  margin-bottom: 20px;
-}
-
-.tab-item {
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 105, 180, 0.2);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.tab-item.active {
-  background: linear-gradient(135deg, #ff69b4 0%, #9370db 100%);
-  border-color: transparent;
-  color: #fff;
-}
-
-.setup-title {
-  font-size: 18px;
+.page-title {
   font-weight: 600;
-  margin-bottom: 8px;
+  font-size: 20px;
+  color: #333;
 }
 
-.setup-content {
-  max-width: 600px; /* 加宽整体推流配置区域，使输入框可以更长 */
-}
-
-.setup-hint {
-  font-size: 12px;
-  color: rgba(45, 45, 45, 0.6);
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-/* OBS 教程区域 */
-.obs-tutorial {
+.main-content {
   flex: 1;
-  max-width: 420px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 14px;
-  padding: 16px 18px 18px;
-  box-shadow: 0 8px 24px rgba(15, 16, 22, 0.08);
-  border: 1px solid rgba(255, 105, 180, 0.14);
-}
-
-.tutorial-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.tutorial-steps {
-  margin: 0 0 12px 0;
-  padding-left: 0;
-  list-style: none;
-  font-size: 13px;
-  color: rgba(45, 45, 45, 0.8);
-  line-height: 1.6;
-}
-
-.tutorial-steps li + li {
-  margin-top: 6px;
-}
-
-.step-index {
-  font-weight: 600;
-  color: rgba(45, 45, 45, 0.9);
-}
-
-.highlight-text {
-  color: #ff69b4;
-  font-weight: 600;
-}
-
-.tutorial-card {
-  background: #111827;
-  border-radius: 14px;
-  padding: 12px;
-  margin-bottom: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-}
-
-.tutorial-img {
-  width: 100%;
-  display: block;
-  border-radius: 10px;
-}
-
-.form-item {
-  margin-bottom: 16px;
-}
-
-.form-item label {
-  display: block;
-  font-size: 14px;
-  color: rgba(45, 45, 45, 0.85);
-  margin-bottom: 8px;
-}
-
-.input-with-copy {
+  overflow: hidden;
   display: flex;
-  gap: 8px;
-}
-
-:deep(.setup-content .el-input),
-:deep(.setup-content .el-select),
-:deep(.setup-content .el-radio-group) {
-  max-width: 420px; /* 再加长普通输入框 */
-}
-
-:deep(.setup-content .input-with-copy .el-input) {
-  flex: 1;
-  min-width: 320px;
-  max-width: 380px; /* 带复制按钮的输入框也再加长 */
-}
-
-.copy-btn {
-  padding: 8px 16px;
-  background: #ffffff;
-  border-color: rgba(255, 105, 180, 0.5);
-  color: #ff69b4;
-}
-
-.copy-btn:hover {
-  background: rgba(255, 105, 180, 0.06);
-  border-color: rgba(255, 105, 180, 0.8);
-}
-
-.protocol-select {
-  margin-bottom: 16px;
-}
-
-.new-feature {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 20px;
-  padding: 12px;
-  background: rgba(255, 64, 129, 0.1);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.new-feature:hover {
-  background: rgba(255, 64, 129, 0.2);
-}
-
-.new-tag {
-  background: #ff4081;
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.feature-text {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-/* 底部控制栏 */
-.bottom-controls {
-  padding: 12px 20px;
-  border-top: 1px solid rgba(255, 105, 180, 0.2);
-  background: rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: nowrap;
-}
-
-.audio-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.audio-icon {
-  font-size: 18px;
-  color: rgba(45, 45, 45, 0.9);
-}
-
-.caret-icon {
-  font-size: 10px;
-  color: rgba(45, 45, 45, 0.6);
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.caret-icon:hover {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.audio-slider {
-  width: 120px;
-  flex-shrink: 0;
-}
-
-/* Element Plus 滑块样式覆盖 */
-:deep(.audio-slider .el-slider__runway) {
-  background-color: rgba(255, 255, 255, 0.2);
-  height: 4px;
-}
-
-:deep(.audio-slider .el-slider__bar) {
-  background-color: #ff4081;
-  height: 4px;
-}
-
-:deep(.audio-slider .el-slider__button) {
-  width: 12px;
-  height: 12px;
-  background-color: #fff;
-  border: 2px solid #ff4081;
-}
-
-.audio-value {
-  font-size: 12px;
-  color: rgba(45, 45, 45, 0.9);
-  min-width: 35px;
-  text-align: right;
-  font-weight: 500;
-}
-
-.mute-btn {
-  padding: 6px;
-  min-width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 105, 180, 0.25);
-  color: rgba(45, 45, 45, 0.9);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
   justify-content: center;
 }
 
-.mute-btn:hover {
-  background: rgba(255, 105, 180, 0.08);
+/* 准备模式 */
+.prepare-mode-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    padding: 40px;
+    overflow-y: auto;
 }
 
-.mute-btn.muted {
-  background: rgba(255, 105, 180, 0.18);
-  border-color: #ff69b4;
-  color: #ff69b4;
+.prepare-content {
+    width: 100%;
+    max-width: 800px;
 }
 
-.action-buttons {
+/* 复用之前的卡片样式 */
+.info-card {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-left: auto;
-  flex-shrink: 0;
+  gap: 24px;
+  margin-bottom: 40px;
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
 }
 
-.action-btn {
-  padding: 6px;
-  min-width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(255, 105, 180, 0.25);
-  color: rgba(45, 45, 45, 0.9);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.cover-section {
+  width: 240px;
+  height: 135px;
+  border-radius: 8px;
+  overflow: hidden;
   position: relative;
+  cursor: pointer;
+  background: #f0f0f0;
 }
 
-.action-btn:hover {
-  background: rgba(255, 105, 180, 0.08);
-}
-
-.action-btn.recording {
-  background: rgba(255, 105, 180, 0.2);
-  border-color: #ff69b4;
-  color: #ff69b4;
-}
-
-
-/* 弹窗内容样式 */
-.dialog-content {
-  padding: 0;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.dialog-hint {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  margin-bottom: 16px;
-  line-height: 1.5;
-}
-
-.form-group {
-  margin-bottom: 14px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.85);
-  margin-bottom: 6px;
-  font-weight: 500;
-}
-
-.form-group label.required::before {
-  content: "*";
-  color: #ff4081;
-  margin-right: 4px;
-}
-
-.cover-uploader {
-  position: relative;
-}
-
-.cover-preview {
+.cover-img {
   width: 100%;
-  height: 150px;
+  height: 100%;
   object-fit: cover;
-  border-radius: 6px;
 }
 
 .cover-placeholder {
   width: 100%;
-  height: 150px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f5f5f5;
-  border: 2px dashed #d9d9d9;
-  border-radius: 6px;
-  color: rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  transition: all 0.3s;
+  color: #555;
+  font-weight: bold;
+}
+
+.cover-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  padding: 6px;
+  text-align: center;
   font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
-.cover-placeholder:hover {
-  border-color: #ff4081;
-  background: #fff5f7;
+.cover-section:hover .cover-overlay {
+  opacity: 1;
 }
 
-.input-with-edit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.edit-icon-small {
-  font-size: 16px;
-  color: rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.edit-icon-small:hover {
-  color: #ff4081;
-}
-
-.tags-section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.live-tag {
-  background: rgba(255, 64, 129, 0.2);
-  border-color: #ff4081;
-  color: #ff4081;
-}
-
-.add-tag-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.tag-hint {
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.45);
-  margin: 4px 0 0 0;
-}
-
-/* 右侧面板 */
-.right-panel {
-  width: 360px; /* 适当加宽右侧区域 */
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid rgba(255, 105, 180, 0.2);
-  background: #ffffff;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-.panel-section {
-  margin-bottom: 16px;
-  padding: 16px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 14px rgba(15, 16, 22, 0.06);
-  border: 1px solid rgba(255, 105, 180, 0.16);
-  /* 即使内容较少也保持一定的视觉高度 */
-  min-height: 220px;
-}
-
-/* 让“直播互动”这一块撑满右侧剩余空间 */
-.interaction-section {
+.info-details {
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.audience-tabs {
+.live-title-large {
+  font-size: 24px;
+  margin: 0 0 16px 0;
+  cursor: pointer;
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: #333;
+  font-weight: bold;
 }
 
-.audience-tabs .tab-item {
-  padding: 6px 12px;
-  font-size: 12px;
+.live-title-large:hover {
+  color: #ff69b4;
 }
 
-.section-desc {
-  font-size: 12px;
-  color: rgba(45, 45, 45, 0.6);
-  margin-bottom: 12px;
-  line-height: 1.5;
+.live-meta-large {
+  display: flex;
+  gap: 10px;
 }
 
-.session-data {
+.meta-tag {
+  background: #f5f5f5;
+  padding: 4px 12px;
+  border-radius: 100px;
   font-size: 14px;
-  color: rgba(45, 45, 45, 0.8);
-  padding: 8px;
-  background: rgba(255, 105, 180, 0.05);
-  border-radius: 6px;
+  color: #666;
 }
 
-.interaction-icons {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
+.stream-config-card {
+  background: #f9f9f9;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 40px;
+  border: 1px solid #eee;
 }
 
-.interaction-icons .el-icon {
-  font-size: 20px;
-  color: rgba(45, 45, 45, 0.7);
-}
-
-.gift-records {
-  max-height: 120px;
-  overflow-y: auto;
-  margin-bottom: 16px;
-  padding: 4px 0;
-  border-radius: 8px;
-  background: rgba(255, 105, 180, 0.03);
-}
-
-.gift-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px;
-  background: rgba(255, 105, 180, 0.05);
-  border-radius: 6px;
-  margin-bottom: 8px;
-  font-size: 12px;
-}
-
-.gift-user {
-  color: rgba(45, 45, 45, 0.85);
-}
-
-.gift-name {
-  color: rgba(45, 45, 45, 0.6);
-}
-
-.gift-amount {
-  color: #ff69b4;
-  font-weight: 600;
-}
-
-.danmu-messages {
-  max-height: 220px; /* 提高最大高度，显示更多弹幕 */
-  overflow-y: auto;
+.card-title {
+  margin-top: 0;
   margin-bottom: 20px;
-  padding: 8px;
-  background: rgba(255, 105, 180, 0.05);
-  border-radius: 8px;
-  min-height: 140px; /* 提高最小高度，即使弹幕少也占更大空间 */
+  font-size: 18px;
+  color: #333;
+  font-weight: bold;
 }
 
-.danmu-msg {
-  font-size: 12px;
+.config-row {
+  display: flex;
+  gap: 20px;
+}
+
+.config-item {
+  flex: 1;
+}
+
+.config-item label {
+  display: block;
   margin-bottom: 8px;
-  line-height: 1.5;
+  font-weight: bold;
+  color: #333;
 }
 
-.msg-user {
-  color: #ff69b4;
-  font-weight: 600;
+.input-with-copy {
+  display: flex;
+  gap: 10px;
 }
+
+.config-hint {
+  margin-top: 16px;
+  color: #888;
+  font-size: 13px;
+}
+
+.action-area {
+  text-align: center;
+}
+
+.start-live-btn {
+  background: linear-gradient(135deg, #ff69b4, #ff4081);
+  color: #fff;
+  border: none;
+  padding: 16px 48px;
+  font-size: 20px;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(255, 64, 129, 0.3);
+  transition: transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.start-live-btn:hover {
+  transform: scale(1.05);
+}
+
+.action-hint {
+  margin-top: 16px;
+  color: #666;
+}
+
+/* === 直播模式布局 === */
+.live-mode-layout {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.video-area {
+    flex: 1;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.video-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.video-player {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+}
+
+.danmaku-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* 允许点击穿透 */
+    overflow: hidden;
+    z-index: 10;
+}
+
+.flying-item {
+    position: absolute;
+    right: -100%; /* 初始在右侧屏幕外 */
+    white-space: nowrap;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    animation-name: fly;
+    animation-timing-function: linear;
+}
+
+@keyframes fly {
+    from { transform: translateX(0); right: -20%; }
+    to { transform: translateX(-150vw); right: 100%; }
+}
+
+.video-placeholder {
+    position: absolute;
+    color: #fff;
+    text-align: center;
+    z-index: 5;
+}
+
+.video-controls-bar {
+    height: 50px;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    color: #fff;
+}
+
+.left-controls {
+    display: flex;
+    gap: 20px;
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #aaa;
+    font-size: 14px;
+}
+.control-item.active {
+    color: #fff;
+}
+
+.center-status {
+    font-size: 14px;
+    color: #ff69b4;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: #ff69b4;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+/* 右侧仪表盘 */
+.dashboard-sidebar {
+    width: 380px;
+    background: #fff;
+    border-left: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+:deep(.el-tabs__content) {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+:deep(.el-tab-pane) {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 消息流 */
+.message-stream-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #f9f9f9;
+}
+
+.message-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.msg-card {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    font-size: 14px;
+}
+
+.msg-type-CHAT {
+    border-left: 3px solid #eee;
+}
+
+.msg-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #999;
+}
+
+.user-name {
+    color: #666;
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.msg-actions {
+    margin-left: auto;
+    display: none; /* 默认隐藏，hover显示 */
+    gap: 8px;
+}
+
+.msg-card:hover .msg-actions {
+    display: flex;
+}
+
+.action-icon {
+    cursor: pointer;
+    font-size: 14px;
+}
+.action-icon:hover { color: #ff69b4; }
+.action-icon.delete:hover { color: #f56c6c; }
 
 .msg-content {
-  color: rgba(45, 45, 45, 0.8);
+    color: #333;
+    line-height: 1.4;
+    word-break: break-all;
 }
 
-.chat-input-box {
-  display: flex;
-  gap: 8px;
+/* 礼物样式 */
+.msg-type-GIFT {
+    background: linear-gradient(to right, #fff0f5, #fff);
+    border-left: 3px solid #ff69b4;
+}
+.gift-name {
+    color: #ff69b4;
+    font-weight: bold;
 }
 
-.send-btn {
-  background: #ffffff;
-  border-color: rgba(255, 105, 180, 0.5);
+/* SC 样式 */
+.msg-type-SC {
+    background: #ff4081;
+    color: #fff;
+    padding: 0;
+    overflow: hidden;
+}
+.sc-header {
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+.sc-body {
+    padding: 10px 12px;
+    font-size: 15px;
+}
+.msg-type-SC .user-name { color: #fff; }
+
+/* 系统消息 */
+.msg-type-SYSTEM {
+    background: #f0f9eb;
+    color: #67c23a;
+    text-align: center;
+    font-size: 12px;
+}
+
+.chat-input-area {
+    padding: 12px;
+    background: #fff;
+    border-top: 1px solid #eee;
+}
+
+/* 管理面板 */
+.admin-panel {
+    padding: 20px;
+    overflow-y: auto;
+}
+.panel-section {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    margin-bottom: 20px;
+}
+.panel-section h4 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #333;
+}
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* 数据面板 */
+.data-panel {
+    padding: 20px;
+    overflow-y: auto;
+}
+.panel-header {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.rank-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+.rank-num {
+    width: 24px;
+    height: 24px;
+    background: #eee;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 24px;
+    font-size: 12px;
+    margin-right: 12px;
+    color: #666;
+}
+.rank-1 { background: #ffd700; color: #fff; }
+.rank-2 { background: #c0c0c0; color: #fff; }
+.rank-3 { background: #cd7f32; color: #fff; }
+
+.rank-user {
+    flex: 1;
+    font-weight: 500;
+}
+.rank-score {
+    color: #ff69b4;
+    font-weight: bold;
+}
+.empty-tip {
+    text-align: center;
+    color: #999;
+    padding: 20px;
+}
+
+/* 弹窗样式 */
+.cover-uploader {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 180px;
+}
+.cover-uploader:hover {
+  border-color: #ff69b4;
+}
+.cover-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.page-title-live {
+  font-size: 20px;
+  font-weight: bold;
   color: #ff69b4;
+  font-family: 'Microsoft YaHei', sans-serif;
 }
 
-.send-btn:hover {
-  background: rgba(255, 105, 180, 0.06);
-  border-color: rgba(255, 105, 180, 0.8);
+/* 弹幕列表覆盖层 */
+.danmaku-overlay-list {
+    position: absolute;
+    width: 240px;
+    height: 300px;
+    background: rgba(0, 0, 0, 0); /* 透明背景 */
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    cursor: move;
+    /* backdrop-filter: blur(4px);  移除模糊效果，避免遮挡 */
+    border: none; /* 移除边框 */
+    overflow: hidden;
 }
 
-/* Element Plus 弹窗样式覆盖 */
-:deep(.el-dialog) {
-  background: #fff;
-  border-radius: 12px;
-  margin-top: 5vh !important;
+.overlay-header {
+    height: 32px;
+    background: rgba(0, 0, 0, 0.1); /* 标题栏稍微有点背景以便拖拽 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    color: #fff;
+    font-size: 12px;
+    user-select: none;
+    border-radius: 8px 8px 0 0;
 }
 
-:deep(.el-dialog__header) {
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+.overlay-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-:deep(.el-dialog__title) {
-  font-size: 16px;
-  font-weight: 600;
+/* 隐藏滚动条但保留功能 */
+.overlay-content::-webkit-scrollbar {
+    width: 4px;
+}
+.overlay-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
 }
 
-:deep(.el-dialog__body) {
-  padding: 20px;
-  max-height: calc(90vh - 120px);
-  overflow-y: auto;
+.overlay-item {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8); /* 增强文字阴影，确保在透明背景下可见 */
+    word-break: break-all;
+    padding: 2px 4px;
+    background: rgba(0,0,0,0.2); /* 给每条弹幕加一点点背景，增加可读性 */
+    border-radius: 4px;
+    margin-bottom: 2px;
 }
 
-:deep(.el-dialog__footer) {
-  padding: 12px 20px;
-  border-top: 1px solid #f0f0f0;
+.overlay-user {
+    color: #ffd700;
+    margin-right: 4px;
+    font-weight: bold;
+}
+
+.fan-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  min-width: 20px;
+  height: 16px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #ffe8b8, #ffd166);
+  color: #8a4b00;
+  font-weight: 700;
+  font-size: 10px;
+  border: 1px solid rgba(255, 209, 102, 0.5);
+  margin: 0 4px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.fan-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  min-width: 20px;
+  height: 16px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #ffe8b8, #ffd166);
+  color: #8a4b00;
+  font-weight: 700;
+  font-size: 10px;
+  border: 1px solid rgba(255, 209, 102, 0.5);
+  margin: 0 4px;
+  line-height: 1;
+  vertical-align: middle;
 }
 </style>

@@ -13,4 +13,11 @@ public interface IUserService {
      * @return 用户简要信息
      */
     UserInfoDTO getUserByToken(String token);
+
+    /**
+     * 根据 ID 获取用户信息
+     * @param userId 用户ID
+     * @return 用户简要信息
+     */
+    UserInfoDTO getUserById(Integer userId);
 }

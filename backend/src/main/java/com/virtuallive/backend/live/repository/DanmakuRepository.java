@@ -9,4 +9,7 @@ import java.util.List;
 @Repository
 public interface DanmakuRepository extends JpaRepository<Danmaku, Integer> {
     List<Danmaku> findByVideoIdOrderByCreatedAtAsc(Integer videoId);
+    
+    // 获取某场直播的最新弹幕 (用于历史记录)
+    List<Danmaku> findTop50BySessionIdAndIsDeletedFalseOrderByCreatedAtDesc(Integer sessionId);
 }

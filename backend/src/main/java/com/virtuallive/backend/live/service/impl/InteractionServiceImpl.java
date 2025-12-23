@@ -28,6 +28,7 @@ public class InteractionServiceImpl implements InteractionService {
     @Autowired private UserWalletRepository userWalletRepository;
     @Autowired private LiveSessionRepository liveSessionRepository;
     @Autowired private RoomBanRepository roomBanRepository;
+    @Autowired private LiveRoomRepository liveRoomRepository;
 
     private Integer getCurrentSessionId(Integer roomId) {
         return liveSessionRepository.findFirstByRoomIdAndEndTimeIsNullOrderByStartTimeDesc(roomId)
@@ -144,11 +145,39 @@ public class InteractionServiceImpl implements InteractionService {
             });
         }
 
-        // 如果是 SC，同时也保存一份到弹幕表，方便历史记录回看
-        if ("SC".equalsIgnoreCase(message.getType())) {
+        // === 新增：给主播钱包加钱 ===
+        try {
+            Optional<LiveRoom> roomOpt = liveRoomRepository.findById(message.getRoomId());
+            if (roomOpt.isPresent()) {
+                Integer vtuberId = roomOpt.get().getVtuberId();
+                if (vtuberId != null) {
+                    UserWallet hostWallet = userWalletRepository.findByUserId(vtuberId)
+                            .orElseGet(() -> {
+                                UserWallet w = new UserWallet();
+                                w.setUserId(vtuberId);
+                                w.setBalance(BigDecimal.ZERO);
+                                w.setTotalSpent(BigDecimal.ZERO);
+                                return userWalletRepository.save(w);
+                            });
+                    
+                    hostWallet.setBalance(hostWallet.getBalance().add(totalCost));
+                    userWalletRepository.save(hostWallet);
+                    log.info("主播[{}] 收到打赏，钱包增加: {}", vtuberId, totalCost);
+                }
+            }
+        } catch (Exception e) {
+            log.error("给主播加钱失败", e);
+        }
+
+        // 如果是 SC 或 礼物，同时也保存一份到弹幕表，方便历史记录回看
+        if ("SC".equalsIgnoreCase(message.getType()) || "GIFT".equalsIgnoreCase(message.getType())) {
+            // 对于礼物，构造内容
+            if ("GIFT".equalsIgnoreCase(message.getType())) {
+                 message.setContent("送出了 " + message.getGiftName() + " x" + message.getGiftCount());
+            }
             // 保存并设置ID
-            Integer scId = saveDanmaku(message, user);
-            message.setDanmakuId(scId);
+            Integer savedId = saveDanmaku(message, user);
+            message.setDanmakuId(savedId);
         }
 
         log.info("礼物/SC处理成功: 用户[{}] 金额[{}]", user.getUsername(), totalCost);
@@ -177,6 +206,16 @@ public class InteractionServiceImpl implements InteractionService {
             case "MONTH":
                 startTime = LocalDate.now().with(TemporalAdjusters.firstDayOfMonth()).atStartOfDay();
                 break;
+            case "ONLINE":
+                // 既然没有实时在线人数统计，暂时返回当前场次的贡献榜作为"在线榜"
+                // 或者返回当天的榜单
+                Integer currentSessionId = getCurrentSessionId(roomId);
+                if (currentSessionId != null) {
+                    List<LeaderboardItemDTO> onlineList = giftDonationRepository.findLeaderboardBySession(currentSessionId);
+                    assignRanks(onlineList);
+                    return onlineList;
+                }
+                return new ArrayList<>();
             default:
                 throw new IllegalArgumentException("Unknown leaderboard type: " + type);
         }

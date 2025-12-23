@@ -3,6 +3,7 @@ package com.virtuallive.backend.live.service.impl;
 import com.virtuallive.backend.live.dto.UserInfoDTO;
 import com.virtuallive.backend.live.service.IUserService;
 import com.virtuallive.backend.model.entity.User;
+import com.virtuallive.backend.repository.UserFollowRepository;
 import com.virtuallive.backend.repository.UserRepository;
 import com.virtuallive.backend.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class UserServiceImpl implements IUserService {
 
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final UserFollowRepository userFollowRepository;
 
     @Override
     public UserInfoDTO getUserByToken(String token) {
@@ -55,14 +57,31 @@ public class UserServiceImpl implements IUserService {
                     .orElseThrow(() -> new RuntimeException("用户不存在: " + username));
 
             // 3. 封装成 Live 模块用的 UserInfoDTO
+            long fanCount = userFollowRepository.countByFollowing(user);
             return new UserInfoDTO(
                     user.getUserId().longValue(),
                     user.getUsername(),
-                    user.getAvatarUrl()
+                    user.getAvatarUrl(),
+                    (int) fanCount
             );
         } catch (Exception e) {
             log.warn("解析 token 获取用户失败, token={}, error={}", token, e.getMessage());
             return null;
         }
+    }
+
+    @Override
+    public UserInfoDTO getUserById(Integer userId) {
+        return userRepository.findById(userId)
+                .map(user -> {
+                    long fanCount = userFollowRepository.countByFollowing(user);
+                    return new UserInfoDTO(
+                            user.getUserId().longValue(),
+                            user.getUsername(),
+                            user.getAvatarUrl(),
+                            (int) fanCount
+                    );
+                })
+                .orElse(null);
     }
 }

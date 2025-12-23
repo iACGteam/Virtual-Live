@@ -75,13 +75,14 @@ export default {
 
 <style scoped>
 .gift-panel {
-  background: #fcf5ff;
+  background: #222;
   border-radius: 12px;
   padding: 10px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #333;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  color: #fff;
 }
 
 /* 横向礼物列表 */
@@ -96,127 +97,114 @@ export default {
 /* 礼物 item */
 .gift-item {
   min-width: 120px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 8px;
   padding: 8px;
-  border-radius: 10px;
   display: flex;
+  align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: 0.12s ease;
+  transition: all 0.2s;
 }
-
 .gift-item:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  background: #444;
+  border-color: #ff4081;
 }
 
 .gift-img {
-  font-size: 28px;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  font-size: 24px;
+}
+
+.gift-info {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  flex-direction: column;
+}
+
+.gift-name {
+  font-size: 13px;
+  font-weight: bold;
+  color: #ddd;
+}
+
+.gift-price {
+  font-size: 12px;
+  color: #aaa;
 }
 
 /* 更多按钮 */
 .more-btn {
-  min-width: 60px;
-  padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
+  min-width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #333;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #aaa;
+  border: 1px solid #444;
 }
-
 .more-btn:hover {
-  background: #f3f4f6;
+  background: #444;
+  color: #fff;
 }
 
 /* 泡泡框 */
 .more-popup {
   position: absolute;
-  bottom: 70px;
-  right: 20px;
-  width: 320px;
-  max-height: 320px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  bottom: 110px; /* 位于礼物栏上方 */
+  left: 20px;
+  right: 340px; /* 避开右侧聊天栏 */
+  background: #2a2a2a;
+  border: 1px solid #444;
   border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
-  z-index: 200;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 100;
 }
 
-/* 网格布局 */
 .popup-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  overflow-y: auto;
-}
-
-/* 隐藏滚动条 */
-.popup-grid::-webkit-scrollbar {
-  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
 }
 
 .popup-item {
-  background: #f9fafb;
-  border-radius: 10px;
-  padding: 8px;
-  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  text-align: center;
+  transition: background 0.2s;
 }
-
 .popup-item:hover {
-  background: #f3f4f6;
+  background: #333;
 }
 
 .pi-img {
   font-size: 32px;
+  margin-bottom: 4px;
 }
-
 .pi-name {
-  font-size: 12px;
-  margin-top: 4px;
-  font-weight: 600;
+  font-size: 13px;
+  color: #ddd;
 }
-
 .pi-price {
   font-size: 12px;
-  color: #666;
+  color: #888;
 }
 
-/* 关闭按钮 */
 .popup-close {
-  padding: 6px 0;
+  margin-top: 12px;
   text-align: center;
-  background: #f3f4f6;
-  border-radius: 8px;
+  font-size: 12px;
+  color: #666;
   cursor: pointer;
 }
-
 .popup-close:hover {
-  background: #e5e7eb;
-}
-
-.hint {
-  font-size: 12px;
-  color: #999;
+  color: #aaa;
 }
 </style>

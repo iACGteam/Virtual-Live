@@ -62,6 +62,8 @@
 <script>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
+import { getAuthToken } from "@/utils/auth";
+import { ElMessage } from "element-plus";
 
 export default {
   setup() {
@@ -79,7 +81,7 @@ export default {
       reader.readAsDataURL(file.raw);
     };
 
-    const startLive = () => {
+    const startLive = async () => {
       console.log("开直播信息:", {
         title: title.value,
         cover: coverUrl.value,
@@ -88,8 +90,64 @@ export default {
         allowDanmu: allowDanmu.value,
       });
 
-      // 跳转路由
-      router.push("/live-manage");
+      const token = getAuthToken();
+      if (!token) {
+        ElMessage.warning("请先登录");
+        router.push("/login");
+        return;
+      }
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": token.startsWith("Bearer ") ? token : "Bearer " + token
+      };
+
+      try {
+        // 1. 获取/创建房间
+        const res1 = await fetch("/api/v1/live/rooms/my", { headers });
+        if (!res1.ok) {
+           ElMessage.error("获取房间信息失败");
+           return;
+        }
+        const data1 = await res1.json();
+        // 兼容直接返回对象或 {code:0, data:{...}}
+        let roomId = data1.roomId;
+        if (!roomId && data1.data && data1.data.roomId) {
+            roomId = data1.data.roomId;
+        }
+
+        if (!roomId) {
+            ElMessage.error("无法获取房间ID");
+            return;
+        }
+
+        // 2. 更新房间信息
+        const updateBody = {
+            title: title.value,
+            coverUrl: coverUrl.value,
+            category: category.value,
+            description: title.value // 暂时用标题作为简介
+        };
+
+        const res2 = await fetch(`/api/v1/live/rooms/${roomId}/manager/update`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(updateBody)
+        });
+
+        if (!res2.ok) {
+            ElMessage.error("更新直播间信息失败");
+            return;
+        }
+
+        ElMessage.success("直播间准备就绪");
+        // 跳转路由
+        router.push("/live-manage");
+
+      } catch (error) {
+          console.error("Start Live Error:", error);
+          ElMessage.error("系统错误，请稍后重试");
+      }
     };
 
     return {

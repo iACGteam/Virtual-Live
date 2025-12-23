@@ -12,4 +12,9 @@ public class RoomInfoDTO {
     private String playUrlHls; // HLS 播放地址
     private String playUrlFlv; // HTTP-FLV 播放地址
     private Integer viewerCount;
+    
+    private String category;
+    private String creatorName;
+    private String creatorAvatar;
+    private Integer creatorId;
 }

@@ -13,6 +13,7 @@ public class DanmakuMessage {
     private String color;     // 弹幕颜色 (十六进制)
 
     // 发送者信息 (后端填充)
+    private Long senderId;
     private String senderName;
     private String senderAvatar;
 
@@ -23,4 +24,7 @@ public class DanmakuMessage {
 
     // SC 特有字段
     private int scDuration; // SC停留时间(秒)
+
+    // 粉丝等级
+    private Integer fanLevel;
 }

@@ -4,21 +4,6 @@
     <div class="chat-top" ref="chatTop">
       <div class="room-title">
         聊天区
-        <span class="online">在线 {{ fakeOnline }}</span>
-      </div>
-
-      <!-- 礼物榜 -->
-      <div class="gift-leaderboard" v-show="showLeaderboard" @mouseenter="keepLeaderboard = true"
-        @mouseleave="keepLeaderboard = false">
-        <div class="lb-title">送礼排行榜</div>
-        <ol>
-          <li v-for="(u, idx) in leaderboard" :key="u.username">
-            <span class="rank">{{ idx + 1 }}</span>
-            <span class="fan-level lb-fan-level">Lv{{ u.fanLevel || 1 }}</span>
-            <span class="name">{{ u.username }}</span>
-            <span class="amount">{{ u.amount }} 礼物值</span>
-          </li>
-        </ol>
       </div>
     </div>
 
@@ -37,7 +22,6 @@
     <!-- 消息列表 -->
     <div class="messages" ref="messagesList">
       <div v-for="msg in messages" :key="msg.id" class="msg" :class="msg.type">
-        <div class="fan-level">Lv{{ msg.fanLevel || 1 }}</div>
         <div class="avatar" :style="{ background: avatarColor(msg.username) }">
           {{ avatarInitial(msg.username) }}
         </div>
@@ -45,6 +29,9 @@
         <div class="bubble" :style="bubbleStyle(msg)">
           <div class="meta">
             <span class="username">{{ msg.username }}</span>
+            <!-- 主播标识 -->
+            <span v-if="msg.isAnchor" class="anchor-badge">主播</span>
+            <div class="fan-level" v-if="msg.fanLevel">Lv{{ msg.fanLevel }}</div>
 
             <span v-if="msg.type === 'sc'" class="sc-badge">SC</span>
             <span v-if="msg.type === 'gift'" class="gift-badge">🎁</span>
@@ -135,15 +122,6 @@ export default {
       selectedSCAmount: 50,
       customAmount: "",
       scPinned: [],
-      fakeOnline: 8523,
-
-      showLeaderboard: false,
-      keepLeaderboard: false,
-      leaderboard: [
-        { username: "土豪B", amount: 5200, fanLevel: 8 },
-        { username: "大佬SC", amount: 3000, fanLevel: 10 },
-        { username: "小萌新", amount: 900, fanLevel: 2 },
-      ],
     };
   },
 
@@ -224,8 +202,8 @@ export default {
       // 发送给父组件
       this.$emit("send-sc", msg);
 
-      // 添加到固定展示区
-      this.addPinnedSC(msg);
+      // 移除乐观更新：等待后端广播回来后再显示
+      // this.addPinnedSC(msg);
 
       // 重置
       this.input = "";
@@ -265,7 +243,7 @@ export default {
     },
 
     avatarInitial(name) {
-      return name ? name.slice(0, 1).toUpperCase() : "?";
+      return name ? name.slice(0, 1).toUpperCase() : "";
     },
     avatarColor(name) {
       const str = name || "u";
@@ -313,22 +291,11 @@ export default {
 </script>
 
 <style scoped>
-.live-chat {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #fcf5ff;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid #e5e7eb;
-}
-
 /* 固定 SC 显示区 */
 .sc-pinned {
   padding: 8px 12px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff9f9;
+  border-bottom: 1px solid #333;
+  background: #2a2a2a;
 }
 
 .sc-item {
@@ -336,12 +303,14 @@ export default {
   margin-bottom: 6px;
   border-radius: 10px;
   font-size: 14px;
-  border: 1px solid rgba(255, 123, 123, 0.25);
+  border: 1px solid #ff4081;
+  background: #333;
+  color: #fff;
 }
 
 .sc-item .username {
   font-weight: 700;
-  color: #222;
+  color: #ddd;
 }
 
 .sc-item .sc-amount {
@@ -400,11 +369,11 @@ export default {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fbf5ff;
+  background: #222;
   border-radius: 12px;
   overflow: hidden;
   position: relative;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #333;
 }
 
 /* 顶部区域 */
@@ -415,13 +384,13 @@ export default {
   padding: 8px 12px;
   position: relative;
   user-select: none;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fefbff;
+  border-bottom: 1px solid #333;
+  background: #2a2a2a;
 }
 
 .room-title {
   font-weight: 600;
-  color: #222;
+  color: #ddd;
   letter-spacing: 0.4px;
 }
 
@@ -493,7 +462,7 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #fefbff;
+  background: #222;
 }
 
 /* 单条消息 */
@@ -514,7 +483,7 @@ export default {
   font-weight: 700;
   color: #fff;
   font-size: 14px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* 气泡 */
@@ -522,12 +491,12 @@ export default {
   padding: 8px 10px;
   border-radius: 10px;
   max-width: 100%;
-  color: #222;
+  color: #ddd;
   font-size: 14px;
   line-height: 1.25;
-  border: 1px solid #e5e7eb;
-  background: #f7f7f7;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #333;
+  background: #2a2a2a;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
   position: relative;
 }
 
@@ -543,21 +512,23 @@ export default {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 10px;
-  min-width: 42px;
-  border-radius: 999px;
+  padding: 0 4px;
+  min-width: 20px;
+  height: 16px;
+  border-radius: 3px;
   background: linear-gradient(135deg, #ffe8b8, #ffd166);
   color: #8a4b00;
-  font-weight: 800;
-  font-size: 12px;
+  font-weight: 700;
+  font-size: 10px;
   border: 1px solid rgba(255, 209, 102, 0.5);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-left: 4px;
+  line-height: 1;
 }
 
 .msg .fan-level {
-  align-self: flex-start;
-  margin-top: 0;
-  margin-right: 2px;
+  /* align-self: flex-start; */
+  /* margin-top: 0; */
+  /* margin-right: 2px; */
 }
 
 .lb-fan-level {
@@ -569,7 +540,17 @@ export default {
 
 .meta .username {
   font-weight: 700;
-  color: #222;
+  color: #aaa;
+}
+
+.anchor-badge {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #ff4d4f;
+  color: white;
+  font-weight: bold;
+  margin-right: 4px;
 }
 
 /* 徽章 */
@@ -641,18 +622,6 @@ export default {
 
 .send-box button:hover {
   background: #4338ca;
-}
-
-
-.live-chat {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #fcf5ff;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid #e5e7eb;
 }
 
 /* SC 表单样式 */
@@ -837,6 +806,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
+  color: #333;
 }
 
 .sc-toggle label {
@@ -877,7 +847,7 @@ export default {
 
 .room-title {
   font-weight: 600;
-  color: #222;
+  color: #eee;
 }
 
 /* 礼物榜 */

@@ -81,6 +81,16 @@ export async function register(username, email, password) {
   })
 }
 
+// 获取直播间列表
+export async function getLiveRooms() {
+  return request('/live/rooms/list')
+}
+
+// 获取直播间详情
+export async function getLiveRoomInfo(roomId) {
+  return request(`/live/rooms/${roomId}`)
+}
+
 // ==================== 视频相关 API ====================
 
 // 获取视频列表

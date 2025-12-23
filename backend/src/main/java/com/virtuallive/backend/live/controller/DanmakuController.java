@@ -22,6 +22,7 @@ import java.util.Optional;
 @Controller
 public class DanmakuController {
 
+    // WebSocket 消息模板
     @Autowired private SimpMessagingTemplate messagingTemplate;
     @Autowired private IUserService userService;
     @Autowired private InteractionServiceImpl interactionService;
@@ -61,8 +62,20 @@ public class DanmakuController {
             }
 
             // 3. 填充用户基础信息
+            message.setSenderId(user.getUserId());
             message.setSenderName(user.getUsername());
             message.setSenderAvatar(user.getAvatarUrl());
+
+            // 填充粉丝等级
+            try {
+                Integer vtuberId = findVtuberIdByRoomId(message.getRoomId());
+                if (vtuberId != null) {
+                    Integer level = fanBadgeService.getFanBadgeLevel(vtuberId, user.getUserId().intValue());
+                    message.setFanLevel(level);
+                }
+            } catch (Exception e) {
+                log.warn("获取粉丝等级失败", e);
+            }
 
             if (isPaidInteraction) {
                 // ===== 礼物 / SC 逻辑 =====
@@ -72,6 +85,10 @@ public class DanmakuController {
                     if (!isSC) {
                         message.setContent("送出了 " + message.getGiftName() + " x" + message.getGiftCount());
                     }
+
+                    // 保存到弹幕表，以便历史记录可见
+                    Integer danmakuId = interactionService.saveDanmaku(message, user);
+                    message.setDanmakuId(danmakuId);
 
                     // 更新粉丝牌等级
                     try {
@@ -106,6 +123,24 @@ public class DanmakuController {
 
         } catch (Exception e) {
             log.error("弹幕处理异常", e);
+            // 发送错误消息给用户
+            try {
+                String authHeader = headerAccessor.getFirstNativeHeader("Authorization");
+                String tokenHeader = headerAccessor.getFirstNativeHeader("token");
+                String token = (authHeader != null && !authHeader.isBlank()) ? authHeader : tokenHeader;
+                
+                if (token != null) {
+                     UserInfoDTO user = userService.getUserByToken(token);
+                     if (user != null && user.getUserId() != 0) {
+                        messagingTemplate.convertAndSend(
+                            "/topic/errors/" + user.getUserId(), 
+                            e.getMessage()
+                        );
+                     }
+                }
+            } catch (Exception ex) {
+                log.error("发送错误消息失败", ex);
+            }
         }
     }
 

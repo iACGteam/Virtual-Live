@@ -158,16 +158,19 @@
           </div>
         </section>
   
-        <section class="video-grid">
+        <section class="video-grid" v-if="filteredStreams.length > 0">
           <article
             v-for="stream in filteredStreams"
             :key="stream.id"
             class="video-card"
-            @click="goLiveRoom"
+            @click="goLiveRoom(stream)"
           >
             <div class="thumbnail">
               <img :src="stream.thumbnail" :alt="`${stream.title} 封面`">
-              <span class="viewers" >{{ stream.viewers }} 人</span>
+              <div v-if="!stream.isLive" class="offline-overlay">
+                  📺 当前用户未开播
+              </div>
+              <span v-if="stream.isLive" class="viewers" >{{ stream.viewers }} 人</span>
               <div class="hover-overlay">
                 <span class="hover-text">点击进入直播间</span>
               </div>
@@ -179,10 +182,30 @@
             </div>
           </article>
         </section>
+        
+        <div v-else class="empty-state">
+            <div class="empty-icon">📺</div>
+            <p>暂无直播间</p>
+        </div>
       </main>
     </div>
   </template>
-  
+
+<style scoped>
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+    color: #999;
+}
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+</style>
+
   <script>
   import avatarImg from '@/assets/avatar.jpg'
     import liveCover1 from '@/assets/虚拟主播/直播封面/live-cover-1.jpg'
@@ -194,7 +217,7 @@
     import liveCover7 from '@/assets/虚拟主播/直播封面/live-cover-7.jpg'
     import liveCover8 from '@/assets/虚拟主播/直播封面/live-cover-8.jpg'
   import { clearAuthToken, getCurrentUserId } from '@/utils/auth'
-  import { getUserProfile, getFollowing, getUserFavorites, getViewHistory, getUserPosts } from '@/utils/api'
+  import { getUserProfile, getFollowing, getUserFavorites, getViewHistory, getUserPosts, getLiveRooms } from '@/utils/api'
 
     const liveCovers = [
       liveCover1,
@@ -245,131 +268,31 @@
           ],
           rememberLogin: true
         },
-        liveStreams: [
-          {
-            id: 1,
-            title: '星海航线直播幕后花絮',
-            creator: 'NebulaNova',
-            viewers: '1.2万',
-            tags: ['虚拟singer'],
-            thumbnail: coverCycle(0)
-          },
-          {
-            id: 2,
-            title: '虚拟偶像舞台 · 夜幕版本',
-            creator: 'LumiRay',
-            viewers: '8.5千',
-            tags: ['虚拟男V'],
-            thumbnail: coverCycle(1)
-          },
-          {
-            id: 3,
-            title: '粉丝互动问答高能合集',
-            creator: 'KiraEcho',
-            viewers: '6.3千',
-            tags: ['虚拟gamer'],
-            thumbnail: coverCycle(2)
-          },
-          {
-            id: 4,
-            title: '全息角色建模 timelapse',
-            creator: 'MoriTech',
-            viewers: '4.9千',
-            tags: ['虚拟声优'],
-            thumbnail: coverCycle(3)
-          },
-          {
-            id: 5,
-            title: '赛博朋克主题竖屏 MV',
-            creator: 'Vexa',
-            viewers: '9.1万',
-            tags: ['虚拟singer'],
-            thumbnail: coverCycle(4)
-          },
-          {
-            id: 6,
-            title: '直播事故剪辑：趣味合集',
-            creator: 'Patchy',
-            viewers: '2.3万',
-            tags: ['虚拟gamer'],
-            thumbnail: coverCycle(5)
-          },
-          {
-            id: 7,
-            title: 'AI 虚拟形象调教日常',
-            creator: 'SigmaBot',
-            viewers: '7.8千',
-            tags: ['虚拟声优'],
-            thumbnail: coverCycle(6)
-          },
-          {
-            id: 8,
-            title: '赛博城市观光 Vlog',
-            creator: 'MetroMuse',
-            viewers: '5.5千',
-            tags: ['虚拟男V'],
-            thumbnail: coverCycle(7)
-          },
-          {
-            id: 9,
-            title: '虚拟美食节目 · 宇宙餐桌',
-            creator: 'ChefNova',
-            viewers: '1.5万',
-            tags: ['虚拟男V'],
-            thumbnail: coverCycle(8)
-          },
-          {
-            id: 10,
-            title: '电竞解说高燃瞬间',
-            creator: 'CasterRay',
-            viewers: '3.6万',
-            tags: ['虚拟gamer'],
-            thumbnail: coverCycle(9)
-          },
-          {
-            id: 11,
-            title: '深夜电台 · 陪伴系列',
-            creator: 'EchoWave',
-            viewers: '4.2千',
-            tags: ['虚拟声优'],
-            thumbnail: coverCycle(10)
-          },
-          {
-            id: 12,
-            title: '全息舞狮春节特辑',
-            creator: 'Dynasty Duo',
-            viewers: '1.8万',
-            tags: ['虚拟singer'],
-            thumbnail: coverCycle(11)
-          },
-          {
-            id: 13,
-            title: '音乐制作直播：即时 Remix',
-            creator: 'BeatForge',
-            viewers: '2.1万',
-            tags: ['虚拟singer'],
-            thumbnail: coverCycle(12)
-          },
-          {
-            id: 14,
-            title: '虚拟野外求生挑战',
-            creator: 'WildBytes',
-            viewers: '3.9千',
-            tags: ['虚拟gamer'],
-            thumbnail: coverCycle(13)
-          },
-          {
-            id: 15,
-            title: '粉丝共创剧情互动剧',
-            creator: 'StorySync',
-            viewers: '2.7万',
-            tags: ['虚拟声优'],
-            thumbnail: coverCycle(14)
-          }
-        ]
+        liveStreams: []
       }
     },
     methods: {
+      async loadLiveRooms() {
+        try {
+          const rooms = await getLiveRooms()
+          console.log("【LiveView】API返回的原始房间数据:", rooms); // ★ 添加调试日志
+          if (rooms) {
+            this.liveStreams = rooms.map(room => ({
+              id: room.roomId,
+              title: room.title,
+              creator: room.creatorName || '未知主播',
+              creatorId: room.creatorId,
+              viewers: room.viewerCount || 0,
+              tags: [room.category || '其他'],
+              thumbnail: room.coverUrl || coverCycle(room.roomId),
+              isLive: room.live // 后端返回的 isLive 字段
+            }))
+            console.log("【LiveView】处理后的 liveStreams:", this.liveStreams); // ★ 添加调试日志
+          }
+        } catch (e) {
+          console.error('Failed to load live rooms', e)
+        }
+      },
       async loadUserProfile() {
         const uid = getCurrentUserId()
         if (!uid) return
@@ -499,11 +422,22 @@
         // 搜索功能通过 v-model 和计算属性自动实现
         // 这里可以添加额外的搜索逻辑，如搜索历史记录等
       },
-      goLiveRoom() {
+      goLiveRoom(stream) {
+        const currentUserId = getCurrentUserId();
+        // 注意：getCurrentUserId 返回的是字符串还是数字？通常是字符串，后端返回的 creatorId 是数字
+        // 做弱类型比较或转换
+        if (stream.creatorId && currentUserId && String(stream.creatorId) === String(currentUserId)) {
+            this.$router.push('/live-manage');
+            return;
+        }
+
         // this.$router.push({ name: 'LiveRoom' })
         // this.$router.push("/live-room")
-        window.open(this.$router.resolve({ path: "/live-room" }).href, '_blank');
-
+        const routeData = this.$router.resolve({ 
+          path: '/live-room', 
+          query: { roomId: stream.id } 
+        });
+        window.open(routeData.href, '_blank');
       },
     },
     computed: {
@@ -534,12 +468,14 @@
           )
         }
         
+        console.log("【LiveView】过滤后的 filteredStreams:", streams); // ★ 添加调试日志
         return streams
       }
     },
     mounted() {
       this.loadUserProfile()
       this.loadFollowingUsers()
+      this.loadLiveRooms()
       // 根据当前路由设置激活的导航项
       if (this.$route.path === '/live') {
         this.activeNav = 'live'
@@ -1215,6 +1151,24 @@
     object-fit: cover;
     display: block;
   }
+
+  /* 新增：未开播遮罩 */
+  .offline-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    backdrop-filter: blur(2px);
+    z-index: 2;
+  }
   
   .hover-overlay {
     position: absolute;
@@ -1224,6 +1178,7 @@
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
+    z-index: 3;
   }
   
   .video-card:hover .hover-overlay {

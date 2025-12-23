@@ -221,4 +221,14 @@ public class FanBadgeServiceImpl implements FanBadgeService {
         if (level > LEVEL_THRESHOLDS.length) level = LEVEL_THRESHOLDS.length;
         return level;
     }
+
+    @Override
+    public Integer getFanBadgeLevel(Integer vtuberId, Integer fanId) {
+        String sql = "SELECT badge_level FROM fan_badges WHERE vtuber_id = ? AND fan_id = ?";
+        try {
+            return jdbcTemplate.queryForObject(sql, Integer.class, vtuberId, fanId);
+        } catch (Exception e) {
+            return 0; // 无牌子
+        }
+    }
 }
