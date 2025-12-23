@@ -345,11 +345,12 @@ export default {
         permission: "public",
         topic: "",
       },
+      // 改动：初始置空，启动时从后端拉取真实数据
       obs: {
         service: "自定义",
-        url: "rtmp://localhost:1935/live",
+        url: "",
         protocol: "rtmp",
-        code: "my_secret key 2025",
+        code: "",
       },
       obsImages: {
         step1: obsStep1,
@@ -436,6 +437,157 @@ export default {
       ElMessage.success("保存成功");
       // 保存后不关闭弹窗，让用户可以继续编辑或开始直播
     },
+    async fetchStreamInfo() {
+      const getTokenFromStorage = () => {
+        // 优先使用你项目中截图显示的 key
+        const priorityKeys = ["vlive-auth-token", "vlive-current-user", "vlive-current-user-id", "vlive-auth-token"];
+        for (const k of priorityKeys) {
+          const v1 = localStorage.getItem(k);
+          const v2 = sessionStorage.getItem(k);
+          if (v1) return v1;
+          if (v2) return v2;
+        }
+
+        // 兼容常见位置
+        try {
+          if (this.$store && this.$store.state) {
+            const s = this.$store.state;
+            if (s.user && s.user.token) return s.user.token;
+            if (s.auth && s.auth.token) return s.auth.token;
+            if (s.token) return s.token;
+          }
+        } catch (e) {}
+
+        try {
+          const axiosGlobal = window.axios || (this.$axios && this.$axios);
+          if (axiosGlobal && axiosGlobal.defaults && axiosGlobal.defaults.headers) {
+            const h = axiosGlobal.defaults.headers;
+            return (h.common && h.common.Authorization) || h.Authorization || "";
+          }
+        } catch (e) {}
+
+        // 其它常见 key
+        const keys = [
+          "token",
+          "Authorization",
+          "access_token",
+          "accessToken",
+          "authToken",
+          "jwt",
+          "id_token",
+          "userToken",
+          "auth.token",
+        ];
+        for (const k of keys) {
+          const v1 = localStorage.getItem(k);
+          const v2 = sessionStorage.getItem(k);
+          if (v1) return v1;
+          if (v2) return v2;
+        }
+
+        // cookie 查找
+        const cookies = document.cookie ? document.cookie.split("; ") : [];
+        for (const c of cookies) {
+          const [name, ...rest] = c.split("=");
+          const val = rest.join("=");
+          if (keys.includes(name)) return decodeURIComponent(val);
+        }
+
+        return "";
+      };
+
+      try {
+        const rawToken = getTokenFromStorage();
+
+        if (!rawToken) {
+          console.warn("fetchStreamInfo: no token found in storage/cookies/vuex/axios");
+        } else {
+          console.info("fetchStreamInfo: token found (length):", rawToken.length || 0);
+        }
+
+        // 后端期望 Bearer JWT（截图显示是 JWT），确保带上 Bearer 前缀
+        let authHeader = "";
+        if (rawToken) {
+          authHeader = /^Bearer\s+/i.test(rawToken) ? rawToken : "Bearer " + rawToken;
+        }
+
+        const doFetch = async (url, options = {}) => {
+          const res = await fetch(url, options);
+          const text = await res.text().catch(() => "");
+          let json = null;
+          try { json = text ? JSON.parse(text) : null; } catch (e) { /* not json */ }
+          return { ok: res.ok, status: res.status, json, text };
+        };
+
+        const headers = { "Content-Type": "application/json" };
+        if (authHeader) headers["Authorization"] = authHeader;
+
+        let r1 = await doFetch("/api/live/rooms/my", { method: "GET", headers });
+
+        // 若 401，尝试用原始 token（部分实现不需要 Bearer）或不带 Authorization 重试
+        if (r1.status === 401 && rawToken) {
+          // raw token
+          r1 = await doFetch("/api/live/rooms/my", { method: "GET", headers: { "Content-Type": "application/json", "Authorization": rawToken } });
+          if (r1.status === 401) {
+            r1 = await doFetch("/api/live/rooms/my", { method: "GET", headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        if (!r1.ok) {
+          console.warn("fetchStreamInfo: /api/live/rooms/my failed", r1.status, r1.text || r1.json);
+          ElMessage.error("获取房间信息失败，请确认已登录（DevTools → Application 查看 vlive-auth-token）");
+          return;
+        }
+
+        const myJson = r1.json || {};
+        const roomId = myJson.roomId || myJson.id || myJson.room_id;
+        if (!roomId && roomId !== 0) {
+          console.warn("fetchStreamInfo: roomId not returned", myJson);
+          ElMessage.warning("未能从后端拿到 roomId，请在后端确认 /api/live/rooms/my 接口返回字段");
+          return;
+        }
+
+        const infoHeaders = { "Content-Type": "application/json" };
+        if (authHeader) infoHeaders["Authorization"] = authHeader;
+
+        let r2 = await doFetch(`/api/live/rooms/${roomId}/manager/info`, { method: "GET", headers: infoHeaders });
+
+        if (r2.status === 401 && rawToken) {
+          r2 = await doFetch(`/api/live/rooms/${roomId}/manager/info`, { method: "GET", headers: { "Content-Type": "application/json", "Authorization": rawToken } });
+          if (r2.status === 401) {
+            r2 = await doFetch(`/api/live/rooms/${roomId}/manager/info`, { method: "GET", headers: { "Content-Type": "application/json" } });
+          }
+        }
+
+        if (!r2.ok) {
+          console.warn("fetchStreamInfo: manager/info failed", r2.status, r2.text || r2.json);
+          ElMessage.error("获取推流信息失败（manager/info），请检查后端接口或登录状态");
+          return;
+        }
+
+        const info = r2.json || {};
+        if (info.serverAddress) this.obs.url = info.serverAddress;
+        else if (info.rtmpServer) this.obs.url = info.rtmpServer;
+        if (info.streamKey) this.obs.code = info.streamKey;
+        else if (info.stream_key) this.obs.code = info.stream_key;
+
+        if (!this.obs.url && !this.obs.code) {
+          console.warn("fetchStreamInfo: manager/info returned no server/streamKey", info);
+          ElMessage.warning("后端返回了空的推流信息，请在后端确认 rtmpServer / streamKey 字段");
+          return;
+        }
+
+        if (info.protocol) this.obs.protocol = info.protocol;
+        ElMessage.success("已获取推流地址与推流码（来自后端）");
+      } catch (err) {
+        console.error("fetchStreamInfo error:", err);
+        ElMessage.error("获取推流信息时出现异常，请查看控制台错误信息");
+      }
+    },
+  },
+  mounted() {
+    // 组件挂载时尝试读取后端真实推流信息
+    this.fetchStreamInfo();
   },
 };
 </script>
