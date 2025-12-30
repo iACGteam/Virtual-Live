@@ -23,7 +23,7 @@
         <!-- 弹幕显示层 -->
         <div class="danmu-overlay">
           <div v-for="dm in activeDanmus" :key="dm.id" class="danmu-item"
-            :style="{ top: dm.top + 'px', left: dm.left + 'px' }">
+            :style="{ top: dm.top + 'px', left: dm.left + 'px', opacity: dm.opacity, fontSize: dm.size + 'px' }">
             {{ dm.text }}
           </div>
         </div>
@@ -35,9 +35,42 @@
             <button class="act-btn" @click="toggleLike(videoInfo)">❤️ {{ videoInfo.likes ? videoInfo.likes : '' }}</button>
           </div>
 
-        <!-- 管理按钮 -->
-        <div class="danmu-settings-btn" @click="toggleDanmuSettings">
-          ⚙️
+        <!-- 管理按钮（包含面板的定位容器） -->
+        <div class="danmu-settings-wrapper">
+          <div class="danmu-settings-btn" @click="toggleDanmuSettings">
+            ⚙️
+          </div>
+          <!-- 弹幕设置面板（移动到按钮容器内，以便定位） -->
+          <div class="danmu-settings-panel" v-show="showDanmuSettings">
+            <h4>弹幕设置</h4>
+
+            <!-- 透明度 -->
+            <div class="setting-row">
+              <label>透明度：{{ danmuOpacity }}</label>
+              <input type="range" min="0" max="1" step="0.1" v-model="danmuOpacity" />
+            </div>
+
+            <!-- 字号 -->
+            <div class="setting-row">
+              <label>字号：</label>
+              <select v-model="danmuFontSize">
+                <option value="14">小</option>
+                <option value="16">中</option>
+                <option value="20">大</option>
+                <option value="24">特大</option>
+              </select>
+            </div>
+
+            <!-- 显示区域 -->
+            <div class="setting-row">
+              <label>显示区域：</label>
+              <select v-model="danmuArea">
+                <option value="full">全屏</option>
+                <option value="top">顶部</option>
+                <option value="bottom">底部</option>
+              </select>
+            </div>
+          </div>
         </div>
         <!-- 开关 -->
         <div class="danmu-switch" @click="toggleDanmu">
@@ -274,15 +307,20 @@ function showDanmu(dm) {
   // 防止同一条弹幕在短时间内重复显示（解决 timeupdate 多次触发问题）
   if (activeDanmus.value.some(d => d.id === dm.id)) return;
 
-  const topMax =
-    danmuArea.value === "full"
-      ? 200
-      : danmuArea.value === "top"
-        ? 80
-        : 80;
+  // 使用视频 overlay 的高度按比率计算位置，确保 top/top/bottom 设置生效
+  const overlayEl = videoRef.value && videoRef.value.parentElement ? videoRef.value.parentElement.querySelector('.danmu-overlay') : null
+  const overlayHeight = overlayEl ? overlayEl.clientHeight : 240
 
-  const topBase = danmuArea.value === "bottom" ? 150 : 20;
-  const topPos = topBase + Math.random() * topMax;
+  let minY = 0.05 * overlayHeight
+  let maxY = 0.9 * overlayHeight
+  if (danmuArea.value === 'top') {
+    minY = 0.05 * overlayHeight
+    maxY = 0.25 * overlayHeight
+  } else if (danmuArea.value === 'bottom') {
+    minY = 0.7 * overlayHeight
+    maxY = 0.9 * overlayHeight
+  }
+  const topPos = Math.floor(minY + Math.random() * (maxY - minY))
 
   activeDanmus.value.push({
     id: dm.id,
@@ -1135,8 +1173,6 @@ h3 {
   white-space: nowrap;
   text-shadow: 1px 1px 2px black;
   animation: danmu-move 6s linear forwards;
-  opacity: v-bind(danmuOpacity);
-  font-size: v-bind(danmuFontSize + 'px');
 }
 
 
@@ -1164,19 +1200,24 @@ h3 {
 }
 
 /* 设置面板 */
+.danmu-settings-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
 .danmu-settings-panel {
   position: absolute;
-  bottom: 100px;
-  /* 自行调整位置 */
-  left: 120px;
+  top: calc(100% + 6px);
+  left: 0;
   background: #fff;
   border: 1px solid #ddd;
   color: black;
   padding: 12px;
   padding-top: 0px;
   z-index: 9999;
-  /* 覆盖所有内容 */
   border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+  min-width: 180px;
 }
 
 

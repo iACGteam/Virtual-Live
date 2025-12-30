@@ -29,6 +29,7 @@ public class InteractionServiceImpl implements InteractionService {
     @Autowired private LiveSessionRepository liveSessionRepository;
     @Autowired private RoomBanRepository roomBanRepository;
     @Autowired private LiveRoomRepository liveRoomRepository;
+    @Autowired private com.virtuallive.backend.live.service.FanBadgeService fanBadgeService;
 
     private Integer getCurrentSessionId(Integer roomId) {
         return liveSessionRepository.findFirstByRoomIdAndEndTimeIsNullOrderByStartTimeDesc(roomId)
@@ -108,8 +109,9 @@ public class InteractionServiceImpl implements InteractionService {
             // 计算时长：1元 = 4秒
             int duration = totalCost.intValue() * 4;
             message.setScDuration(duration);
-            // 可以在弹幕内容前加标识
-            message.setContent("[SC " + duration + "s] " + message.getContent());
+            // 在弹幕内容前加标识，显示金额而非秒数（例如 [SC ¥30] 内容）
+            String amountStr = totalCost.stripTrailingZeros().toPlainString();
+            message.setContent("[SC ¥" + amountStr + "] " + message.getContent());
         }
 
         // 扣费逻辑
@@ -134,6 +136,8 @@ public class InteractionServiceImpl implements InteractionService {
         donation.setGiftValue(price);
         donation.setQuantity(count);
         donation.setTotalValue(totalCost);
+        log.info("processGift: roomId={}, resolvedSessionId={}, senderId={}, price={}, count={}, totalCost={}",
+                message.getRoomId(), sessionId, userId, price, count, totalCost);
         giftDonationRepository.save(donation);
 
         // 立即 flush，使后续使用 JdbcTemplate 的查询（如粉丝等级计算）能看到刚插入的记录
@@ -188,6 +192,8 @@ public class InteractionServiceImpl implements InteractionService {
         }
 
         log.info("礼物/SC处理成功: 用户[{}] 金额[{}]", user.getUsername(), totalCost);
+        log.info("giftDonation saved: donationId={}, sessionId={}, senderId={}, totalValue={}",
+                donation.getDonationId(), donation.getSessionId(), donation.getSenderId(), donation.getTotalValue());
     }
 
     // 获取榜单
@@ -202,6 +208,23 @@ public class InteractionServiceImpl implements InteractionService {
                 if (sessionId == null) return new ArrayList<>();
                 List<LeaderboardItemDTO> list = giftDonationRepository.findLeaderboardBySession(sessionId);
                 assignRanks(list);
+                // 填充粉丝等级
+                try {
+                    Optional<com.virtuallive.backend.live.entity.LiveRoom> roomOpt = liveRoomRepository.findById(roomId);
+                    if (roomOpt.isPresent()) {
+                        Integer vtuberId = roomOpt.get().getVtuberId();
+                        for (LeaderboardItemDTO it : list) {
+                            try {
+                                Integer lv = fanBadgeService.getFanBadgeLevel(vtuberId, it.getUserId());
+                                it.setFanLevel(lv == null ? 0 : lv);
+                            } catch (Exception ex) {
+                                it.setFanLevel(0);
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("填充排行榜粉丝等级失败", ex);
+                }
                 return list;
             case "DAY":
                 startTime = LocalDate.now().atStartOfDay();
@@ -229,6 +252,23 @@ public class InteractionServiceImpl implements InteractionService {
 
         List<LeaderboardItemDTO> list = giftDonationRepository.findLeaderboardByRoomAndTime(roomId, startTime);
         assignRanks(list);
+        // 填充粉丝等级
+        try {
+            Optional<com.virtuallive.backend.live.entity.LiveRoom> roomOpt = liveRoomRepository.findById(roomId);
+            if (roomOpt.isPresent()) {
+                Integer vtuberId = roomOpt.get().getVtuberId();
+                for (LeaderboardItemDTO it : list) {
+                    try {
+                        Integer lv = fanBadgeService.getFanBadgeLevel(vtuberId, it.getUserId());
+                        it.setFanLevel(lv == null ? 0 : lv);
+                    } catch (Exception ex) {
+                        it.setFanLevel(0);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("填充排行榜粉丝等级失败", ex);
+        }
         return list;
     }
 

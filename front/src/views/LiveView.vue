@@ -165,12 +165,12 @@
             class="video-card"
             @click="goLiveRoom(stream)"
           >
-            <div class="thumbnail">
+              <div class="thumbnail">
               <img :src="stream.thumbnail" :alt="`${stream.title} 封面`">
               <div v-if="!stream.isLive" class="offline-overlay">
                   📺 当前用户未开播
               </div>
-              <span v-if="stream.isLive" class="viewers" >{{ stream.viewers }} 人</span>
+              <!-- 不在直播页封面显示在线人数（按需求移除） -->
               <div class="hover-overlay">
                 <span class="hover-text">点击进入直播间</span>
               </div>
@@ -239,10 +239,10 @@
         showPostDropdown: false,
         postDropdownTimer: null,
         activeFilter: 'recommend', // 'recommend', 'following', 或主题key
-        // 分类：虚拟singer、虚拟gamer、虚拟声优、虚拟男V
+        // 分类：遵循统一顺序（与主播端保持一致）
         topics: [
-          { key: 'vsinger', label: '虚拟singer', icon: '🎤' },
           { key: 'vgamer', label: '虚拟gamer', icon: '🎮' },
+          { key: 'vsinger', label: '虚拟singer', icon: '🎤' },
           { key: 'vseiyuu', label: '虚拟声优', icon: '🎧' },
           { key: 'vmale', label: '虚拟男V', icon: '🧑‍🎤' }
         ],

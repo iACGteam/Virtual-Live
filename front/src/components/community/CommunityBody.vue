@@ -151,13 +151,30 @@ export default {
         }
 
         if (res && res.content) {
-          this.circles = res.content.map(c => ({
-            ...c,
-            avatar: c.avatarUrl,
-            coverUrl: c.cover || c.coverUrl || c.coverImageUrl,
-            followed: this.joinedCircleIds.includes(c.id) || (this.activeTab === '关注'),
-            isMyCircle: c.creatorId === userId
-          }))
+          // 更健壮地判断是否为自己的圈子：优先比对 creatorId，再尝试 creator.id / creator.userId，最后回退到 creatorUsername 与本地用户名比对
+          const currentUsername = require('@/utils/auth').getCurrentUser();
+          this.circles = res.content.map(c => {
+            let isMy = false;
+            try {
+              if (userId != null && c.creatorId != null) {
+                isMy = String(c.creatorId) === String(userId);
+              } else if (userId != null && c.creator && (c.creator.userId || c.creator.id || c.creator.user_id)) {
+                const cid = c.creator.userId || c.creator.id || c.creator.user_id;
+                isMy = String(cid) === String(userId);
+              }
+            } catch (e) {
+              isMy = false;
+            }
+
+            return {
+              ...c,
+              avatar: c.avatarUrl,
+              coverUrl: c.cover || c.coverUrl || c.coverImageUrl,
+              followed: this.joinedCircleIds.includes(c.id) || (this.activeTab === '关注'),
+              // 仅在 creatorId 明确等于当前用户 ID 时才标记为“我的圈子”，避免基于头像或用户名的误判
+              isMyCircle: isMy
+            }
+          })
         }
       } catch (e) {
         console.error('Fetch error', e)

@@ -34,6 +34,7 @@
         <div class="bubble" :style="bubbleStyle(msg)">
           <div class="meta">
             <span class="username">{{ msg.username }}</span>
+            <span class="user-id" v-if="msg.userId">#{{ msg.userId }}</span>
             <!-- 主播标识 -->
             <span v-if="msg.isAnchor" class="anchor-badge">主播</span>
             <div class="fan-level" v-if="msg.fanLevel">Lv{{ msg.fanLevel }}</div>
@@ -200,7 +201,7 @@ export default {
         type: "sc",
         color: "#ff9f9f",
         scAmount: this.selectedSCAmount,
-        fanLevel: this.currentUser?.fanLevel || 1,
+        fanLevel: this.currentUser?.fanLevel || 0,
         id: Date.now(),
       };
 
@@ -232,7 +233,7 @@ export default {
         content: text,
         type: "text",
         color: "#fff",
-        fanLevel: this.currentUser?.fanLevel || 1,
+        fanLevel: this.currentUser?.fanLevel || 0,
       });
 
       this.input = "";
@@ -539,6 +540,17 @@ export default {
   position: relative;
 }
 
+/* 礼物消息全部使用粉色显示，避免和深色背景混淆 */
+.msg.gift .bubble {
+  color: #ff69b4;
+}
+
+.user-id {
+  color: #ccc;
+  margin-left: 6px;
+  font-size: 12px;
+}
+
 /* 元信息行 */
 .meta {
   display: flex;
@@ -583,13 +595,15 @@ export default {
 }
 
 .anchor-badge {
-  font-size: 10px;
-  padding: 1px 4px;
-  border-radius: 4px;
-  background: #ff4d4f;
-  color: white;
-  font-weight: bold;
-  margin-right: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ff69b4, #ff4d9a);
+  color: #fff;
+  font-weight: 800;
+  margin-right: 6px;
+  box-shadow: 0 4px 10px rgba(255,105,180,0.18);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 /* 徽章 */

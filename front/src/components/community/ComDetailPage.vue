@@ -12,10 +12,8 @@
           <ComDetail></ComDetail>
         </div>
 
-        <div class="sidebar">
-          <HotRank />
-          <PopularTopics />
-        </div>
+        <!-- 侧边栏已移除（热度排行榜 & 热门话题） -->
+        <div class="sidebar" style="display:none"></div>
       </div>
     </div>
 </template>
@@ -110,18 +108,7 @@ import ComDetail from './ComDetail.vue'
   gap: 20px;
 }
 
-/* 右 20% */
-.sidebar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.sidebar>* {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
+/* 优化：移除右侧栏，内容区使用更宽布局 */
+.sidebar { display: none; }
+.content-area { flex: 1; }
 </style>

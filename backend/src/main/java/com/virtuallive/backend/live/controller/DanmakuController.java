@@ -15,6 +15,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.util.HtmlUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
 
@@ -30,6 +31,7 @@ public class DanmakuController {
 
     @Autowired private LiveRoomRepository liveRoomRepository;
     @Autowired private FanBadgeService fanBadgeService;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @MessageMapping("/send-danmaku")
     public void sendDanmaku(@Payload DanmakuMessage message, StompHeaderAccessor headerAccessor) {
@@ -85,20 +87,50 @@ public class DanmakuController {
             }
             message.setSenderAvatar(avatar);
 
-            // 填充粉丝等级（仅在该用户已关注主播时显示）
+            // 先判断该消息是否来自主播（房主）并标记
+            Integer vtuberId = findVtuberIdByRoomId(message.getRoomId());
             try {
-                Integer vtuberId = findVtuberIdByRoomId(message.getRoomId());
+                if (vtuberId != null && user.getUserId() != null && vtuberId.equals(user.getUserId().intValue())) {
+                    message.setIsAnchor(true);
+                } else {
+                    message.setIsAnchor(false);
+                }
+            } catch (Exception e) {
+                message.setIsAnchor(false);
+            }
+
+            // 填充粉丝等级：只有当发送者已关注该主播时才展示粉丝等级（后端判定）
+            try {
                 if (vtuberId != null) {
-                    boolean isFollower = false;
                     try {
-                        isFollower = followService.isFollowing(user.getUserId().intValue(), vtuberId);
+                        boolean isFollowing = false;
+                        try {
+                            isFollowing = followService.isFollowing(user.getUserId().intValue(), vtuberId);
+                        } catch (Exception ex) {
+                            // followService 可能抛异常（例如用户不存在），忽略并当作未关注处理
+                            log.debug("检查关注状态失败: {}", ex.getMessage());
+                        }
+
+                        if (isFollowing) {
+                            Integer level = fanBadgeService.getFanBadgeLevel(vtuberId, user.getUserId().intValue());
+                            log.info("NormalDanmaku: roomId={}, vtuberId={}, userId={}, foundFanLevel={}",
+                                    message.getRoomId(), vtuberId, user.getUserId(), level);
+                            if (level == null || level == 0) {
+                                try {
+                                    int computed = fanBadgeService.updateFanBadgeLevel(vtuberId, user.getUserId().intValue());
+                                    log.info("Computed fan badge on-read: vtuberId={}, userId={}, computedLevel={}", vtuberId, user.getUserId(), computed);
+                                    if (computed > 0) {
+                                        message.setFanLevel(computed);
+                                    }
+                                } catch (Exception e) {
+                                    log.warn("尝试计算并写入粉丝牌失败: {}", e.getMessage());
+                                }
+                            } else {
+                                message.setFanLevel(level);
+                            }
+                        }
                     } catch (Exception ex) {
-                        // 忽略判断错误，默认不显示
-                    }
-                    if (isFollower) {
-                        Integer level = fanBadgeService.getFanBadgeLevel(vtuberId, user.getUserId().intValue());
-                        if (level == null || level == 0) level = 1; // 至少 Lv1
-                        message.setFanLevel(level);
+                        // 忽略读取错误，不影响弹幕发送
                     }
                 }
             } catch (Exception e) {
@@ -120,12 +152,26 @@ public class DanmakuController {
 
                     // 更新粉丝牌等级
                     try {
-                        Integer vtuberId = findVtuberIdByRoomId(message.getRoomId());
+                        Integer paidVtuberId = findVtuberIdByRoomId(message.getRoomId());
                         Integer fanId = user.getUserId().intValue();
-                        if (vtuberId != null && fanId != null) {
-                            fanBadgeService.updateFanBadgeLevel(vtuberId, fanId);
+                        if (paidVtuberId != null && fanId != null) {
+                            try {
+                                    int newLevel = fanBadgeService.updateFanBadgeLevel(paidVtuberId, fanId);
+                                    // 只有当发送者已关注该主播时，才在消息中展示粉丝等级
+                                    boolean isFollowing = false;
+                                    try {
+                                        isFollowing = followService.isFollowing(fanId, paidVtuberId);
+                                    } catch (Exception ex) {
+                                        log.debug("检查关注状态失败: {}", ex.getMessage());
+                                    }
+                                    if (isFollowing && newLevel > 0) {
+                                        message.setFanLevel(newLevel);
+                                    }
+                                } catch (Exception ex) {
+                                    log.warn("更新粉丝牌或读取等级失败: vtuberId={}, fanId={}, err={}", paidVtuberId, fanId, ex.getMessage());
+                                }
                         } else {
-                            log.warn("无法更新粉丝牌：vtuberId 或 fanId 为空, roomId={}, userId={}",
+                            log.warn("无法更新粉丝牌：vtuberId 或 fanId 为空, roomId={}, userId{}",
                                     message.getRoomId(), user.getUserId());
                         }
                     } catch (Exception e) {
@@ -136,6 +182,16 @@ public class DanmakuController {
                     broadcast(message);
                 } catch (Exception e) {
                     log.error("礼物/SC 发送失败: {}", e.getMessage(), e);
+                    try {
+                        // 尝试通知发送者出错原因
+                        if (user != null && user.getUserId() != null) {
+                            messagingTemplate.convertAndSend("/topic/errors/" + user.getUserId(), e.getMessage());
+                        }
+                    } catch (Exception ex) {
+                        log.warn("向用户推送错误消息失败: {}", ex.getMessage());
+                    }
+                    // 停止后续处理
+                    return;
                 }
 
             } else {
@@ -174,6 +230,12 @@ public class DanmakuController {
 
     private void broadcast(DanmakuMessage message) {
         String destination = "/topic/danmaku/" + message.getRoomId();
+        try {
+            String json = JSON.writeValueAsString(message);
+            log.info("Broadcasting Danmaku to {}: {}", destination, json);
+        } catch (Exception e) {
+            log.warn("序列化弹幕消息失败: {}", e.getMessage());
+        }
         messagingTemplate.convertAndSend(destination, message);
     }
 

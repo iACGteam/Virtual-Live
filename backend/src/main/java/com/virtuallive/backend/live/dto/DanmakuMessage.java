@@ -27,4 +27,6 @@ public class DanmakuMessage {
 
     // 粉丝等级
     private Integer fanLevel;
+    // 是否为房主/主播发送的消息（后端填充）
+    private Boolean isAnchor;
 }

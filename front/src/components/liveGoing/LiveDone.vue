@@ -99,10 +99,11 @@
                         <el-icon><Rank /></el-icon>
                     </div>
                     <div class="overlay-content" ref="overlayList">
-                        <div v-for="dm in visibleDanmakuList" :key="dm.id" class="overlay-item">
-                            <span class="overlay-user">{{ dm.user }}</span>
-                            <span v-if="dm.fanLevel > 0" class="fan-badge">Lv{{ dm.fanLevel }}</span>
-                            <span class="overlay-text">: {{ dm.text }}</span>
+                        <div v-for="dm in visibleDanmakuList" :key="dm.id" :class="['overlay-item', { 'overlay-anchor': dm.isAnchor }]">
+                          <span class="overlay-user">{{ dm.user }}</span>
+                          <span v-if="dm.isAnchor" class="anchor-badge-mini">主播</span>
+                          <span v-if="dm.fanLevel > 0" class="fan-badge">Lv{{ dm.fanLevel }}</span>
+                          <span class="overlay-text">: {{ dm.text }}</span>
                         </div>
                     </div>
                 </div>
@@ -119,7 +120,7 @@
                 <div class="left-controls">
                 </div>
                 <div class="center-status">
-                    <span class="live-dot"></span> 直播中 | {{ onlineCount }} 人气
+                  <span class="live-dot"></span> 直播中
                 </div>
                 <div class="right-controls">
                     <el-button type="danger" size="small" @click="stopLive">结束直播</el-button>
@@ -139,30 +140,33 @@
                                 
                                 <!-- 普通弹幕 -->
                                 <template v-if="msg.type === 'CHAT'">
-                                    <div class="msg-header">
-                                        <span class="user-name">{{ msg.user }}</span>
-                                        <span v-if="msg.fanLevel > 0" class="fan-badge">Lv{{ msg.fanLevel }}</span>
-                                        <span class="time">{{ formatTime(msg.timestamp) }}</span>
-                                        <div class="msg-actions">
-                                            <el-tooltip content="禁言该用户" placement="top">
-                                                <el-icon class="action-icon" @click="quickMute(msg.userId, msg.user)"><Lock /></el-icon>
-                                            </el-tooltip>
-                                            <el-tooltip content="删除此条" placement="top">
-                                                <el-icon class="action-icon delete" @click="deleteDanmaku(msg.id)"><Delete /></el-icon>
-                                            </el-tooltip>
-                                        </div>
+                                  <div class="msg-header">
+                                    <span class="user-name">{{ msg.user }}</span>
+                                    <span class="user-id" v-if="msg.userId">#{{ msg.userId }}</span>
+                                    <span v-if="msg.isAnchor" class="anchor-badge">主播</span>
+                                    <span v-if="msg.fanLevel > 0" class="fan-badge">Lv{{ msg.fanLevel }}</span>
+                                    <span class="time">{{ formatTime(msg.timestamp) }}</span>
+                                    <div class="msg-actions">
+                                      <el-tooltip content="禁言该用户" placement="top">
+                                        <el-icon class="action-icon" @click="quickMute(msg.userId, msg.user)"><Lock /></el-icon>
+                                      </el-tooltip>
+                                      <el-tooltip content="删除此条" placement="top">
+                                        <el-icon class="action-icon delete" @click="deleteDanmaku(msg.id)"><Delete /></el-icon>
+                                      </el-tooltip>
                                     </div>
-                                    <div class="msg-content">{{ msg.content }}</div>
+                                  </div>
+                                  <div class="msg-content">{{ msg.content }}</div>
                                 </template>
 
                                 <!-- 礼物消息 -->
                                 <template v-else-if="msg.type === 'GIFT'">
-                                    <div class="gift-content">
-                                        <span class="user-name">{{ msg.user }}</span> 
-                                        送出了
-                                        <span class="gift-name">{{ msg.giftName }}</span> 
-                                        x{{ msg.count }}
-                                    </div>
+                                  <div class="gift-content">
+                                    <span class="user-name">{{ msg.user }}</span>
+                                    <span class="user-id" v-if="msg.userId">#{{ msg.userId }}</span>
+                                    <span class="gift-action">送出了</span>
+                                    <span class="gift-name">{{ msg.giftName }}</span>
+                                    <span class="gift-count">x{{ msg.count }}</span>
+                                  </div>
                                 </template>
 
                                 <!-- SC (醒目留言) -->
@@ -220,48 +224,11 @@
                             </el-form>
                         </div>
 
-                        <div class="panel-section">
-                            <h4><el-icon><Delete /></el-icon> 弹幕管理</h4>
-                            <el-form label-position="top" size="small">
-                                <el-form-item label="弹幕ID">
-                                    <el-input v-model="adminForm.deleteMsgId" placeholder="输入弹幕ID" />
-                                </el-form-item>
-                                <div class="form-actions">
-                                    <el-button type="danger" @click="handleDeleteMsg">🗑 删除弹幕</el-button>
-                                </div>
-                            </el-form>
-                        </div>
+                            <!-- 弹幕管理已移除 -->
                     </div>
                 </el-tab-pane>
 
-                <!-- Tab 3: 数据榜单 -->
-                <el-tab-pane label="数据" name="data">
-                    <div class="data-panel">
-                        <div class="panel-header">
-                            <span>观众查询</span>
-                        </div>
-                        <div class="search-box">
-                            <el-input v-model="searchQuery" placeholder="输入用户名/ID查询" size="small">
-                                <template #append>
-                                    <el-button :icon="Search" />
-                                </template>
-                            </el-input>
-                        </div>
-
-                        <div class="panel-header" style="margin-top: 20px;">
-                            <span>本场贡献榜</span>
-                            <el-button type="text" size="small" @click="fetchLeaderboard">刷新</el-button>
-                        </div>
-                        <div class="leaderboard-list">
-                            <div v-for="(item, index) in leaderboard" :key="index" class="rank-item">
-                                <div class="rank-num" :class="'rank-' + (index + 1)">{{ index + 1 }}</div>
-                                <div class="rank-user">{{ item.username }}</div>
-                                <div class="rank-score">￥{{ item.totalAmount }}</div>
-                            </div>
-                            <div v-if="leaderboard.length === 0" class="empty-tip">暂无数据</div>
-                        </div>
-                    </div>
-                </el-tab-pane>
+                <!-- 数据面板已移除 -->
             </el-tabs>
         </div>
 
@@ -301,9 +268,10 @@
         <div class="form-group">
           <label class="required">分区</label>
           <el-select v-model="form.category" placeholder="请选择" style="width: 100%">
-            <el-option label="游戏" value="Game" />
-            <el-option label="娱乐" value="Entertainment" />
-            <el-option label="聊天" value="Chat" />
+            <el-option label="虚拟gamer" value="虚拟gamer" />
+            <el-option label="虚拟singer" value="虚拟singer" />
+            <el-option label="虚拟声优" value="虚拟声优" />
+            <el-option label="虚拟男V" value="虚拟男V" />
           </el-select>
         </div>
 
@@ -792,7 +760,8 @@ export default {
                         userId: msg.senderId,
                         content: msg.content,
                         timestamp: new Date(), // 历史消息时间暂用当前时间或解析 msg.createdAt
-                        fanLevel: msg.fanLevel || 0
+                      fanLevel: msg.fanLevel || 0,
+                      isAnchor: !!msg.isAnchor
                     };
                     this.messageList.push(localMsg);
                     // 历史消息也加入覆盖层？通常不需要，或者只加最近几条
@@ -822,7 +791,8 @@ export default {
             count: msg.giftCount,
             // SC specific
             price: msg.giftPrice,
-            fanLevel: msg.fanLevel || 0
+        fanLevel: msg.fanLevel || 0,
+        isAnchor: msg.isAnchor || false
         };
         
         this.messageList.push(newMsg);
@@ -833,25 +803,26 @@ export default {
             if (list) list.scrollTop = list.scrollHeight;
         });
 
-        // 2. 如果是普通弹幕，添加到覆盖层列表
+        // 2. 如果是普通弹幕，添加到覆盖层列表（并传递是否为主播）
         if (msg.type === 'CHAT') {
-            this.addOverlayDanmaku(newMsg.user, msg.content, newMsg.fanLevel);
+          this.addOverlayDanmaku(newMsg.user, msg.content, newMsg.fanLevel, newMsg.isAnchor);
         }
     },
 
-    addOverlayDanmaku(user, text, fanLevel) {
+    addOverlayDanmaku(user, text, fanLevel, isAnchor) {
         const item = {
             id: Date.now() + Math.random(),
             user: user,
             text: text,
             fanLevel: fanLevel || 0
         };
-        this.visibleDanmakuList.push(item);
+      item.isAnchor = !!isAnchor;
+      this.visibleDanmakuList.push(item);
         
-        // Keep only last 20
-        if (this.visibleDanmakuList.length > 20) {
-            this.visibleDanmakuList.shift();
-        }
+      // Keep only last 50
+      if (this.visibleDanmakuList.length > 50) {
+        this.visibleDanmakuList.shift();
+      }
         
         // Scroll to bottom of overlay list
         nextTick(() => {
@@ -1091,6 +1062,8 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  gap: 8px;
   color: #555;
   font-weight: bold;
 }
@@ -1111,6 +1084,15 @@ export default {
 
 .cover-section:hover .cover-overlay {
   opacity: 1;
+}
+
+/* 调整占位符内的图标大小，确保垂直居中 */
+.cover-placeholder svg,
+.cover-placeholder i,
+.cover-placeholder .el-icon {
+  width: 36px;
+  height: 36px;
+  display: block;
 }
 
 .info-details {
@@ -1555,6 +1537,55 @@ export default {
   height: 100%;
   object-fit: cover;
 }
+
+/* 确保 el-upload 的文件输入覆盖整个封面区域，避免只有左上角可点的问题 */
+.cover-uploader .el-upload__input {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* 强制去除容器内边距并让占位符内容完全居中 */
+.cover-uploader {
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.cover-uploader .cover-placeholder {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 8px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.cover-uploader .cover-placeholder .el-icon,
+.cover-uploader .cover-placeholder svg,
+.cover-uploader .cover-placeholder i {
+  font-size: 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+}
+
+.cover-uploader .cover-placeholder span,
+.cover-uploader .cover-placeholder p {
+  margin: 0 !important;
+  padding: 0 !important;
+}
 .form-group {
   margin-bottom: 16px;
 }
@@ -1629,6 +1660,36 @@ export default {
     margin-bottom: 2px;
 }
 
+/* 增强：礼物消息整体使用粉色，避免和背景重叠 */
+.msg-type-GIFT .gift-content {
+  color: #ff69b4;
+  font-weight: 700;
+}
+
+.user-id {
+  color: #ccc;
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+/* 弹幕覆盖层的主播小徽章 */
+.overlay-item .anchor-badge-mini {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  background: linear-gradient(90deg, #ff69b4, #ff4d9a);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgba(255,105,180,0.16);
+}
+
+/* 限制弹幕覆盖层高度，显示更多条目 */
+.overlay-content {
+  max-height: 320px;
+}
+
 .overlay-user {
     color: #ffd700;
     margin-right: 4px;
@@ -1669,5 +1730,13 @@ export default {
   margin: 0 4px;
   line-height: 1;
   vertical-align: middle;
+}
+
+/* 当 overlay 项来自主播时，用粉色高亮整条 */
+.overlay-item.overlay-anchor {
+    background: linear-gradient(90deg, rgba(255,105,180,0.08), rgba(255,105,180,0.03));
+    border: 1px solid rgba(255,105,180,0.18);
+    box-shadow: 0 6px 18px rgba(255,105,180,0.06);
+    color: #ffdbe9;
 }
 </style>

@@ -12,6 +12,7 @@ import com.virtuallive.backend.live.service.LiveRoomService;
 import com.virtuallive.backend.live.service.impl.InteractionServiceImpl;
 import com.virtuallive.backend.model.dto.R;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -140,6 +141,36 @@ public class LiveRoomController {
         }
 
         return R.ok(dto);
+    }
+
+    @GetMapping("/{roomId}/fan-level")
+    public R<Integer> getFanLevel(@PathVariable Integer roomId, HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || authHeader.isBlank()) return R.ok(0);
+        UserInfoDTO user = userService.getUserByToken(authHeader);
+        if (user == null || user.getUserId() == 0) return R.ok(0);
+
+        Optional<LiveRoom> roomOpt = liveRoomRepository.findById(roomId);
+        if (roomOpt.isEmpty()) return R.error(404, "直播间不存在");
+
+        Integer vtuberId = roomOpt.get().getVtuberId();
+        try {
+            Integer level = fanBadgeService.getFanBadgeLevel(vtuberId, user.getUserId().intValue());
+            if (level == null || level == 0) {
+                // 如果未持久化粉丝牌，尝试根据历史打赏计算一次并持久化
+                try {
+                    int computed = fanBadgeService.updateFanBadgeLevel(vtuberId, user.getUserId().intValue());
+                    log.info("getFanLevel computed and persisted: roomId={}, vtuberId={}, userId={}, computed={}", roomId, vtuberId, user.getUserId(), computed);
+                    level = computed;
+                } catch (Exception ex) {
+                    log.warn("尝试计算并持久化粉丝牌失败: {}", ex.getMessage());
+                }
+            }
+            return R.ok(level == null ? 0 : level);
+        } catch (Exception e) {
+            log.warn("获取粉丝等级失败: roomId={}, userId={}, err={}", roomId, user.getUserId(), e.getMessage());
+            return R.ok(0);
+        }
     }
 
     @GetMapping("/list")

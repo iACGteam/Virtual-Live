@@ -28,18 +28,18 @@
       <!-- 排行榜 -->
             <div class="leaderboard-section">
                 <div class="lb-tabs">
-                    <span :class="{active: lbTab==='online'}" @click="lbTab='online'">在线榜</span>
-                    <span :class="{active: lbTab==='day'}" @click="lbTab='day'">日榜</span>
-                    <span :class="{active: lbTab==='week'}" @click="lbTab='week'">周榜</span>
-                    <span :class="{active: lbTab==='month'}" @click="lbTab='month'">月榜</span>
+                    <span class="active">在线榜</span>
                 </div>
                 <div class="lb-list">
-                     <div v-for="(item, idx) in currentLeaderboard" :key="idx" class="lb-item">
-                            <div class="lb-rank" :class="'rank-'+(idx+1)">{{ idx+1 }}</div>
-                            <img class="lb-avatar" :src="item.avatarUrl || '/assets/avatar.jpg'" alt="avatar" />
-                            <div class="lb-name">{{ item.username }}</div>
-                            <div class="lb-score">{{ item.totalAmount }}</div>
-                     </div>
+                    <div v-for="(item, idx) in currentLeaderboard" :key="idx" class="lb-item">
+                        <div class="lb-rank" :class="'rank-'+(idx+1)">{{ idx+1 }}</div>
+                        <img class="lb-avatar" :src="item.avatarUrl || '/assets/avatar.jpg'" alt="avatar" />
+                        <div class="lb-name">
+                            {{ item.username }}
+                            <span v-if="item.fanLevel && item.fanLevel > 0" class="lb-fan">Lv{{ item.fanLevel }}</span>
+                        </div>
+                        <div class="lb-score">{{ item.totalAmount }}</div>
+                    </div>
                      <div v-if="currentLeaderboard.length===0" class="lb-empty">暂无数据</div>
                 </div>
             </div>
@@ -252,9 +252,24 @@ export default {
                     id: uid,
                     username: profile.username,
                     avatarColor: "#ff69b4",
-                    fanLevel: 1,
+                    fanLevel: 0,
                     walletBalance: balance
                 };
+                            // 立即从后端获取此用户在该房间对应主播处的粉丝等级（如果已登录）
+                            try {
+                                const token = getAuthToken();
+                                if (token) {
+                                    const res = await fetch(`/api/v1/live/rooms/${this.roomId}/fan-level`, {
+                                        headers: { "Authorization": "Bearer " + token }
+                                    });
+                                    const json = await res.json();
+                                    if (json && (json.code === 0 || json.code === 200)) {
+                                        this.currentUser.fanLevel = parseInt(json.data) || 0;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('获取粉丝等级失败', e);
+                            }
             } catch (e) {
                 console.error(e);
             }
@@ -416,13 +431,25 @@ export default {
             content: msg.content,
             type: msg.type === 'CHAT' ? 'normal' : (msg.type === 'GIFT' ? 'gift' : 'sc'),
             color: msg.color || (msg.type === 'GIFT' ? '#ffd166' : '#fff'),
-            fanLevel: msg.fanLevel || (this.isFollowing && (msg.senderName || msg.user) === this.currentUser.username ? 1 : 0),
-            isAnchor: (msg.senderId && this.host.id && msg.senderId == this.host.id)
+            fanLevel: (typeof msg.fanLevel !== 'undefined' && msg.fanLevel !== null)
+                ? msg.fanLevel
+                : (this.isFollowing && (msg.senderName || msg.user) === this.currentUser.username
+                    ? (this.currentUser ? (this.currentUser.fanLevel || 0) : 0)
+                    : 0),
+            isAnchor: (msg.senderId && this.host.id && msg.senderId == this.host.id),
+            userId: msg.senderId
         };
+        // 如果这是当前用户自己的消息并且携带粉丝等级，更新本地 currentUser.fanLevel
+        try {
+            if (msg.senderId && this.currentUser && msg.senderId === this.currentUser.id && (msg.fanLevel || msg.fanLevel === 0)) {
+                this.currentUser.fanLevel = msg.fanLevel;
+            }
+        } catch (e) { }
         
-        if (msg.type === 'GIFT') {
-            localMsg.content = `送出了 ${msg.giftName} x${msg.count}`;
-        }
+            if (msg.type === 'GIFT') {
+                // 后端使用 giftCount 字段，避免使用不存在的 count 导致 "xundefined"
+                localMsg.content = `送出了 ${msg.giftName} x${msg.giftCount || 1}`;
+            }
         
         this.messages.push(localMsg);
 
@@ -436,9 +463,11 @@ export default {
 
         if (this.$refs.player && this.$refs.player.shoot) {
             if (msg.type === 'CHAT' || msg.type === 'SC') {
-                this.$refs.player.shoot(localMsg.content, localMsg.color);
+                const shootColor = localMsg.isAnchor ? '#ff69b4' : (localMsg.color || '#fff');
+                this.$refs.player.shoot(localMsg.content, shootColor);
             } else if (msg.type === 'GIFT') {
-                this.$refs.player.shoot(`${localMsg.username} ${localMsg.content}`, '#ff4081');
+                const giftColor = localMsg.isAnchor ? '#ff69b4' : '#ff4081';
+                this.$refs.player.shoot(`${localMsg.username} ${localMsg.content}`, giftColor);
             }
         }
         
@@ -446,11 +475,13 @@ export default {
             this.fetchLeaderboard();
         }
 
-        // 如果是 SC，添加到置顶区域
+        // 如果是 SC，仅在主播（房主）端显示置顶区域；观众端不置顶
         if (localMsg.type === 'sc') {
-             if (this.$refs.liveChat && this.$refs.liveChat.addPinnedSC) {
-                 this.$refs.liveChat.addPinnedSC(localMsg);
-             }
+            if (this.currentUser && this.host && this.currentUser.id === this.host.id) {
+                if (this.$refs.liveChat && this.$refs.liveChat.addPinnedSC) {
+                    this.$refs.liveChat.addPinnedSC(localMsg);
+                }
+            }
         }
     },
     async fetchLeaderboard(forcedType) {
@@ -604,9 +635,10 @@ export default {
             ElMessage.error("未连接到直播间");
             return;
         }
-        
+        const price = (payload.scAmount !== undefined && payload.scAmount !== null) ? payload.scAmount : payload.price;
+
         // 余额检查
-        if (this.currentUser.walletBalance < payload.price) {
+        if (this.currentUser.walletBalance < price) {
             ElMessageBox.confirm(
                 `余额不足 (当前: ¥${this.currentUser.walletBalance})，是否前往充值？`,
                 '提示',
@@ -628,13 +660,13 @@ export default {
             type: "SC",
             roomId: this.roomId,
             content: payload.content,
-            giftPrice: payload.price,
+            giftPrice: price,
             giftCount: 1
         };
         this.stompClient.send("/app/send-danmaku", headers, JSON.stringify(body));
-        
+
         // 乐观更新余额 (可选，或者等待后端推送余额更新)
-        this.currentUser.walletBalance -= payload.price;
+        this.currentUser.walletBalance -= price;
     },
     handleSendGift(gift) {
         if (!this.isConnected) {

@@ -8,13 +8,8 @@
       </div>
 
       <div class="main-container">
-        <div class="content-area">
+        <div class="content-area full-width">
           <CommunityBody></CommunityBody>
-        </div>
-
-        <div class="sidebar">
-          <HotRank />
-          <PopularTopics />
         </div>
       </div>
     </div>
@@ -25,8 +20,6 @@
 import { ref } from 'vue'
 import { ChatDotRound } from '@element-plus/icons-vue'
 
-import HotRank from './HotRank.vue'
-import PopularTopics from './PopularTopics.vue'
 import CommunityBody from './CommunityBody.vue'
 
 </script>
@@ -96,31 +89,25 @@ import CommunityBody from './CommunityBody.vue'
 
 .main-container {
   display: flex;
-  padding: 20px 40px;
+  justify-content: center;
+  padding: 18px 36px;
   gap: 20px;
   background: linear-gradient(135deg, #fef7ff 0%, #f5f0ff 50%, #fff0f8 100%);
 }
 
-/* 左 80% */
+/* 内容区域占满宽度，移除侧边栏后界面更简洁 */
 .content-area {
-  flex: 4;
+  width: 100%;
+  max-width: 1100px;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* 右 20% */
-.sidebar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.sidebar>* {
+.content-area.full-width {
+  padding: 12px;
   background: white;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(16, 24, 40, 0.06);
 }
 </style>

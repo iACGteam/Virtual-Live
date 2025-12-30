@@ -1486,7 +1486,7 @@ export default {
             title: '圈子',
             description: circle.description || '暂无描述',
             creatorId: circle.creatorId,
-            isMyCircle: circle.creatorId === uid
+            isMyCircle: String(circle.creatorId) === String(uid)
           }))
         } else {
           this.circlesList = []

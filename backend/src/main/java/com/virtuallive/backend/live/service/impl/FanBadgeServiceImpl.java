@@ -88,10 +88,10 @@ public class FanBadgeServiceImpl implements FanBadgeService {
         };
 
     @Override
-    public void updateFanBadgeLevel(Integer vtuberId, Integer fanId) {
+    public int updateFanBadgeLevel(Integer vtuberId, Integer fanId) {
         // 防御性判断：ID 为空直接返回（不抛异常，避免影响主流程）
         if (vtuberId == null || fanId == null) {
-            return;
+            return 0;
         }
 
         // 注意：即使用户当前未关注主播，也需要记录其对该主播的打赏累计（用于后续关注后赋予等级）
@@ -106,7 +106,7 @@ public class FanBadgeServiceImpl implements FanBadgeService {
         // 2. 根据金额计算等级（1~30级）
         int level = calculateLevel(totalAmount);
         if (level <= 0) {
-            return;
+            return 0;
         }
 
         // 3. 写入 fan_badges 表（有则更新，无则插入）
@@ -128,10 +128,13 @@ public class FanBadgeServiceImpl implements FanBadgeService {
             }
         } catch (Exception e) {
             log.error("写入 fan_badges 失败", e);
+            return 0;
         }
 
         log.info("更新粉丝牌成功（记录等级信息）：vtuberId={}, fanId={}, totalAmount={}, level={}",
             vtuberId, fanId, totalAmount, level);
+
+        return level;
     }
 
     /**
@@ -167,7 +170,46 @@ public class FanBadgeServiceImpl implements FanBadgeService {
                 WHERE lr.vtuber_id = ? AND gd.sender_id = ?
                 """;
 
-        return jdbcTemplate.queryForObject(sql, BigDecimal.class, vtuberId, fanId);
+        try {
+            BigDecimal total = jdbcTemplate.queryForObject(sql, BigDecimal.class, vtuberId, fanId);
+            log.info("getTotalDonationAmount primary查询: vtuberId={}, fanId={}, total={}", vtuberId, fanId, total);
+            if (total != null && total.compareTo(BigDecimal.ZERO) > 0) {
+                return total;
+            }
+        } catch (Exception e) {
+            log.warn("getTotalDonationAmount 主查询失败: {}", e.getMessage());
+        }
+
+        // 备用查询：通过子查询查找对应主播的 session_id，再求和（在某些环境下 JOIN 可能未命中）
+        String fallbackSql = """
+                SELECT COALESCE(SUM(total_value), 0) FROM gift_donations
+                WHERE sender_id = ? AND session_id IN (
+                    SELECT session_id FROM live_sessions WHERE room_id IN (
+                        SELECT room_id FROM live_rooms WHERE vtuber_id = ?
+                    )
+                )
+                """;
+        try {
+            BigDecimal fallback = jdbcTemplate.queryForObject(fallbackSql, BigDecimal.class, fanId, vtuberId);
+            log.info("getTotalDonationAmount fallback查询: vtuberId={}, fanId={}, total={}", vtuberId, fanId, fallback);
+            if (fallback != null && fallback.compareTo(BigDecimal.ZERO) > 0) {
+                log.info("getTotalDonationAmount 使用备用查询命中: vtuberId={}, fanId={}, total={}", vtuberId, fanId, fallback);
+                return fallback;
+            }
+        } catch (Exception e) {
+            log.warn("getTotalDonationAmount 备用查询失败: {}", e.getMessage());
+        }
+
+        // 最后降级：尝试仅按 sender_id 汇总（用于调试/排查）
+        try {
+            String debugSql = "SELECT COALESCE(SUM(total_value),0) FROM gift_donations WHERE sender_id = ?";
+            BigDecimal debugTotal = jdbcTemplate.queryForObject(debugSql, BigDecimal.class, fanId);
+            log.info("getTotalDonationAmount 调试汇总: vtuberId={}, fanId={}, totalBySender={}", vtuberId, fanId, debugTotal);
+            return debugTotal == null ? BigDecimal.ZERO : debugTotal;
+        } catch (Exception e) {
+            log.error("getTotalDonationAmount 调试查询失败", e);
+            return BigDecimal.ZERO;
+        }
     }
 
     /**
@@ -179,8 +221,13 @@ public class FanBadgeServiceImpl implements FanBadgeService {
      */
     private int calculateLevel(BigDecimal totalAmount) {
         double total = totalAmount.doubleValue();
-        int level = 1; // 默认至少 1 级，只要有打赏且满足门槛
 
+        // 如果连最低门槛都没达到，则返回 0 表示“无粉丝牌”
+        if (total < LEVEL_THRESHOLDS[0]) {
+            return 0;
+        }
+
+        int level = 0;
         // 从最高等级往下找（这样更快）
         for (int i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
             if (total >= LEVEL_THRESHOLDS[i]) {
@@ -189,8 +236,8 @@ public class FanBadgeServiceImpl implements FanBadgeService {
             }
         }
 
-        // 双保险，限制在 1~30 之间
-        if (level < 1) level = 1;
+        // 双保险，限制在 1..LEVEL_THRESHOLDS.length 之间
+        if (level < 1) level = 0; // 如果没有满足门槛，保持 0
         if (level > LEVEL_THRESHOLDS.length) level = LEVEL_THRESHOLDS.length;
         return level;
     }
