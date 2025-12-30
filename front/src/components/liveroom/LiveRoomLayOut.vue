@@ -26,22 +26,23 @@
 
     <div class="right">
       <!-- 排行榜 -->
-      <div class="leaderboard-section">
-        <div class="lb-tabs">
-          <span :class="{active: lbTab==='online'}" @click="lbTab='online'">在线榜</span>
-          <span :class="{active: lbTab==='day'}" @click="lbTab='day'">日榜</span>
-          <span :class="{active: lbTab==='week'}" @click="lbTab='week'">周榜</span>
-          <span :class="{active: lbTab==='month'}" @click="lbTab='month'">月榜</span>
-        </div>
-        <div class="lb-list">
-           <div v-for="(item, idx) in currentLeaderboard" :key="idx" class="lb-item">
-              <div class="lb-rank" :class="'rank-'+(idx+1)">{{ idx+1 }}</div>
-              <div class="lb-name">{{ item.username }}</div>
-              <div class="lb-score">{{ item.totalAmount }}</div>
-           </div>
-           <div v-if="currentLeaderboard.length===0" class="lb-empty">暂无数据</div>
-        </div>
-      </div>
+            <div class="leaderboard-section">
+                <div class="lb-tabs">
+                    <span :class="{active: lbTab==='online'}" @click="lbTab='online'">在线榜</span>
+                    <span :class="{active: lbTab==='day'}" @click="lbTab='day'">日榜</span>
+                    <span :class="{active: lbTab==='week'}" @click="lbTab='week'">周榜</span>
+                    <span :class="{active: lbTab==='month'}" @click="lbTab='month'">月榜</span>
+                </div>
+                <div class="lb-list">
+                     <div v-for="(item, idx) in currentLeaderboard" :key="idx" class="lb-item">
+                            <div class="lb-rank" :class="'rank-'+(idx+1)">{{ idx+1 }}</div>
+                            <img class="lb-avatar" :src="item.avatarUrl || '/assets/avatar.jpg'" alt="avatar" />
+                            <div class="lb-name">{{ item.username }}</div>
+                            <div class="lb-score">{{ item.totalAmount }}</div>
+                     </div>
+                     <div v-if="currentLeaderboard.length===0" class="lb-empty">暂无数据</div>
+                </div>
+            </div>
 
       <LiveChat
         ref="liveChat"
@@ -124,8 +125,10 @@ export default {
         { id: 8, name: "大航海", price: 1980, img: "⚓", isSC: true }, // 模拟大额
       ],
 
-      messages: [],
+    messages: [],
       nextMessageId: 1,
+    // 页面卸载标记（用于区分刷新/关闭与路由离开）
+    isPageUnloading: false,
 
       // 排行榜
       lbTab: 'online',
@@ -147,15 +150,82 @@ export default {
       
       await this.loadCurrentUser();
       await this.loadRoomInfo();
+      // 观众界面仅展示实时弹幕，不恢复历史，也不从 sessionStorage 恢复
+      // 如果需要查看历史仅在主播端或管理端启用
       await this.initWebSocket();
       this.fetchLeaderboard();
   },
+  mounted() {
+      // 监听页面将要卸载（刷新/关闭）事件，标记为页面卸载（refresh/close）
+      this._beforeUnloadHandler = () => {
+          this.isPageUnloading = true;
+      };
+      window.addEventListener('beforeunload', this._beforeUnloadHandler);
+  },
+  beforeRouteLeave(to, from, next) {
+      try {
+          const inRoomKey = `vlive:room:${this.roomId}:inRoom`;
+          const msgKey = `vlive:room:${this.roomId}:messages`;
+          if (!this.isPageUnloading) {
+              sessionStorage.removeItem(msgKey);
+              sessionStorage.removeItem(inRoomKey);
+          }
+      } catch (e) { }
+      next();
+  },
   beforeUnmount() {
+      // disconnect websocket
       if (this.stompClient) {
           this.stompClient.disconnect();
       }
+      // 区分刷新/关闭与路由离开：如果不是页面卸载（即路由离开），清除本房间 sessionStorage 的消息和 inRoom 标记
+      try {
+          const inRoomKey = `vlive:room:${this.roomId}:inRoom`;
+          const msgKey = `vlive:room:${this.roomId}:messages`;
+          if (!this.isPageUnloading) {
+              // 正常路由离开 -> 清理
+              sessionStorage.removeItem(msgKey);
+              sessionStorage.removeItem(inRoomKey);
+          } else {
+              // 页面刷新/关闭 -> 保留 sessionStorage（刷新时会恢复），但如果是关闭标签页，sessionStorage 会随标签清空
+          }
+      } catch (e) {
+          console.warn('storage操作失败', e);
+      }
+
+      // 移除 beforeunload 监听器
+      if (this._beforeUnloadHandler) {
+          window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+          this._beforeUnloadHandler = null;
+      }
   },
   methods: {
+    restoreMessagesFromStorage() {
+        try {
+            const roomKey = this.$route.query.roomId;
+            const inRoomKey = `vlive:room:${roomKey}:inRoom`;
+            const key = `vlive:room:${roomKey}:messages`;
+
+            const wasInRoom = sessionStorage.getItem(inRoomKey);
+            if (wasInRoom) {
+                // 说明是刷新 -> 恢复消息
+                const raw = sessionStorage.getItem(key);
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr) && arr.length > 0) {
+                        this.messages = arr;
+                    }
+                }
+            } else {
+                // 不是刷新（新的进入） -> 确保清空之前的消息并设置 inRoom 标记
+                sessionStorage.removeItem(key);
+                sessionStorage.setItem(inRoomKey, '1');
+                this.messages = [];
+            }
+        } catch (e) {
+            console.warn('恢复消息失败', e);
+        }
+    },
     async loadCurrentUser() {
         const uid = getCurrentUserId();
         if (uid) {
@@ -250,6 +320,30 @@ export default {
                     this.handleIncomingMessage(body);
                 });
 
+                // 订阅房间控制消息（例如：房主结束房间，通知客户端清理在线榜和弹幕）
+                this.stompClient.subscribe(`/topic/room-control/${this.roomId}`, (message) => {
+                    let body = null;
+                    try { body = JSON.parse(message.body); } catch (e) { body = message.body; }
+                    if (body && (body.action === 'ROOM_ENDED' || body.action === 'ROOM_STARTED')) {
+                        // 无论是结束还是新开，观众端需要清空本场实时在线榜与本地弹幕
+                        this.messages = [];
+                        this.leaderboardData = [];
+                        try {
+                            sessionStorage.removeItem(`vlive:room:${this.roomId}:messages`);
+                            sessionStorage.removeItem(`vlive:room:${this.roomId}:inRoom`);
+                        } catch (e) { }
+                        // 强制切换到在线榜并立即向后端拉取最新在线榜（通常应为空）以确保数据刷新
+                        try {
+                            this.lbTab = 'online';
+                            this.fetchLeaderboard('ONLINE');
+                        } catch (e) { }
+                        try {
+                            if (body.action === 'ROOM_ENDED') ElMessage.info('主播已结束直播，聊天与在线榜已清空');
+                            else ElMessage.info('主播已开启新场次，在线榜与聊天已刷新');
+                        } catch (e) { }
+                    }
+                });
+
                 // 订阅错误消息
                 if (this.currentUser.id) {
                     this.stompClient.subscribe(`/topic/errors/${this.currentUser.id}`, (message) => {
@@ -257,8 +351,10 @@ export default {
                     });
                 }
                 
-                // 连接成功后获取历史弹幕
-                this.fetchHistory();
+                // 连接成功后获取历史弹幕：仅在当前用户是主播时才获取历史（观众只看实时弹幕）
+                if (this.currentUser && this.host && this.currentUser.id === this.host.id) {
+                    this.fetchHistory();
+                }
             }, (error) => {
                 console.error("STOMP error", error);
                 this.isConnected = false;
@@ -268,23 +364,44 @@ export default {
         }
     },
     async fetchHistory() {
+        // 观众端不应获取历史弹幕，直接返回
+        if (!(this.currentUser && this.host && this.currentUser.id === this.host.id)) return;
         try {
             const res = await fetch(`/api/v1/live/rooms/${this.roomId}/danmaku/history`);
             const json = await res.json();
             if (json.code === 0 || json.code === 200) {
                 const list = json.data || [];
+                // 如果本地已有存储的消息（例如refresh场景），则不要覆盖它
+                const storageKey = `vlive:room:${this.roomId}:messages`;
+                const stored = (() => {
+                    try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null'); } catch (e) { return null }
+                })();
+                if (Array.isArray(stored) && stored.length > 0) {
+                    // 仅主播端会使用 sessionStorage 恢复历史（观众不恢复）
+                    this.messages = stored;
+                    return;
+                }
+
                 list.forEach(msg => {
                     // 适配历史消息格式
                     const localMsg = {
                         id: msg.danmakuId || this.nextMessageId++,
                         username: msg.senderName || "匿名",
                         content: msg.content,
+                        avatar: msg.senderAvatar || msg.senderAvatarUrl || "",
                         type: msg.type === 'CHAT' ? 'normal' : (msg.type === 'GIFT' ? 'gift' : 'sc'),
                         color: msg.color || '#fff',
                         fanLevel: msg.fanLevel || 0,
                         isAnchor: (this.host.id && msg.senderId == this.host.id) // 注意：历史消息可能没有 senderId，需要后端返回
                     };
                     this.messages.push(localMsg);
+                    // 仅在主播端持久化历史消息到 sessionStorage（观众不持久化）
+                    try {
+                        if (this.currentUser && this.host && this.currentUser.id === this.host.id) {
+                            const key = `vlive:room:${this.roomId}:messages`;
+                            sessionStorage.setItem(key, JSON.stringify(this.messages));
+                        }
+                    } catch (e) { }
                 });
             }
         } catch (e) {
@@ -295,6 +412,7 @@ export default {
         const localMsg = {
             id: msg.id || this.nextMessageId++,
             username: msg.senderName || msg.user,
+            avatar: msg.senderAvatar || msg.avatar || '',
             content: msg.content,
             type: msg.type === 'CHAT' ? 'normal' : (msg.type === 'GIFT' ? 'gift' : 'sc'),
             color: msg.color || (msg.type === 'GIFT' ? '#ffd166' : '#fff'),
@@ -307,6 +425,14 @@ export default {
         }
         
         this.messages.push(localMsg);
+
+        // 仅主播端将消息持久化到 sessionStorage；观众只显示实时消息
+        try {
+            if (this.currentUser && this.host && this.currentUser.id === this.host.id) {
+                const key = `vlive:room:${this.roomId}:messages`;
+                sessionStorage.setItem(key, JSON.stringify(this.messages));
+            }
+        } catch (e) { }
 
         if (this.$refs.player && this.$refs.player.shoot) {
             if (msg.type === 'CHAT' || msg.type === 'SC') {
@@ -327,21 +453,26 @@ export default {
              }
         }
     },
-    async fetchLeaderboard() {
+    async fetchLeaderboard(forcedType) {
         try {
             const token = getAuthToken();
             const headers = token ? { "Authorization": "Bearer " + token } : {};
             
             let type = 'SESSION';
-            if (this.lbTab === 'day') type = 'DAY';
-            else if (this.lbTab === 'week') type = 'WEEK';
-            else if (this.lbTab === 'month') type = 'MONTH';
-            else if (this.lbTab === 'online') type = 'ONLINE';
+            if (forcedType) {
+                type = forcedType;
+            } else {
+                if (this.lbTab === 'day') type = 'DAY';
+                else if (this.lbTab === 'week') type = 'WEEK';
+                else if (this.lbTab === 'month') type = 'MONTH';
+                else if (this.lbTab === 'online') type = 'ONLINE';
+            }
 
             const res = await fetch(`/api/v1/live/rooms/${this.roomId}/stats/leaderboard?type=${type}`, { headers });
             if (res.ok) {
                 const json = await res.json();
                 if (json.code === 0 || json.code === 200) {
+                    // 确保 avatarUrl 字段存在（后端应返回），前端可直接使用
                     this.leaderboardData = json.data || [];
                 }
             }
@@ -617,6 +748,13 @@ export default {
     align-items: center;
     margin-bottom: 8px;
     font-size: 13px;
+}
+.lb-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 8px;
 }
 .lb-rank {
     width: 20px;

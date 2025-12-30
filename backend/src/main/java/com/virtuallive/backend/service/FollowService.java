@@ -21,6 +21,7 @@ public class FollowService {
     
     private final UserFollowRepository userFollowRepository;
     private final UserRepository userRepository;
+    private final com.virtuallive.backend.live.service.FanBadgeService fanBadgeService;
     
     /**
      * 关注/取消关注
@@ -50,6 +51,12 @@ public class FollowService {
                     .following(following)
                     .build();
             userFollowRepository.save(follow);
+            // 关注立即触发粉丝牌更新（如果用户之前已有打赏，会根据历史记录计算等级）
+            try {
+                fanBadgeService.updateFanBadgeLevel(followingId, followerId);
+            } catch (Exception e) {
+                log.warn("更新粉丝牌失败", e);
+            }
             log.info("用户 {} 关注用户 {}", followerId, followingId);
             return true;
         }

@@ -26,6 +26,7 @@ public class DanmakuController {
     @Autowired private SimpMessagingTemplate messagingTemplate;
     @Autowired private IUserService userService;
     @Autowired private InteractionServiceImpl interactionService;
+    @Autowired private com.virtuallive.backend.service.FollowService followService;
 
     @Autowired private LiveRoomRepository liveRoomRepository;
     @Autowired private FanBadgeService fanBadgeService;
@@ -64,14 +65,41 @@ public class DanmakuController {
             // 3. 填充用户基础信息
             message.setSenderId(user.getUserId());
             message.setSenderName(user.getUsername());
-            message.setSenderAvatar(user.getAvatarUrl());
 
-            // 填充粉丝等级
+            // 规范化 avatar URL：保证发送到前端的是可直接访问的绝对 URL
+            String avatar = user.getAvatarUrl();
+            try {
+                if (avatar == null || avatar.isBlank()) {
+                    avatar = null; // 使用前端回退处理
+                } else if (!avatar.startsWith("http://") && !avatar.startsWith("https://")) {
+                    // 相对路径或缺少协议，回退为后端可访问地址（开发环境默认 http://localhost:8081）
+                    if (avatar.startsWith("/")) {
+                        avatar = "http://localhost:8081" + avatar;
+                    } else {
+                        avatar = "http://localhost:8081/" + avatar;
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("处理 avatar URL 失败，使用回退：{}", ex.getMessage());
+                avatar = null;
+            }
+            message.setSenderAvatar(avatar);
+
+            // 填充粉丝等级（仅在该用户已关注主播时显示）
             try {
                 Integer vtuberId = findVtuberIdByRoomId(message.getRoomId());
                 if (vtuberId != null) {
-                    Integer level = fanBadgeService.getFanBadgeLevel(vtuberId, user.getUserId().intValue());
-                    message.setFanLevel(level);
+                    boolean isFollower = false;
+                    try {
+                        isFollower = followService.isFollowing(user.getUserId().intValue(), vtuberId);
+                    } catch (Exception ex) {
+                        // 忽略判断错误，默认不显示
+                    }
+                    if (isFollower) {
+                        Integer level = fanBadgeService.getFanBadgeLevel(vtuberId, user.getUserId().intValue());
+                        if (level == null || level == 0) level = 1; // 至少 Lv1
+                        message.setFanLevel(level);
+                    }
                 }
             } catch (Exception e) {
                 log.warn("获取粉丝等级失败", e);

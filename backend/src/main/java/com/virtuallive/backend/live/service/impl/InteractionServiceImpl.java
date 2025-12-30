@@ -136,6 +136,13 @@ public class InteractionServiceImpl implements InteractionService {
         donation.setTotalValue(totalCost);
         giftDonationRepository.save(donation);
 
+        // 立即 flush，使后续使用 JdbcTemplate 的查询（如粉丝等级计算）能看到刚插入的记录
+        try {
+            giftDonationRepository.flush();
+        } catch (Exception ex) {
+            log.warn("giftDonationRepository.flush() 失败：{}", ex.getMessage());
+        }
+
         // 更新场次收益
         if (sessionId != null && sessionId != 0) {
             liveSessionRepository.findById(sessionId).ifPresent(session -> {

@@ -216,16 +216,18 @@ export default {
           this.backendVideos = res.content
             // .filter(v => v.id > 15) // 移除ID过滤，允许显示所有后端视频
             .filter(v => !v.tags || !v.tags.includes('__PRIVATE__')) // 过滤掉私密视频
-            .map(v => ({
-              id: v.id,
-              title: v.title,
-              creator: v.authorName || '未知用户',
-              duration: mapDuration(v.duration),
-              views: v.views ? `${v.views}次观看` : '0次观看',
-              tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
-              thumbnail: resolveUrl(v.coverImageUrl) || 'https://picsum.photos/320/180', // 默认封面
-              videoSrc: resolveUrl(v.videoUrl)
-            }))
+              .map(v => ({
+                id: v.id,
+                title: v.title,
+                // 保留作者名用于展示，同时记录作者ID以便精确匹配关注关系
+                creator: v.authorName || '未知用户',
+                creatorId: v.authorId || v.author_id || null,
+                duration: mapDuration(v.duration),
+                views: v.views ? `${v.views}次观看` : '0次观看',
+                tags: v.tags ? String(v.tags).split(',').map(t => t.trim()).filter(Boolean) : [],
+                thumbnail: resolveUrl(v.coverImageUrl) || 'https://picsum.photos/320/180', // 默认封面
+                videoSrc: resolveUrl(v.videoUrl)
+              }))
         }
       } catch (err) {
         console.warn('加载后端视频失败', err)
@@ -276,9 +278,15 @@ export default {
       const uid = getCurrentUserId()
       if (!uid) return
       try {
-        const followingData = await getFollowing(uid, 0, 10)
+        const followingData = await getFollowing(uid, 0, 100)
         if (followingData && followingData.content) {
-          this.followingUsers = followingData.content.map(f => f.username)
+          // followingData.content 中每项通常是 UserFollow 对象，目标用户在 item.following
+          this.followingUsers = followingData.content.map(item => {
+            const target = item.following || item
+            return (target.userId || target.id || null)
+          }).filter(Boolean)
+        } else {
+          this.followingUsers = []
         }
       } catch (err) {
         console.warn('加载关注列表失败', err)
@@ -388,10 +396,14 @@ export default {
         // 推荐：显示所有视频
         videos = this.allVideos
       } else if (this.activeFilter === 'following') {
-        // 关注：只显示关注用户的视频
-        videos = this.allVideos.filter(video =>
-          this.followingUsers.includes(video.creator)
-        )
+        // 关注：优先按 creatorId 与关注列表中的用户 ID 匹配；回退到作者名匹配以兼容旧数据
+        const followingIdSet = new Set((this.followingUsers || []).map(id => String(id)))
+        videos = this.allVideos.filter(video => {
+          const vidCreatorId = video.creatorId != null ? String(video.creatorId) : null
+          if (vidCreatorId && followingIdSet.has(vidCreatorId)) return true
+          // 兼容：若没有 creatorId，则尝试按作者名匹配
+          return this.followingUsers.includes(video.creator)
+        })
       } else {
         // 分类筛选：标签与分类一致（tags 里直接存中文分类名）
         videos = this.allVideos.filter(video =>

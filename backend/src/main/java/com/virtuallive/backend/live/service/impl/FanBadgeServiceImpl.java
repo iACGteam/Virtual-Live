@@ -79,38 +79,13 @@ public class FanBadgeServiceImpl implements FanBadgeService {
      * Lv.29：total ≥ 900,000
      * Lv.30：total ≥ 1,000,000
      */
-    private static final double[] LEVEL_THRESHOLDS = new double[] {
-            1,        // Lv.1：≥ 1 元
-            3,        // Lv.2：≥ 3 元
-            5,        // Lv.3：≥ 5 元
-            10,       // Lv.4：≥ 10 元
-            30,       // Lv.5：≥ 30 元
-            100,      // Lv.6：≥ 100 元
-            300,      // Lv.7：≥ 300 元
-            500,      // Lv.8：≥ 500 元
-            1000,     // Lv.9：≥ 1000 元
-            2000,     // Lv.10：≥ 2000 元
-            3000,     // Lv.11：≥ 3000 元
-            5000,     // Lv.12：≥ 5000 元
-            8000,     // Lv.13：≥ 8000 元
-            10000,    // Lv.14：≥ 10000 元
-            15000,    // Lv.15：≥ 15000 元
-            20000,    // Lv.16：≥ 20000 元
-            30000,    // Lv.17：≥ 30000 元
-            50000,    // Lv.18：≥ 50000 元
-            80000,    // Lv.19：≥ 80000 元
-            100000,   // Lv.20：≥ 100000 元
-            150000,   // Lv.21：≥ 150000 元
-            200000,   // Lv.22：≥ 200000 元
-            300000,   // Lv.23：≥ 300000 元
-            400000,   // Lv.24：≥ 400000 元
-            500000,   // Lv.25：≥ 500000 元
-            600000,   // Lv.26：≥ 600000 元
-            700000,   // Lv.27：≥ 700000 元
-            800000,   // Lv.28：≥ 800000 元
-            900000,   // Lv.29：≥ 900000 元
-            1000000   // Lv.30：≥ 1000000 元
-    };
+        // 将等级拓展到 Lv1 ~ Lv40，使用阶梯型门槛（单位：元）
+        private static final double[] LEVEL_THRESHOLDS = new double[] {
+            1, 3, 5, 10, 30, 100, 300, 500, 1000, 2000,
+            3000, 5000, 8000, 10000, 15000, 20000, 30000, 50000, 80000, 100000,
+            150000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000,
+            1250000, 1500000, 2000000, 2500000, 3000000, 4000000, 5000000, 7000000, 10000000, 15000000
+        };
 
     @Override
     public void updateFanBadgeLevel(Integer vtuberId, Integer fanId) {
@@ -119,14 +94,7 @@ public class FanBadgeServiceImpl implements FanBadgeService {
             return;
         }
 
-        // 0. 必须“已经关注”了该主播，才会有粉丝牌
-        boolean followed = isFollowed(vtuberId, fanId);
-        if (!followed) {
-            // 如果你想“打赏时自动关注”，可以在这里插入一条 user_follows 记录
-            // 这里为了不改变现有逻辑，先简单返回
-            log.debug("粉丝未关注主播，不更新粉丝牌：vtuberId={}, fanId={}", vtuberId, fanId);
-            return;
-        }
+        // 注意：即使用户当前未关注主播，也需要记录其对该主播的打赏累计（用于后续关注后赋予等级）
 
         // 1. 计算粉丝对该主播的累计打赏金额（单位：元）
         BigDecimal totalAmount = getTotalDonationAmount(vtuberId, fanId);
@@ -145,20 +113,25 @@ public class FanBadgeServiceImpl implements FanBadgeService {
         // 需要保证 fan_badges 上有唯一索引 (vtuber_id, fan_id)：
         // ALTER TABLE fan_badges
         // ADD UNIQUE KEY uniq_vtuber_fan (vtuber_id, fan_id);
-        String upsertSql = """
-                INSERT INTO fan_badges (vtuber_id, fan_id, badge_level, badge_name)
-                VALUES (?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    badge_level = VALUES(badge_level),
-                    badge_name  = VALUES(badge_name)
-                """;
-
         String badgeName = "Lv." + level + " 粉丝";
 
-        jdbcTemplate.update(upsertSql, vtuberId, fanId, level, badgeName);
+        // 明确使用存在性检查后再执行 INSERT 或 UPDATE，避免依赖数据库必须存在的唯一索引
+        try {
+            String existsSql = "SELECT COUNT(*) FROM fan_badges WHERE vtuber_id = ? AND fan_id = ?";
+            Integer cnt = jdbcTemplate.queryForObject(existsSql, Integer.class, vtuberId, fanId);
+            if (cnt != null && cnt > 0) {
+                String updateSql = "UPDATE fan_badges SET badge_level = ?, badge_name = ?, acquired_date = CURRENT_TIMESTAMP WHERE vtuber_id = ? AND fan_id = ?";
+                jdbcTemplate.update(updateSql, level, badgeName, vtuberId, fanId);
+            } else {
+                String insertSql = "INSERT INTO fan_badges (vtuber_id, fan_id, badge_level, badge_name, acquired_date) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
+                jdbcTemplate.update(insertSql, vtuberId, fanId, level, badgeName);
+            }
+        } catch (Exception e) {
+            log.error("写入 fan_badges 失败", e);
+        }
 
-        log.info("更新粉丝牌成功：vtuberId={}, fanId={}, totalAmount={}, level={}",
-                vtuberId, fanId, totalAmount, level);
+        log.info("更新粉丝牌成功（记录等级信息）：vtuberId={}, fanId={}, totalAmount={}, level={}",
+            vtuberId, fanId, totalAmount, level);
     }
 
     /**

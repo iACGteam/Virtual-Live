@@ -22,8 +22,13 @@
     <!-- 消息列表 -->
     <div class="messages" ref="messagesList">
       <div v-for="msg in messages" :key="msg.id" class="msg" :class="msg.type">
-        <div class="avatar" :style="{ background: avatarColor(msg.username) }">
-          {{ avatarInitial(msg.username) }}
+        <div class="avatar">
+          <template v-if="msg.avatar">
+            <img :src="msg.avatar" class="avatar-img" alt="avatar" @error="onAvatarError" />
+          </template>
+          <template v-else>
+            <div :style="{ background: avatarColor(msg.username) }" class="avatar-fallback">{{ avatarInitial(msg.username) }}</div>
+          </template>
         </div>
 
         <div class="bubble" :style="bubbleStyle(msg)">
@@ -286,6 +291,13 @@ export default {
         this.showLeaderboard = false;
       }
     },
+    onAvatarError(e) {
+      try {
+        e.target.src = '/assets/avatar.jpg';
+      } catch (err) {
+        console.warn('avatar load failed and fallback failed', err);
+      }
+    },
   },
 };
 </script>
@@ -343,6 +355,7 @@ export default {
 .msg {
   display: flex;
   gap: 8px;
+  align-items: center;
 }
 
 /* SC 勾选按钮区域 */
@@ -392,6 +405,32 @@ export default {
   font-weight: 600;
   color: #ddd;
   letter-spacing: 0.4px;
+}
+
+/* Avatar */
+.avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.avatar-fallback {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
 }
 
 .room-title .online {

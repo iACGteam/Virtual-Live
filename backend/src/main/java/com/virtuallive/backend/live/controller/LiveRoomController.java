@@ -36,6 +36,7 @@ public class LiveRoomController {
 
     @Autowired private LiveRoomService liveRoomService;
     @Autowired private IUserService userService;
+    @Autowired private com.virtuallive.backend.live.service.LiveStreamService liveStreamService;
     @Autowired private com.virtuallive.backend.live.repository.DanmakuRepository danmakuRepository;
     @Autowired private com.virtuallive.backend.live.service.FanBadgeService fanBadgeService;
 
@@ -72,7 +73,7 @@ public class LiveRoomController {
                 if (u != null) {
                     msg.setSenderId(u.getUserId());
                     msg.setSenderName(u.getUsername());
-                    msg.setSenderAvatar(u.getAvatarUrl());
+                    msg.setSenderAvatar(normalizeAvatar(u.getAvatarUrl()));
                     // 填充粉丝等级
                     try {
                         Optional<LiveRoom> roomOpt = liveRoomRepository.findById(roomId);
@@ -124,7 +125,7 @@ public class LiveRoomController {
         UserInfoDTO user = userService.getUserById(room.getVtuberId());
         if (user != null) {
             dto.setCreatorName(user.getUsername());
-            dto.setCreatorAvatar(user.getAvatarUrl());
+            dto.setCreatorAvatar(normalizeAvatar(user.getAvatarUrl()));
         }
 
         if (dto.isLive()) {
@@ -161,7 +162,7 @@ public class LiveRoomController {
             UserInfoDTO user = userService.getUserById(room.getVtuberId());
             if (user != null) {
                 dto.setCreatorName(user.getUsername());
-                dto.setCreatorAvatar(user.getAvatarUrl());
+                dto.setCreatorAvatar(normalizeAvatar(user.getAvatarUrl()));
             }
 
             // Viewer count
@@ -262,8 +263,25 @@ public class LiveRoomController {
         if (isLive == null) return R.error(400, "Missing isLive");
         
         return liveRoomRepository.findById(roomId).map(room -> {
+            Boolean prev = room.getIsLive() != null && room.getIsLive();
             room.setIsLive(isLive);
             liveRoomRepository.save(room);
+            // 如果状态由 true -> false 或 false -> true，由管理端触发 start/stop
+            try {
+                if (isLive && !prev) {
+                    // 主播通过管理端开始直播
+                    if (room.getStreamKey() != null) {
+                        liveStreamService.startLive(room.getStreamKey());
+                    }
+                } else if (!isLive && prev) {
+                    // 主播通过管理端结束直播
+                    if (room.getStreamKey() != null) {
+                        liveStreamService.stopLive(room.getStreamKey());
+                    }
+                }
+            } catch (Exception e) {
+                log.error("调用直播流服务失败", e);
+            }
             return R.ok("Status updated");
         }).orElse(R.error(404, "直播间不存在"));
     }
@@ -384,5 +402,18 @@ public class LiveRoomController {
         dto.setDescription(room.getDescription());
         
         return R.ok(dto);
+    }
+
+    // 将可能的相对 avatar 路径规范化为可访问的绝对 URL（开发环境回退到 http://localhost:8081）
+    private String normalizeAvatar(String avatar) {
+        try {
+            if (avatar == null || avatar.isBlank()) return null;
+            if (avatar.startsWith("http://") || avatar.startsWith("https://")) return avatar;
+            if (avatar.startsWith("/")) return "http://localhost:8081" + avatar;
+            return "http://localhost:8081/" + avatar;
+        } catch (Exception e) {
+            log.warn("normalizeAvatar failed: {}", e.getMessage());
+            return null;
+        }
     }
 }

@@ -13,6 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import java.util.Collections;
 
 @Slf4j
 @Service
@@ -22,6 +25,10 @@ public class LiveStreamServiceImpl implements LiveStreamService {
     private LiveRoomRepository liveRoomRepository;
     @Autowired
     private LiveSessionRepository liveSessionRepository;
+    @Autowired
+    private com.virtuallive.backend.live.repository.DanmakuRepository danmakuRepository;
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Transactional
@@ -45,6 +52,14 @@ public class LiveStreamServiceImpl implements LiveStreamService {
         session.setViewerCount(0);
         liveSessionRepository.save(session);
 
+        // 广播房间开始控制消息，通知前端清理（确保旧数据不会残留于观众端）
+        try {
+            String dest = "/topic/room-control/" + room.getRoomId();
+            messagingTemplate.convertAndSend(dest, Collections.singletonMap("action", "ROOM_STARTED"));
+        } catch (Exception ex) {
+            log.warn("发送房间开始通知失败", ex);
+        }
+
         log.info("直播开始：房间 [{}]", room.getRoomTitle());
         return true;
     }
@@ -65,6 +80,23 @@ public class LiveStreamServiceImpl implements LiveStreamService {
                 LiveSession session = sessionOpt.get();
                 session.setEndTime(LocalDateTime.now());
                 liveSessionRepository.save(session);
+                // 清除该场次的弹幕数据（物理删除），确保下一次进入不会看到本场历史弹幕
+                try {
+                    Integer sid = session.getSessionId();
+                    if (sid != null) {
+                        danmakuRepository.deleteBySessionId(sid);
+                    }
+                } catch (Exception ex) {
+                    log.error("清除弹幕失败", ex);
+                }
+
+                // 广播房间结束控制消息，通知前端清空在线榜与弹幕显示
+                try {
+                    String dest = "/topic/room-control/" + room.getRoomId();
+                    messagingTemplate.convertAndSend(dest, Collections.singletonMap("action", "ROOM_ENDED"));
+                } catch (Exception ex) {
+                    log.warn("发送房间结束通知失败", ex);
+                }
             }
             log.info("直播结束：房间 [{}]", room.getRoomTitle());
         }
