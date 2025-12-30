@@ -325,30 +325,24 @@ export default {
       }
     },
     async toggleLike(card) {
-      // 乐观更新
-      const originalLiked = card.liked;
-      const originalLikes = card.likes;
-      
-      card.liked = !card.liked;
-      card.likes += card.liked ? 1 : -1;
+      // 高亮提示操作
       card.highlight = true;
       setTimeout(() => (card.highlight = false), 400);
-      
+
       try {
         const userId = getCurrentUserId();
         if (!userId) {
           this.showToast('请先登录');
-          // 回滚
-          card.liked = originalLiked;
-          card.likes = originalLikes;
           return;
         }
-        await toggleVideoLike(card.id, userId);
+
+        const res = await toggleVideoLike(card.id, userId);
+        if (res) {
+          if (typeof res.isLiked === 'boolean') card.liked = res.isLiked;
+          if (typeof res.likeCount === 'number') card.likes = res.likeCount;
+        }
       } catch (err) {
         console.error('点赞失败', err);
-        // 回滚
-        card.liked = originalLiked;
-        card.likes = originalLikes;
       }
     },
     startReply(cardId, user, commentId = null) {

@@ -118,9 +118,8 @@
 
       <section class="video-grid">
         <article v-for="video in filteredVideos" :key="video.id" class="video-card" @click="goVideo(video)">
-          <div class="thumbnail">
+            <div class="thumbnail">
             <img :src="video.thumbnail" :alt="`${video.title} 封面`">
-            <span class="duration">{{ video.duration }}</span>
           </div>
           <div class="video-meta">
             <h3>{{ video.title }}</h3>

@@ -28,7 +28,8 @@ public class UserService {
         long followingCount = followService.getFollowingCount(userId);
         long circlesCount = circleService.getUserJoinedCircles(userId, 0, 1).getTotalElements();
         // 修改为统计用户点赞的数量（我喜欢的），而不是用户收到的点赞数
-        long likesCount = likeRepository.countByUserAndContentType(user, com.virtuallive.backend.model.entity.Like.ContentType.post);
+        // 统计用户发布的视频被点赞的总数（用户收到的获赞），而不是用户自己点赞的数量
+        long likesCount = likeRepository.countVideoLikesByAuthorId(userId);
         
         return UserProfileDto.builder()
                 .id(user.getUserId())

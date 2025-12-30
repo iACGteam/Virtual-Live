@@ -32,9 +32,8 @@
       <div class="danmu-send-bar">
 
         <div v-if="videoInfo" class="action-buttons">
-          <button class="act-btn" @click="toggleLike(videoInfo)">👍 {{ videoInfo.likes ? videoInfo.likes : ''
-            }}</button>
-        </div>
+            <button class="act-btn" @click="toggleLike(videoInfo)">❤️ {{ videoInfo.likes ? videoInfo.likes : '' }}</button>
+          </div>
 
         <!-- 管理按钮 -->
         <div class="danmu-settings-btn" @click="toggleDanmuSettings">
@@ -445,14 +444,12 @@ const toggleLike = async (item) => {
   }
 
   try {
-    await toggleVideoLike(item.id, uid)
-    
-    if (!item.liked) {
-      item.likes++
-      item.liked = true
-    } else {
-      item.likes--
-      item.liked = false
+    // 使用后端返回的状态与计数，避免前端推断错误
+    const res = await toggleVideoLike(item.id, uid)
+    if (res) {
+      // res 应为 { isLiked: boolean, likeCount: number }
+      if (typeof res.isLiked === 'boolean') item.liked = res.isLiked
+      if (typeof res.likeCount === 'number') item.likes = res.likeCount
     }
   } catch (e) {
     console.error('点赞操作失败', e)

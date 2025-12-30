@@ -308,7 +308,6 @@
             @click="handleVideoClick(video)"
           >
             <div class="thumbnail" :style="getThumbnailStyle(video)">
-              <span class="duration">{{ video.duration }}</span>
             </div>
             <div class="video-meta">
               <h3>{{ video.title }}</h3>
@@ -331,7 +330,6 @@
             @click="handleVideoClick(video)"
           >
             <div class="thumbnail" :style="getThumbnailStyle(video)">
-              <span class="duration">{{ video.duration }}</span>
             </div>
             <div class="video-meta">
               <h3>{{ video.title }}</h3>

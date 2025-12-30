@@ -403,9 +403,6 @@
             <button class="batch-action-btn delete-btn" @click="handleBatchDelete">
               <span>删除</span>
             </button>
-            <button class="batch-action-btn permission-btn" @click="handleBatchPermission">
-              <span>权限设置</span>
-            </button>
           </div>
         </div>
 
@@ -421,7 +418,6 @@
             @click="handleVideoClick(video)"
           >
             <div class="thumbnail" :style="getThumbnailStyle(video)">
-              <span class="duration">{{ video.duration }}</span>
               <label
                 v-if="isBatchMode"
                 class="video-checkbox"
@@ -456,7 +452,6 @@
             @click="handleVideoClick(video)"
           >
             <div class="thumbnail" :style="getThumbnailStyle(video)">
-              <span class="duration">{{ video.duration }}</span>
               <label
                 v-if="isBatchMode"
                 class="video-checkbox"
@@ -493,7 +488,6 @@
                 @click="handleVideoClick(video)"
               >
                 <div class="thumbnail" :style="getThumbnailStyle(video)">
-                  <span class="duration">{{ video.duration }}</span>
                 </div>
                 <div class="video-meta">
                   <h3>{{ video.title }}</h3>
@@ -514,7 +508,6 @@
                 @click="handleVideoClick(video)"
               >
                 <div class="thumbnail" :style="getThumbnailStyle(video)">
-                  <span class="duration">{{ video.duration }}</span>
                 </div>
                 <div class="video-meta">
                   <h3>{{ video.title }}</h3>
@@ -535,7 +528,6 @@
                 @click="handleVideoClick(video)"
               >
                 <div class="thumbnail" :style="getThumbnailStyle(video)">
-                  <span class="duration">{{ video.duration }}</span>
                 </div>
                 <div class="video-meta">
                   <h3>{{ video.title }}</h3>
@@ -944,7 +936,7 @@ import {
   createRoleCard,
   updateRoleCard
 } from '@/utils/api'
-import { updateMockUserPassword } from '@/data/mockUsers'
+// 使用后端 API 更新密码；本地 mock 方法已弃用
 import { getDemoAsset } from '@/utils/demoDataMap'
 
 export default {
@@ -1734,13 +1726,13 @@ export default {
       this.editForm.password = ''
       this.editForm.confirmPassword = ''
     },
-    saveProfile() {
+    async saveProfile() {
       const trimmedName = this.editForm.name?.trim()
       const trimmedSignature = this.editForm.signature?.trim() ?? ''
       const password = this.editForm.password?.trim()
       const confirmPassword = this.editForm.confirmPassword?.trim()
 
-      // 验证密码
+      // 验证密码（若填写则必须通过校验）
       if (password || confirmPassword) {
         if (!password) {
           alert('请输入新密码')
@@ -1754,27 +1746,52 @@ export default {
           alert('两次输入的密码不一致')
           return
         }
-        // 更新密码
-        const currentUsername = getCurrentUser()
-        if (!currentUsername) {
+      }
+
+      // 准备要发送到后端的字段（只包含需要更新的字段）
+      const payload = {}
+      if (trimmedName) payload.name = trimmedName
+      if (trimmedSignature !== null) payload.signature = trimmedSignature
+      if (password) {
+        payload.password = password
+        payload.confirmPassword = confirmPassword
+      }
+
+      // 如果有要更新的内容，调用后端 API；否则仅关闭弹窗
+      if (Object.keys(payload).length > 0) {
+        const userId = getCurrentUserId()
+        if (!userId) {
           alert('无法获取当前用户信息，请重新登录')
           return
         }
-        const success = updateMockUserPassword(currentUsername, password)
-        if (success) {
-          alert('密码已更新')
-        } else {
-          alert('密码更新失败，请重试')
+
+        try {
+          const updatedProfile = await updateUserProfile(userId, payload)
+          // 更新本地显示（以后端返回为准）
+          if (updatedProfile) {
+            if (updatedProfile.username) {
+              this.user.name = updatedProfile.username
+              this.panel.name = updatedProfile.username
+            }
+            if (typeof updatedProfile.introduction === 'string') {
+              this.user.signature = updatedProfile.introduction
+            }
+            if (updatedProfile.avatarUrl) {
+              this.user.avatar = updatedProfile.avatarUrl
+              this.panel.avatar = updatedProfile.avatarUrl
+            }
+          }
+          alert('资料已更新')
+        } catch (err) {
+          console.error('更新资料失败', err)
+          alert('更新失败: ' + (err.message || '请重试'))
           return
         }
       }
 
-      if (trimmedName) {
-        this.user.name = trimmedName
-        this.panel.name = trimmedName
-      }
-      this.user.signature = trimmedSignature
-
+      // 清理并关闭
+      this.editForm.password = ''
+      this.editForm.confirmPassword = ''
       this.persistProfile()
       this.showEditModal = false
     },
@@ -1985,23 +2002,7 @@ export default {
         }
       }
     },
-    handleBatchPermission() {
-      if (this.selectedItems.length === 0) {
-        return
-      }
-      if (this.activeTab === 'works') {
-        const count = this.selectedItems.length
-        // 将选中的作品设为私密
-        this.userWorks.forEach(work => {
-          if (this.selectedItems.includes(work.id)) {
-            work.isPrivate = true
-          }
-        })
-        this.saveUserWorks()
-        this.selectedItems = []
-        alert(`已将 ${count} 个作品设为私密`)
-      }
-    },
+    // 权限设置功能已移除
     async toggleFollowUser() {
       const myId = getCurrentUserId()
       if (!myId) {
